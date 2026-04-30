@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jaifore — Services</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+  
+  
+  <link rel="stylesheet" href="styles/services.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════
+       NAVIGATION
+  ════════════════════════════════════════ -->
+  <nav class="nav" id="nav">
+    <a href="jaifore.html" class="nav-logo">Jai<span>fore</span></a>
+
+    <ul class="nav-links">
+      <li><a href="jaifore.html">Home</a></li>
+      <li><a href="services.html" class="active">Services</a></li>
+      <li><a href="#portfolio">Portfolio</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+
+    <a href="#contact" class="nav-cta">Get started</a>
+
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <!-- Mobile menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="jaifore.html">Home</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="#portfolio">Portfolio</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       HERO
+  ════════════════════════════════════════ -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-eyebrow">
+        <span class="eyebrow-dot"></span>
+        Rooted &amp; Rising — What we offer
+      </div>
+
+      <h1 class="hero-title">
+        One studio.<br>
+        <em>Three crafts.</em><br>
+        <span class="stroke">Limitless.</span>
+      </h1>
+
+      <p class="hero-sub">
+        From wearing your identity to building it online — Jaifore brings
+        precision to print, creativity to design, and depth to the web.
+      </p>
+
+      <div class="hero-actions">
+        <a href="#services" class="btn-primary">View our services</a>
+        <a href="#contact" class="btn-outline">Talk to us</a>
+      </div>
+    </div>
+
+    <!-- Rotating badge -->
+    <svg class="hero-badge" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path id="circlePath" d="M90,90 m-72,0 a72,72 0 1,1 144,0 a72,72 0 1,1 -144,0" fill="none"/>
+      <text>
+        <textPath href="#circlePath" startOffset="0%">
+          ANCHORED IN PURPOSE · LIMITLESS IN REACH ·&nbsp;
+        </textPath>
+      </text>
+      <circle cx="90" cy="90" r="8" class="badge-dot"/>
+    </svg>
+
+    <div class="hero-bg-text" aria-hidden="true">JAIFORE</div>
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       SERVICES SECTION
+  ════════════════════════════════════════ -->
+  <section class="services" id="services">
+    <div class="services-header">
+      <div class="section-label">What we do</div>
+      <h2 class="section-title">Pick your craft.<br>We'll perfect it.</h2>
+      <p class="section-sub">
+        Three distinct services, each executed with the same Jaifore standard —
+        rooted in quality, driven by vision.
+      </p>
+    </div>
+
+    <!-- Plan toggle -->
+    <div class="toggle-wrap" id="planToggle" role="tablist" aria-label="Pricing plan">
+      <button class="toggle-btn active" data-plan="project" role="tab" aria-selected="true">Per project</button>
+      <button class="toggle-btn" data-plan="retainer" role="tab" aria-selected="false">Retainer</button>
+      <button class="toggle-btn" data-plan="bundle" role="tab" aria-selected="false">Bundle deal</button>
+    </div>
+
+    <!-- Cards -->
+    <div class="cards-grid" id="cardsGrid">
+      <!-- Cards injected by JS -->
+      <div class="cards-skeleton">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card featured"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </div>
+
+    <!-- Error state -->
+    <div class="fetch-error hidden" id="fetchError">
+      <div class="error-icon">⚠</div>
+      <p>Could not load services. Please check your connection.</p>
+      <button class="btn-outline" id="retryBtn">Retry</button>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       PRODUCT CATALOGUE (from backend)
+  ════════════════════════════════════════ -->
+  <section class="catalogue" id="catalogue">
+    <div class="catalogue-header">
+      <div class="section-label">Browse catalogue</div>
+      <h2 class="section-title">Everything we've<br>got in stock.</h2>
+      <p class="section-sub">Real-time inventory pulled live from our backend.</p>
+    </div>
+
+    <!-- Category filters -->
+    <div class="filter-bar" id="filterBar" role="group" aria-label="Filter by category">
+      <button class="filter-btn active" data-cat="all">All</button>
+      <!-- more filters injected by JS -->
+    </div>
+
+    <!-- Product grid -->
+    <div class="product-grid" id="productGrid">
+      <!-- skeleton loaders -->
+      <div class="product-skeleton"></div>
+      <div class="product-skeleton"></div>
+      <div class="product-skeleton"></div>
+      <div class="product-skeleton"></div>
+      <div class="product-skeleton"></div>
+      <div class="product-skeleton"></div>
+    </div>
+
+    <!-- Empty / error states -->
+    <div class="empty-state hidden" id="emptyState">
+      <p>No products found in this category.</p>
+    </div>
+    <div class="catalogue-error hidden" id="catalogueError">
+      <div class="error-icon">⚠</div>
+      <p>Could not load products. Please check your connection.</p>
+      <button class="btn-outline" id="catalogueRetryBtn">Retry</button>
+    </div>
+
+    <!-- Load more -->
+    <div class="load-more-wrap" id="loadMoreWrap">
+      <button class="btn-outline load-more-btn hidden" id="loadMoreBtn">Load more</button>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       WHY JAIFORE
+  ════════════════════════════════════════ -->
+  <section class="why">
+    <div class="why-inner">
+      <div class="section-label light">Why Jaifore</div>
+      <h2 class="section-title light">The standard behind<br>every deliverable</h2>
+
+      <div class="why-grid">
+        <div class="why-item reveal">
+          <div class="why-num">01</div>
+          <div class="why-label">Anchored quality</div>
+          <p class="why-text">We don't rush craft. Every deliverable goes through an internal review before it reaches you.</p>
+        </div>
+        <div class="why-item reveal">
+          <div class="why-num">02</div>
+          <div class="why-label">One roof</div>
+          <p class="why-text">Print, design, and dev all under one team. No fragmented vendors, no lost briefs.</p>
+        </div>
+        <div class="why-item reveal">
+          <div class="why-num">03</div>
+          <div class="why-label">Built for Nigeria</div>
+          <p class="why-text">Locally grounded, globally minded. Our pricing, logistics, and stack fit the Nigerian market.</p>
+        </div>
+        <div class="why-item reveal">
+          <div class="why-num">04</div>
+          <div class="why-label">Transparent process</div>
+          <p class="why-text">You see the progress. No black boxes — clear timelines, open comms, and honest pricing.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       CTA
+  ════════════════════════════════════════ -->
+  <section class="cta-section" id="contact">
+    <div class="cta-bg-text" aria-hidden="true">GO</div>
+    <h2 class="section-title">Ready to build something<br>that holds?</h2>
+    <p class="section-sub center">
+      Tell us what you need. We'll tell you how we make it exceptional.
+    </p>
+    <div class="cta-actions">
+      <a href="mailto:hello@jaifore.com" class="btn-primary">Email us directly ↗</a>
+      <a href="#services" class="btn-outline">Review services</a>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       FOOTER
+  ════════════════════════════════════════ -->
+  <footer class="footer">
+    <div class="footer-logo">Jai<span>fore</span></div>
+    <div class="footer-copy">Anchored. Rooted. Rising. — © 2026</div>
+    <div class="footer-location">Lagos, Nigeria</div>
+  </footer>
+
+  <!-- Product detail modal -->
+  <div class="modal-overlay hidden" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+      <div class="modal-img-wrap">
+        <img id="modalImg" src="" alt="" />
+        <div class="modal-img-placeholder" id="modalImgPlaceholder"></div>
+      </div>
+      <div class="modal-body">
+        <span class="modal-category" id="modalCategory"></span>
+        <h3 class="modal-title" id="modalTitle"></h3>
+        <p class="modal-desc" id="modalDesc"></p>
+        <div class="modal-price-row">
+          <span class="modal-price" id="modalPrice"></span>
+        </div>
+        <button class="btn-primary modal-order-btn" id="modalOrderBtn">Order this →</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/services.js"></script>
+</body>
+</html>
