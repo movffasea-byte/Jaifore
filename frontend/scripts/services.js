@@ -2,7 +2,7 @@
    JAIFORE — SERVICES PAGE SCRIPT
    services.js
    
-   Connects to: https://jaifore.onrender.com
+   Connects to: https://a-m-site-design.onrender.com
    Endpoints used:
      GET /api/products          → all products
      GET /api/services          → service tier configs (optional)
@@ -14,7 +14,7 @@
 'use strict';
 
 /* ── CONFIG ──────────────────────────────── */
-const API_BASE = 'https://jaifore.onrender.com';
+const API_BASE = 'https://a-m-site-design.onrender.com';
 const PRODUCTS_PER_PAGE = 6;
 
 /* ── SERVICE CARD STATIC DATA ────────────────
