@@ -1,17 +1,46 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
 
-const app = express();
+
+const { initDB } = require('./database');
+const { router: authRouter } = require('./auth');
+
+const app  = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// ── MIDDLEWARE ─────────────────────────────────────────
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 app.use(express.json());
 
+// ── ROUTES ─────────────────────────────────────────────
 app.get('/', (req, res) => {
-  res.json({ message: 'Jaifore backend is live!' });
+  res.json({ message: "Jai'fore backend is live 🚀" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.use('/api/auth', authRouter);
+
+// ── 404 HANDLER ────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found.' });
 });
+
+// ── START ──────────────────────────────────────────────
+async function start() {
+  try {
+    await initDB();
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('❌ Failed to start server:', err.message);
+    process.exit(1);
+  }
+}
+
+start();
