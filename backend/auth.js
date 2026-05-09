@@ -135,3 +135,5 @@ router.get('/me', authenticate, async (req, res) => {
     return res.status(500).json({ error: 'Server error.' });
   }
 });
+
+module.exports = { router, authenticate };
