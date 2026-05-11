@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jai'fore — Design Studio</title>
+  <link rel="stylesheet" href="styles/configurator.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <div class="noise"></div>
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <a href="services.html" class="back-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Back to Services
+    </a>
+    <div class="topbar-center">
+      <span class="studio-label">Design Studio</span>
+      <span class="product-name-display" id="product-name-display">Select a product</span>
+    </div>
+    <div class="topbar-right">
+      <div class="price-display">
+        <span class="price-label">Total</span>
+        <span class="price-value" id="total-price">₦0</span>
+      </div>
+      <button class="add-cart-btn" id="add-cart-btn">
+        Add to Cart
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN LAYOUT -->
+  <div class="studio-layout">
+
+    <!-- LEFT: CANVAS PANEL -->
+    <div class="canvas-panel">
+
+      <!-- PRODUCT SELECTOR TABS -->
+      <div class="product-tabs" id="product-tabs">
+        <div class="tabs-label">Choose Item</div>
+        <div class="tabs-scroll" id="tabs-scroll"></div>
+      </div>
+
+      <!-- SIZE SELECTOR -->
+      <div class="size-row" id="size-row">
+        <span class="size-row-label">Size:</span>
+        <div class="size-opts" id="size-opts"></div>
+      </div>
+
+      <!-- CANVAS WRAP -->
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="main-canvas"></canvas>
+        <div class="canvas-hint" id="canvas-hint">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 15l6 6m-11-4a7 7 0 110-14 7 7 0 010 14z"/></svg>
+          Pick a product above, then add designs from the right panel
+        </div>
+      </div>
+
+      <!-- CANVAS TOOLBAR -->
+      <div class="canvas-toolbar" id="canvas-toolbar">
+        <button class="tool-btn" id="btn-delete" title="Delete selected">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6l-1 14H6L5 6M9 6V4h6v2"/></svg>
+          Delete
+        </button>
+        <button class="tool-btn" id="btn-forward" title="Bring forward">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          Forward
+        </button>
+        <button class="tool-btn" id="btn-back" title="Send back">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+          Back
+        </button>
+        <button class="tool-btn" id="btn-flip" title="Flip horizontal">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v14a2 2 0 002 2h3M16 3h3a2 2 0 012 2v14a2 2 0 01-2 2h-3M12 3v18"/></svg>
+          Flip
+        </button>
+        <button class="tool-btn" id="btn-clear" title="Clear all designs">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4H8l-7 8 7 8h13a2 2 0 002-2V6a2 2 0 00-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+          Clear All
+        </button>
+        <div class="toolbar-sep"></div>
+        <div class="design-count-wrap">
+          <span class="design-count-label">Designs applied:</span>
+          <span class="design-count" id="design-count">0</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: DESIGN PANEL -->
+    <div class="design-panel">
+      <div class="design-panel-header">
+        <h2 class="panel-title">Designs</h2>
+        <p class="panel-sub">Tap any design to apply it to your item</p>
+      </div>
+
+      <!-- DESIGN FILTER -->
+      <div class="design-filter" id="design-filter"></div>
+
+      <!-- DESIGN GRID -->
+      <div class="design-grid" id="design-grid">
+        <div class="design-skeleton"></div>
+        <div class="design-skeleton"></div>
+        <div class="design-skeleton"></div>
+        <div class="design-skeleton"></div>
+        <div class="design-skeleton"></div>
+        <div class="design-skeleton"></div>
+      </div>
+
+      <!-- APPLIED DESIGNS LIST -->
+      <div class="applied-section">
+        <div class="applied-header">
+          <span class="applied-title">Applied to this item</span>
+          <span class="applied-total" id="applied-total">₦0 in designs</span>
+        </div>
+        <div class="applied-list" id="applied-list">
+          <div class="applied-empty">No designs added yet</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script src="scripts/configurator.js"></script>
+</body>
+</html>

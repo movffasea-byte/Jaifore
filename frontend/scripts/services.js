@@ -1,609 +1,263 @@
-/* ═══════════════════════════════════════════
-   JAIFORE — SERVICES PAGE SCRIPT
-   services.js
-   
-   Connects to: https://a-m-site-design.onrender.com
-   Endpoints used:
-     GET /api/products          → all products
-     GET /api/services          → service tier configs (optional)
-   
-   Falls back to local static data if backend
-   is unavailable (cold start / offline).
-════════════════════════════════════════════ */
+/* ================================
+   JAIFORE — SERVICES PAGE
+   services.js (cart lives in cart.js)
+   ================================ */
 
-'use strict';
+const API = 'https://jai-fore-website.onrender.com';
 
-/* ── CONFIG ──────────────────────────────── */
-const API_BASE = 'https://a-m-site-design.onrender.com';
-const PRODUCTS_PER_PAGE = 6;
+let selectedSize         = null;
+let currentModalProduct  = null;
 
-/* ── SERVICE CARD STATIC DATA ────────────────
-   Pricing / features for the 3-plan toggle.
-   If your backend exposes a /api/services
-   endpoint, loadServiceCards() will use that
-   instead and these become a fallback.
-════════════════════════════════════════════ */
-const SERVICE_PLANS = {
-  project: [
-    {
-      id: 'print',
-      theme: 'theme-print',
-      num: '01',
-      icon: '🖨️',
-      tag: 'Apparel & Print',
-      title: 'Wear the Statement',
-      desc: 'Custom prints on plain black tees, hoodies, joggers and more. Whether it\'s a brand drop, a merch line, or a single statement piece — we handle the ink, you wear the vision.',
-      features: [
-        'DTG & screen print on plain black apparel',
-        'T-shirts, hoodies, joggers & more',
-        'Bulk orders with tiered pricing',
-        'Delivery across Nigeria',
-      ],
-      price: '₦8,500',
-      priceNote: 'per piece (min. 5)',
-      popular: false,
-    },
-    {
-      id: 'design',
-      theme: 'theme-design',
-      num: '02',
-      icon: '✦',
-      tag: 'Graphic Design',
-      title: 'Design That Speaks First',
-      desc: 'Brand identity, social graphics, flyers, logos, and everything in between. Visual language built to hold attention and make the right statement every single time.',
-      features: [
-        'Logo & full brand identity systems',
-        'Social media graphics & templates',
-        'Flyers, banners & event materials',
-        'Custom illustrations & art direction',
-      ],
-      price: '₦35,000',
-      priceNote: 'starting / project',
-      popular: true,
-    },
-    {
-      id: 'web',
-      theme: 'theme-web',
-      num: '03',
-      icon: '⌨️',
-      tag: 'Web Development',
-      title: 'Build What Lasts Online',
-      desc: 'Full-stack web applications and sites — from sleek landing pages to robust business platforms with auth, payments, and databases. Built to perform, built to grow.',
-      features: [
-        'Landing pages & marketing sites',
-        'Full-stack apps (Node.js, PostgreSQL)',
-        'Payment & auth integration',
-        'Hosting setup & ongoing maintenance',
-      ],
-      price: '₦120,000',
-      priceNote: 'starting / project',
-      popular: false,
-    },
-  ],
-  retainer: [
-    {
-      id: 'print',
-      theme: 'theme-print',
-      num: '01',
-      icon: '🖨️',
-      tag: 'Apparel & Print',
-      title: 'Wear the Statement',
-      desc: 'Monthly print quota — no per-piece billing, priority queue, and free design revisions on all print assets. Ideal for brands with recurring drops.',
-      features: [
-        'Monthly print quota — no per-piece billing',
-        'Priority queue on all orders',
-        'Free design revisions for print assets',
-        'Dedicated account manager',
-      ],
-      price: '₦65,000',
-      priceNote: '/ month',
-      popular: false,
-    },
-    {
-      id: 'design',
-      theme: 'theme-design',
-      num: '02',
-      icon: '✦',
-      tag: 'Graphic Design',
-      title: 'Design That Speaks First',
-      desc: 'Up to 15 design assets per month with unlimited revisions, brand library maintenance, and 48hr priority turnaround. Your creative team, on demand.',
-      features: [
-        'Up to 15 design assets per month',
-        'Unlimited revisions within scope',
-        'Brand asset library maintenance',
-        'Priority 48hr turnaround',
-      ],
-      price: '₦75,000',
-      priceNote: '/ month',
-      popular: true,
-    },
-    {
-      id: 'web',
-      theme: 'theme-web',
-      num: '03',
-      icon: '⌨️',
-      tag: 'Web Development',
-      title: 'Build What Lasts Online',
-      desc: 'Ongoing dev, updates, bug fixes, and monthly performance audits. Priority support within 24hrs and new feature builds at a reduced rate.',
-      features: [
-        'Ongoing dev, updates & bug fixes',
-        'Monthly performance audit & report',
-        'Priority support within 24hrs',
-        'New feature builds at reduced rate',
-      ],
-      price: '₦85,000',
-      priceNote: '/ month',
-      popular: false,
-    },
-  ],
-  bundle: [
-    {
-      id: 'print',
-      theme: 'theme-print',
-      num: '01',
-      icon: '🖨️',
-      tag: 'Print + Design Bundle',
-      title: 'Wear the Statement',
-      desc: 'Print and graphic design combined into a single retainer. Coordinated creative production means your merch drops are always on-brand and on-time.',
-      features: [
-        'Print + graphic design combined',
-        '25% off vs separate pricing',
-        'Coordinated creative & production',
-        'Merch drops made easy',
-      ],
-      price: '₦55,000',
-      priceNote: '/ month',
-      popular: false,
-    },
-    {
-      id: 'design',
-      theme: 'theme-design',
-      num: '02',
-      icon: '✦',
-      tag: 'Design (Included)',
-      title: 'Design That Speaks First',
-      desc: 'Full design support included in the bundle. Designs are optimised for both print and digital — one brief, all outputs, consistent visual language.',
-      features: [
-        'Full brand design support included',
-        'Designs optimised for print & digital',
-        'Cross-service creative direction',
-        'One brief, all outputs',
-      ],
-      price: 'Included',
-      priceNote: 'in bundle',
-      popular: true,
-    },
-    {
-      id: 'web',
-      theme: 'theme-web',
-      num: '03',
-      icon: '⌨️',
-      tag: 'Site + Design Bundle',
-      title: 'Build What Lasts Online',
-      desc: 'Full site build plus a monthly design retainer. Consistent visual language across every channel, single point of contact, and a complete launch package.',
-      features: [
-        'Full site build + monthly design retainer',
-        'Consistent visuals across all channels',
-        'Single point of contact for everything',
-        'Launch package: site + brand kit',
-      ],
-      price: '₦180,000',
-      priceNote: 'site + ongoing design',
-      popular: false,
-    },
-  ],
+// ── PLACEHOLDERS ───────────────────────────────────────
+const PLACEHOLDERS = {
+  apparel: ['👕','👖','🩳','🧥','🎒','☕','📱'],
+  design:  ['🎨','✏️','🖌️','🖼️','💡','🌀','⚡'],
+  webdev:  ['🌐','💻','🖥️','⚙️','🚀','📡','🔮']
 };
 
-/* ── STATE ───────────────────────────────── */
-let allProducts      = [];   // raw from backend
-let filteredProducts = [];   // after category filter
-let currentPage      = 1;
-let currentCategory  = 'all';
-let activePlan       = 'project';
-
-
-/* ═══════════════════════════════════════════
-   INIT
-════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
-  initNav();
-  initServiceCards();
-  initPlanToggle();
-  loadProducts();
-  initScrollReveal();
-  initModal();
-});
-
-
-/* ═══════════════════════════════════════════
-   NAV — scroll shadow + hamburger
-════════════════════════════════════════════ */
-function initNav() {
-  const nav        = document.getElementById('nav');
-  const hamburger  = document.getElementById('hamburger');
-  const mobileMenu = document.getElementById('mobileMenu');
-
-  window.addEventListener('scroll', () => {
-    nav.classList.toggle('scrolled', window.scrollY > 40);
-  }, { passive: true });
-
-  hamburger.addEventListener('click', () => {
-    const isOpen = hamburger.classList.toggle('open');
-    mobileMenu.classList.toggle('open', isOpen);
-    document.body.style.overflow = isOpen ? 'hidden' : '';
-  });
-
-  // close mobile menu on link click
-  mobileMenu.querySelectorAll('a').forEach(link => {
-    link.addEventListener('click', () => {
-      hamburger.classList.remove('open');
-      mobileMenu.classList.remove('open');
-      document.body.style.overflow = '';
-    });
-  });
+function getPlaceholder(category, index) {
+  const arr = PLACEHOLDERS[category] || ['📦'];
+  return arr[index % arr.length];
 }
 
-
-/* ═══════════════════════════════════════════
-   SERVICE CARDS
-════════════════════════════════════════════ */
-function initServiceCards() {
-  renderServiceCards(SERVICE_PLANS[activePlan]);
+// ── MOCK DATA ──────────────────────────────────────────
+function getMockProducts(category) {
+  const mocks = {
+    apparel: [
+      { _id:'a1', name:'Classic Black Tee',   description:'Premium 100% cotton blank tee. Clean cut, heavyweight feel.',         price:8500,   category:'apparel', sizes:['XS','S','M','L','XL','XXL'], image:null },
+      { _id:'a2', name:'Relaxed Fit Hoodie',  description:'Heavyweight fleece hoodie. Oversized fit, kangaroo pocket.',          price:18500,  category:'apparel', sizes:['S','M','L','XL','XXL'],      image:null },
+      { _id:'a3', name:'Cargo Shorts',        description:'Multi-pocket cargo shorts. Durable cotton twill, mid-rise.',          price:12000,  category:'apparel', sizes:['S','M','L','XL'],            image:null },
+    ],
+    design: [
+      { _id:'d1', name:'Abstract Waves',         description:'Bold fluid wave pattern. Available in mono or full colour print.', price:15000,  category:'design', image:null },
+      { _id:'d2', name:'Custom Logo Design',     description:'Bring your idea — we craft a professional logo from scratch.',     price:35000,  category:'design', image:null },
+      { _id:'d3', name:'Street Art Illustration',description:'Urban-inspired illustration pack. Ready to print on any surface.', price:22000,  category:'design', image:null },
+    ],
+    webdev: [
+      { _id:'w1', name:'E-Commerce Starter',      description:'Full-featured online store with cart, payments, and admin panel.', price:250000, category:'webdev', domain:'aminfinitybites.health',   siteUrl:'https://aminfinitybites.health', image:null },
+      { _id:'w2', name:'Creative Portfolio',      description:'Stunning portfolio site for creatives, artists, and agencies.',   price:120000, category:'webdev', domain:'example-portfolio.com',    siteUrl:null, image:null },
+      { _id:'w3', name:'Business Landing Page',   description:'High-converting landing page with contact forms and analytics.',  price:80000,  category:'webdev', domain:'example-business.com',     siteUrl:null, image:null },
+    ]
+  };
+  return mocks[category] || [];
 }
 
-function renderServiceCards(cards) {
-  const grid = document.getElementById('cardsGrid');
-  grid.innerHTML = cards.map(buildServiceCard).join('');
+// ── FETCH ──────────────────────────────────────────────
+async function fetchProducts(category) {
+  try {
+    const res = await fetch(`${API}/api/products?category=${category}&limit=3`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    return Array.isArray(data) ? data : data.products || [];
+  } catch {
+    return getMockProducts(category);
+  }
 }
 
-function buildServiceCard(card) {
-  const popularBadge = card.popular
-    ? `<div class="popular-badge">Most popular</div>`
+// ── FORMAT PRICE ───────────────────────────────────────
+function formatPrice(amount) {
+  return `₦${Number(amount).toLocaleString('en-NG')}`;
+}
+
+// ── RENDER CARD ────────────────────────────────────────
+function renderCard(product, index, category) {
+  const card        = document.createElement('div');
+  card.className    = 'product-card';
+  card.style.animationDelay = `${index * 0.1}s`;
+
+  const isWebdev   = category === 'webdev';
+  const isApparel  = category === 'apparel';
+  const isDesign   = category === 'design';
+  const placeholder = getPlaceholder(category, index);
+
+  const imgHTML = product.image
+    ? `<img src="${product.image}" alt="${product.name}" loading="lazy"/>`
+    : `<div class="card-img-placeholder">${placeholder}</div>`;
+
+  const sizeHTML = isApparel && product.sizes?.length
+    ? `<div class="size-chips">
+        ${product.sizes.slice(0,4).map(s => `<span class="size-chip">${s}</span>`).join('')}
+        ${product.sizes.length > 4 ? `<span class="size-chip">+${product.sizes.length - 4}</span>` : ''}
+       </div>`
     : '';
 
-  const features = card.features
-    .map(f => `<li>${escHtml(f)}</li>`)
-    .join('');
+  const domainHTML = isWebdev && product.domain
+    ? `<div class="site-domain">↗ ${product.domain}</div>` : '';
 
-  return `
-    <div class="service-card ${escHtml(card.theme)}">
-      <div class="card-bg-shape"></div>
-      ${popularBadge}
-      <div class="card-num">${escHtml(card.num)}</div>
-      <div class="card-icon-wrap">${card.icon}</div>
-      <span class="card-tag">${escHtml(card.tag)}</span>
-      <h3 class="card-title">${escHtml(card.title)}</h3>
-      <p class="card-desc">${escHtml(card.desc)}</p>
-      <ul class="card-features">${features}</ul>
-      <div class="card-price-row">
-        <span class="card-price">${escHtml(card.price)}</span>
-        <span class="card-price-note">${escHtml(card.priceNote)}</span>
-      </div>
-      <button class="card-btn" data-service="${escHtml(card.tag)}">
-        ${card.id === 'print' ? 'Order prints' : card.id === 'design' ? 'Start a project' : 'Build with us'} →
-      </button>
+  // Apparel gets two buttons — Add to Cart + Design It
+  const footerHTML = isApparel
+    ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
+       <div style="display:flex;gap:0.4rem">
+         <button class="configure-btn" data-id="${product._id}">🎨 Design</button>
+         <button class="card-action"   data-id="${product._id}">Add to Cart</button>
+       </div>`
+    : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
+       <button class="card-action" data-id="${product._id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
+
+  card.innerHTML = `
+    <div class="card-img">
+      ${imgHTML}
+      <span class="card-badge">${isApparel ? 'Merch' : isDesign ? 'Design' : 'Web'}</span>
+    </div>
+    <div class="card-body">
+      ${domainHTML}
+      <div class="card-name">${product.name}</div>
+      <div class="card-desc">${product.description}</div>
+      ${sizeHTML}
+      <div class="card-footer">${footerHTML}</div>
     </div>
   `;
-}
 
-/* CTA buttons inside cards → mailto */
-document.addEventListener('click', e => {
-  const btn = e.target.closest('.card-btn');
-  if (!btn) return;
-  const service = btn.dataset.service || 'our services';
-  const subject = encodeURIComponent(`Jaifore Inquiry — ${service}`);
-  const body    = encodeURIComponent(
-    `Hi Jaifore,\n\nI'm interested in your ${service} service.\n\nPlease share more details.`
-  );
-  window.location.href = `mailto:hello@jaifore.com?subject=${subject}&body=${body}`;
-});
-
-
-/* ═══════════════════════════════════════════
-   PLAN TOGGLE
-════════════════════════════════════════════ */
-function initPlanToggle() {
-  const toggleWrap = document.getElementById('planToggle');
-  toggleWrap.querySelectorAll('.toggle-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      toggleWrap.querySelectorAll('.toggle-btn').forEach(b => {
-        b.classList.remove('active');
-        b.setAttribute('aria-selected', 'false');
-      });
-      btn.classList.add('active');
-      btn.setAttribute('aria-selected', 'true');
-
-      activePlan = btn.dataset.plan;
-      renderServiceCards(SERVICE_PLANS[activePlan]);
-    });
-  });
-}
-
-
-/* ═══════════════════════════════════════════
-   LOAD PRODUCTS FROM BACKEND
-════════════════════════════════════════════ */
-async function loadProducts() {
-  showProductSkeletons();
-
-  try {
-    const res = await fetch(`${API_BASE}/api/products`, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (!res.ok) throw new Error(`Server responded ${res.status}`);
-
-    const data = await res.json();
-
-    /* Support both { products: [...] } and plain array responses */
-    allProducts = Array.isArray(data) ? data : (data.products || []);
-
-    if (allProducts.length === 0) {
-      showEmptyState();
-      return;
+  // Card click → modal
+  card.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('card-action') &&
+        !e.target.classList.contains('configure-btn')) {
+      openModal(product, category);
     }
-
-    buildFilterBar(allProducts);
-    applyFilterAndRender();
-
-  } catch (err) {
-    console.error('[Jaifore] Failed to load products:', err);
-    showCatalogueError();
-  }
-}
-
-
-/* ═══════════════════════════════════════════
-   FILTER BAR
-════════════════════════════════════════════ */
-function buildFilterBar(products) {
-  const categories = ['all', ...new Set(products.map(p => p.category).filter(Boolean))];
-  const filterBar  = document.getElementById('filterBar');
-
-  filterBar.innerHTML = categories.map(cat => `
-    <button
-      class="filter-btn${cat === currentCategory ? ' active' : ''}"
-      data-cat="${escHtml(cat)}"
-    >${cat === 'all' ? 'All' : escHtml(cat)}</button>
-  `).join('');
-
-  filterBar.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      filterBar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentCategory = btn.dataset.cat;
-      currentPage     = 1;
-      applyFilterAndRender();
-    });
   });
+
+  // Add to cart button
+  card.querySelector('.card-action')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (isWebdev || (isApparel && product.sizes?.length)) {
+      openModal(product, category);
+    } else {
+      addToCart(product, null, category);
+    }
+  });
+
+  // Design It button — go to configurator
+  card.querySelector('.configure-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.location.href = `configurator.html?product=${product._id}`;
+  });
+
+  return card;
 }
 
+// ── LOAD CATEGORY ──────────────────────────────────────
+async function loadCategory(category) {
+  const grid    = document.getElementById(`${category}-grid`);
+  const products = await fetchProducts(category);
+  grid.innerHTML = '';
 
-/* ═══════════════════════════════════════════
-   FILTER + RENDER PRODUCTS
-════════════════════════════════════════════ */
-function applyFilterAndRender() {
-  filteredProducts = currentCategory === 'all'
-    ? allProducts
-    : allProducts.filter(p => p.category === currentCategory);
-
-  currentPage = 1;
-  renderProductPage(true);
-}
-
-function renderProductPage(reset = false) {
-  const grid       = document.getElementById('productGrid');
-  const loadMoreBtn = document.getElementById('loadMoreBtn');
-  const emptyState  = document.getElementById('emptyState');
-
-  if (filteredProducts.length === 0) {
-    grid.innerHTML = '';
-    showEmptyState();
-    loadMoreBtn.classList.add('hidden');
+  if (!products.length) {
+    grid.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;padding:2rem 0;grid-column:1/-1">No products found.</div>`;
     return;
   }
+  products.slice(0, 3).forEach((p, i) => grid.appendChild(renderCard(p, i, category)));
+}
 
-  emptyState.classList.add('hidden');
+// ── LOAD MORE → category page ──────────────────────────
+document.querySelectorAll('.load-more-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    window.location.href = `category.html?cat=${btn.dataset.category}`;
+  });
+});
 
-  const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
-  const slice = filteredProducts.slice(0, currentPage * PRODUCTS_PER_PAGE);
+// ── MODAL ──────────────────────────────────────────────
+function openModal(product, category) {
+  currentModalProduct = product;
+  selectedSize        = null;
 
-  if (reset) {
-    grid.innerHTML = slice.map((p, i) => buildProductCard(p, i)).join('');
-  } else {
-    // append only new items
-    const newSlice = filteredProducts.slice(start, currentPage * PRODUCTS_PER_PAGE);
-    newSlice.forEach((p, i) => {
-      const card = document.createElement('div');
-      card.innerHTML = buildProductCard(p, start + i);
-      grid.appendChild(card.firstElementChild);
+  const isWebdev  = category === 'webdev';
+  const isApparel = category === 'apparel';
+  const placeholder = getPlaceholder(category, 0);
+
+  const imgHTML = product.image
+    ? `<img src="${product.image}" alt="${product.name}"/>`
+    : `<div class="modal-img-placeholder">${placeholder}</div>`;
+
+  const sizesHTML = isApparel && product.sizes?.length
+    ? `<div class="modal-sizes">
+        <label>Select Size</label>
+        <div class="modal-size-opts">
+          ${product.sizes.map(s => `<button class="size-opt" data-size="${s}">${s}</button>`).join('')}
+        </div>
+       </div>` : '';
+
+  const actionHTML = isWebdev
+    ? `<a href="mailto:hello@jaifore.com?subject=Enquiry: ${encodeURIComponent(product.name)}" class="modal-link">✉ Enquire About This Site →</a>
+       ${product.siteUrl ? `<a href="${product.siteUrl}" target="_blank" class="modal-link">🌐 Visit Live Site →</a>` : ''}`
+    : isApparel
+      ? `<button class="modal-configure-btn" onclick="window.location.href='configurator.html?product=${product._id}'">🎨 Design It in Studio</button>
+         <button class="modal-add-btn">Add to Cart</button>`
+      : `<button class="modal-add-btn">Order Now</button>`;
+
+  const domainLine = isWebdev && product.domain
+    ? `<div class="modal-category">↗ ${product.domain}</div>`
+    : `<div class="modal-category">${category.charAt(0).toUpperCase() + category.slice(1)}</div>`;
+
+  document.getElementById('modal-inner').innerHTML = `
+    <div class="modal-grid">
+      <div class="modal-img">${imgHTML}</div>
+      <div class="modal-details">
+        ${domainLine}
+        <div class="modal-name">${product.name}</div>
+        <div class="modal-price">${formatPrice(product.price)}</div>
+        <div class="modal-desc">${product.description}</div>
+        ${sizesHTML}
+        ${actionHTML}
+      </div>
+    </div>
+  `;
+
+  // Size selection
+  document.querySelectorAll('.size-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.size-opt').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedSize = btn.dataset.size;
+    });
+  });
+
+  // Add to cart from modal
+  const addBtn = document.querySelector('.modal-add-btn');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      if (isApparel && product.sizes?.length && !selectedSize) {
+        addBtn.textContent = 'Please select a size first';
+        addBtn.style.background = '#b03030';
+        setTimeout(() => { addBtn.textContent = 'Add to Cart'; addBtn.style.background = ''; }, 1500);
+        return;
+      }
+      addToCart(product, selectedSize, category);
+      closeModal();
+      openCart();
     });
   }
 
-  const hasMore = currentPage * PRODUCTS_PER_PAGE < filteredProducts.length;
-  loadMoreBtn.classList.toggle('hidden', !hasMore);
-}
-
-function buildProductCard(product, index) {
-  const name     = escHtml(product.name || product.title || 'Untitled');
-  const category = escHtml(product.category || '');
-  const desc     = escHtml(product.description || '');
-  const price    = formatPrice(product.price);
-  const imgSrc   = product.image || product.imageUrl || '';
-  const initials = name.slice(0, 2).toUpperCase();
-
-  const imgMarkup = imgSrc
-    ? `<img src="${escHtml(imgSrc)}" alt="${name}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />`
-    : '';
-
-  const delay = `animation-delay: ${(index % PRODUCTS_PER_PAGE) * 0.06}s`;
-
-  return `
-    <article class="product-card" style="${delay}"
-      data-id="${escHtml(String(product._id || product.id || ''))}"
-      data-name="${name}"
-      data-category="${category}"
-      data-desc="${desc}"
-      data-price="${price}"
-      data-img="${escHtml(imgSrc)}"
-    >
-      <div class="product-img-wrap">
-        ${imgMarkup}
-        <div class="product-img-placeholder" ${imgSrc ? 'style="display:none"' : ''}>${initials}</div>
-      </div>
-      <div class="product-body">
-        ${category ? `<div class="product-cat">${category}</div>` : ''}
-        <h3 class="product-name">${name}</h3>
-        ${desc ? `<p class="product-desc">${desc}</p>` : ''}
-        <div class="product-footer">
-          <span class="product-price">${price}</span>
-          <button class="product-order-btn">Order →</button>
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-
-/* ═══════════════════════════════════════════
-   LOAD MORE
-════════════════════════════════════════════ */
-document.getElementById('loadMoreBtn').addEventListener('click', () => {
-  currentPage++;
-  renderProductPage(false);
-});
-
-
-/* ═══════════════════════════════════════════
-   PRODUCT MODAL
-════════════════════════════════════════════ */
-function initModal() {
-  const overlay   = document.getElementById('modalOverlay');
-  const closeBtn  = document.getElementById('modalClose');
-  const orderBtn  = document.getElementById('modalOrderBtn');
-
-  // Open modal on product card click
-  document.getElementById('productGrid').addEventListener('click', e => {
-    const card = e.target.closest('.product-card');
-    if (!card) return;
-    openModal(card.dataset);
-  });
-
-  // Close buttons
-  closeBtn.addEventListener('click', closeModal);
-  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-  // Order CTA
-  orderBtn.addEventListener('click', () => {
-    const title   = document.getElementById('modalTitle').textContent;
-    const subject = encodeURIComponent(`Jaifore Order — ${title}`);
-    const body    = encodeURIComponent(`Hi Jaifore,\n\nI'd like to order: ${title}\n\nPlease let me know the next steps.`);
-    window.location.href = `mailto:hello@jaifore.com?subject=${subject}&body=${body}`;
-  });
-}
-
-function openModal({ name, category, desc, price, img }) {
-  document.getElementById('modalTitle').textContent    = name    || '';
-  document.getElementById('modalCategory').textContent = category || '';
-  document.getElementById('modalDesc').textContent     = desc    || '';
-  document.getElementById('modalPrice').textContent    = price   || '';
-
-  const modalImg         = document.getElementById('modalImg');
-  const modalPlaceholder = document.getElementById('modalImgPlaceholder');
-
-  if (img) {
-    modalImg.src = img;
-    modalImg.style.display = 'block';
-    modalPlaceholder.style.display = 'none';
-    modalImg.onerror = () => {
-      modalImg.style.display = 'none';
-      modalPlaceholder.style.display = 'flex';
-      modalPlaceholder.textContent = (name || '').slice(0, 2).toUpperCase();
-    };
-  } else {
-    modalImg.style.display = 'none';
-    modalPlaceholder.style.display = 'flex';
-    modalPlaceholder.textContent = (name || '').slice(0, 2).toUpperCase();
-  }
-
-  document.getElementById('modalOverlay').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('product-modal').classList.add('open');
 }
 
 function closeModal() {
-  document.getElementById('modalOverlay').classList.add('hidden');
-  document.body.style.overflow = '';
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.getElementById('product-modal').classList.remove('open');
 }
 
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', closeModal);
 
-/* ═══════════════════════════════════════════
-   SCROLL REVEAL (why items)
-════════════════════════════════════════════ */
-function initScrollReveal() {
-  const items = document.querySelectorAll('.reveal');
-  if (!('IntersectionObserver' in window)) {
-    items.forEach(el => el.classList.add('visible'));
-    return;
-  }
+// ── SCROLL REVEAL ──────────────────────────────────────
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.style.opacity = '1';
+      entry.target.style.transform = 'translateY(0)';
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.1 });
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry, i) => {
-      if (entry.isIntersecting) {
-        setTimeout(() => entry.target.classList.add('visible'), i * 100);
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.15 });
+document.querySelectorAll('.category-section').forEach(section => {
+  section.style.opacity    = '0';
+  section.style.transform  = 'translateY(30px)';
+  section.style.transition = 'opacity 0.7s ease, transform 0.7s ease';
+  observer.observe(section);
+});
 
-  items.forEach(el => observer.observe(el));
-}
-
-
-/* ═══════════════════════════════════════════
-   UI STATE HELPERS
-════════════════════════════════════════════ */
-function showProductSkeletons() {
-  const grid = document.getElementById('productGrid');
-  grid.innerHTML = Array.from({ length: 6 }, () =>
-    `<div class="product-skeleton"></div>`
-  ).join('');
-  document.getElementById('emptyState').classList.add('hidden');
-  document.getElementById('catalogueError').classList.add('hidden');
-  document.getElementById('loadMoreBtn').classList.add('hidden');
-}
-
-function showEmptyState() {
-  document.getElementById('emptyState').classList.remove('hidden');
-  document.getElementById('productGrid').innerHTML = '';
-}
-
-function showCatalogueError() {
-  document.getElementById('productGrid').innerHTML = '';
-  document.getElementById('catalogueError').classList.remove('hidden');
-
-  document.getElementById('catalogueRetryBtn').addEventListener('click', () => {
-    document.getElementById('catalogueError').classList.add('hidden');
-    loadProducts();
-  }, { once: true });
-}
-
-
-/* ═══════════════════════════════════════════
-   UTILS
-════════════════════════════════════════════ */
-function formatPrice(price) {
-  if (price === undefined || price === null || price === '') return 'Contact us';
-  const num = parseFloat(price);
-  if (isNaN(num)) return String(price);
-  return `₦${num.toLocaleString('en-NG')}`;
-}
-
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+// ── INIT ───────────────────────────────────────────────
+loadCategory('apparel');
+loadCategory('design');
+loadCategory('webdev');
