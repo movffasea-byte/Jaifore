@@ -14,4 +14,11 @@ function authenticate(req, res, next) {
   }
 }
 
-module.exports = { authenticate };
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access only.' });
+  }
+  next();
+}
+
+module.exports = { authenticate, requireAdmin };

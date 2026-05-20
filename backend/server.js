@@ -16,7 +16,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use(express.json());
+app.use('/api/auth', authRouter);
+app.use('/api/products', require('./routes/products'));
+app.use('/api/orders', require('./routes/orders'));
+app.use('/api/transactions', require('./routes/transactions'));
 
 // ── ROUTES ─────────────────────────────────────────────
 app.get('/', (req, res) => {
