@@ -1,9 +1,8 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
+const cors    = require('cors');
 
-
-const { initDB } = require('./database');
+const { initDB }          = require('./database');
 const { router: authRouter } = require('./auth');
 
 const app  = express();
@@ -16,20 +15,18 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use('/api/auth', authRouter);
-app.use('/api/products', require('./routes/products'));
-app.use('/api/orders', require('./routes/orders'));
-app.use('/api/transactions', require('./routes/transactions'));
-app.use('/api/users', require('./routes/users'));
-
-
+app.use(express.json());
 
 // ── ROUTES ─────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.json({ message: "Jai'fore backend is live 🚀" });
 });
 
-app.use('/api/auth', authRouter);
+app.use('/api/auth',         authRouter);
+app.use('/api/products',     require('./routes/products'));
+app.use('/api/orders',       require('./routes/orders'));
+app.use('/api/transactions', require('./routes/transactions'));
+app.use('/api/users',        require('./routes/users'));
 
 // ── 404 HANDLER ────────────────────────────────────────
 app.use((req, res) => {
