@@ -20,6 +20,9 @@ app.use('/api/auth', authRouter);
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/transactions', require('./routes/transactions'));
+app.use('/api/users', require('./routes/users'));
+
+
 
 // ── ROUTES ─────────────────────────────────────────────
 app.get('/', (req, res) => {

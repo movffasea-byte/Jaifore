@@ -1,441 +1,418 @@
 /* ================================
-   JAIFORE ADMIN — LOGIC
-   admin.js
+   JAIFORE ADMIN — JS
+   frontend/admin/admin.js
    ================================ */
 
 const API = 'https://jai-fore-website.onrender.com';
-let token    = localStorage.getItem('jaifore_token');
-let adminUser = null;
-let allProducts = [];
-let allOrders   = [];
-let allUsers    = [];
+
+// ── STATE ───────────────────────────────────────────
+let token       = localStorage.getItem('jaifore_admin_token');
+let adminUser   = JSON.parse(localStorage.getItem('jaifore_admin_user') || 'null');
 let editingProductId = null;
+let calYear, calMonth;
 
-// ── AUTH GUARD ─────────────────────────────────────────
-async function checkAuth() {
-  if (!token) { window.location.href = '../auth.html'; return; }
-  try {
-    const res = await fetch(`${API}/api/auth/me`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    if (data.user.role !== 'admin') {
-      alert('Access denied. Admins only.');
-      window.location.href = '../auth.html';
-      return;
-    }
-    adminUser = data.user;
-    document.getElementById('admin-name').textContent = adminUser.name;
-  } catch {
-    localStorage.removeItem('jaifore_token');
-    window.location.href = '../auth.html';
+// ── INIT ────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (token && adminUser?.role === 'admin') {
+    showDashboard();
+  } else {
+    showLogin();
   }
+});
+
+// ── LOGIN ────────────────────────────────────────────
+function showLogin() {
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('dashboard').classList.add('hidden');
 }
 
-// ── UTILS ──────────────────────────────────────────────
-function formatPrice(n) { return `₦${Number(n).toLocaleString('en-NG')}`; }
-
-function formatDate(d) {
-  return new Date(d).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' });
+function showDashboard() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('adminName').textContent = `Welcome, ${adminUser?.name || 'Admin'}`;
+  switchTab('overview');
 }
 
-function toast(msg, type = '') {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.className = `toast show ${type}`;
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.className = 'toast'; }, 2800);
-}
+// Password toggle
+document.getElementById('togglePw').addEventListener('click', function () {
+  const input = document.getElementById('loginPassword');
+  input.type = input.type === 'password' ? 'text' : 'password';
+  this.textContent = input.type === 'password' ? 'show' : 'hide';
+});
 
-function statusBadge(status) {
-  return `<span class="badge badge-${status}">${status}</span>`;
-}
+// Login button
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl    = document.getElementById('loginError');
+  const btnText  = document.getElementById('loginBtnText');
+  const spinner  = document.getElementById('loginSpinner');
 
-function categoryBadge(cat) {
-  return `<span class="badge badge-${cat}">${cat}</span>`;
-}
+  if (!email || !password) { errEl.textContent = 'Email and password are required.'; return; }
 
-// ── TAB NAVIGATION ─────────────────────────────────────
+  btnText.classList.add('hidden');
+  spinner.classList.remove('hidden');
+  errEl.textContent = '';
+
+  try {
+    const res  = await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok)                        { errEl.textContent = data.error || 'Login failed.'; return; }
+    if (data.user.role !== 'admin')     { errEl.textContent = 'Access denied. Admins only.'; return; }
+
+    token     = data.token;
+    adminUser = data.user;
+    localStorage.setItem('jaifore_admin_token', token);
+    localStorage.setItem('jaifore_admin_user',  JSON.stringify(adminUser));
+    showDashboard();
+
+  } catch { errEl.textContent = 'Network error. Try again.'; }
+  finally {
+    btnText.classList.remove('hidden');
+    spinner.classList.add('hidden');
+  }
+});
+
+// Allow Enter key on login
+document.getElementById('loginPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+
+// Logout
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem('jaifore_admin_token');
+  localStorage.removeItem('jaifore_admin_user');
+  token = null; adminUser = null;
+  showLogin();
+});
+
+// ── TAB NAVIGATION ──────────────────────────────────
 document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-document.querySelectorAll('.dash-link').forEach(btn => {
-  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-});
+function switchTab(name) {
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
+  document.getElementById(`tab-${name}`).classList.remove('hidden');
 
-function switchTab(tab) {
-  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  document.querySelectorAll('.tab-content').forEach(s => s.classList.toggle('active', s.id === `tab-${tab}`));
-  document.getElementById('topbar-title').textContent = tab.charAt(0).toUpperCase() + tab.slice(1);
-  if (tab === 'products') loadProducts();
-  if (tab === 'orders')   loadOrders();
-  if (tab === 'users')    loadUsers();
+  const titles = { overview: 'Overview', products: 'Products', orders: 'Orders', transactions: 'Transactions', users: 'Users' };
+  document.getElementById('mainTitle').textContent = titles[name];
+
+  if (name === 'overview')     loadOverview();
+  if (name === 'products')     loadProducts();
+  if (name === 'orders')       loadOrders();
+  if (name === 'transactions') initCalendar();
+  if (name === 'users')        loadUsers();
 }
 
-// ── MOBILE MENU ────────────────────────────────────────
-document.getElementById('menu-toggle').addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('open');
-});
+// ── AUTH HEADER ──────────────────────────────────────
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+}
 
-// ── LOGOUT ─────────────────────────────────────────────
-document.getElementById('logout-btn').addEventListener('click', () => {
-  localStorage.removeItem('jaifore_token');
-  localStorage.removeItem('jaifore_user');
-  window.location.href = '../auth.html';
-});
-
-// ── DASHBOARD ──────────────────────────────────────────
-async function loadDashboard() {
+// ── OVERVIEW ─────────────────────────────────────────
+async function loadOverview() {
   try {
-    const [usersRes, ordersRes, productsRes] = await Promise.all([
-      fetch(`${API}/api/admin/users`,    { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${API}/api/admin/orders`,   { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${API}/api/products`,       { headers: { Authorization: `Bearer ${token}` } }),
+    const [products, orders, transactions, users] = await Promise.all([
+      fetch(`${API}/api/products`,     { headers: authHeaders() }).then(r => r.json()),
+      fetch(`${API}/api/orders`,       { headers: authHeaders() }).then(r => r.json()),
+      fetch(`${API}/api/transactions`, { headers: authHeaders() }).then(r => r.json()),
+      fetch(`${API}/api/users`,        { headers: authHeaders() }).then(r => r.json()),
     ]);
 
-    const users    = usersRes.ok    ? await usersRes.json()    : [];
-    const orders   = ordersRes.ok   ? await ordersRes.json()   : [];
-    const products = productsRes.ok ? await productsRes.json() : [];
+    document.getElementById('statProducts').textContent = Array.isArray(products) ? products.length : '—';
+    document.getElementById('statOrders').textContent   = Array.isArray(orders)   ? orders.length   : '—';
+    document.getElementById('statUsers').textContent    = Array.isArray(users)    ? users.length    : '—';
 
-    const usersArr    = Array.isArray(users)    ? users    : users.users    || [];
-    const ordersArr   = Array.isArray(orders)   ? orders   : orders.orders  || [];
-    const productsArr = Array.isArray(products) ? products : products.products || [];
-
-    const revenue = ordersArr.reduce((s, o) => s + (o.total || 0), 0);
-
-    document.getElementById('stat-users').textContent    = usersArr.length;
-    document.getElementById('stat-orders').textContent   = ordersArr.length;
-    document.getElementById('stat-products').textContent = productsArr.length;
-    document.getElementById('stat-revenue').textContent  = formatPrice(revenue);
-
-    // Recent orders
-    const recentOrders = document.getElementById('recent-orders');
-    if (!ordersArr.length) {
-      recentOrders.innerHTML = '<div class="recent-row"><td class="table-empty">No orders yet</td></div>';
-    } else {
-      recentOrders.innerHTML = ordersArr.slice(0,5).map(o => `
-        <div class="recent-row">
-          <div>
-            <div class="recent-name">${o.customer_name || o.user_name || 'Customer'}</div>
-            <div class="recent-meta">${formatDate(o.created_at)}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:0.75rem">
-            ${statusBadge(o.status || 'pending')}
-            <span class="recent-val">${formatPrice(o.total || 0)}</span>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    // Recent users
-    const recentUsers = document.getElementById('recent-users');
-    if (!usersArr.length) {
-      recentUsers.innerHTML = '<div class="recent-row"><span class="table-empty">No users yet</span></div>';
-    } else {
-      recentUsers.innerHTML = usersArr.slice(0,5).map(u => `
-        <div class="recent-row">
-          <div>
-            <div class="recent-name">${u.name}</div>
-            <div class="recent-meta">${u.email}</div>
-          </div>
-          <span class="recent-meta">${formatDate(u.created_at)}</span>
-        </div>
-      `).join('');
-    }
-
-  } catch (err) {
-    console.error('Dashboard load error:', err);
-    // Show zeros if backend not ready
-    ['stat-users','stat-orders','stat-products'].forEach(id => {
-      document.getElementById(id).textContent = '0';
-    });
-    document.getElementById('stat-revenue').textContent = '₦0';
-    document.getElementById('recent-orders').innerHTML = '<div class="recent-row" style="justify-content:center;color:var(--muted2);font-size:0.78rem;padding:1rem">No data yet</div>';
-    document.getElementById('recent-users').innerHTML  = '<div class="recent-row" style="justify-content:center;color:var(--muted2);font-size:0.78rem;padding:1rem">No data yet</div>';
-  }
+    const revenue = Array.isArray(transactions)
+      ? transactions.filter(t => t.status === 'success').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
+      : 0;
+    document.getElementById('statRevenue').textContent = `₦${revenue.toLocaleString()}`;
+  } catch (err) { console.error('Overview error:', err); }
 }
 
-// ── PRODUCTS ───────────────────────────────────────────
-async function loadProducts(filter = 'all') {
-  const tbody = document.getElementById('products-tbody');
-  tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Loading...</td></tr>';
+// ── PRODUCTS ─────────────────────────────────────────
+async function loadProducts() {
   try {
-    const res  = await fetch(`${API}/api/products`, { headers: { Authorization: `Bearer ${token}` } });
+    const res  = await fetch(`${API}/api/products`, { headers: authHeaders() });
     const data = await res.json();
-    allProducts = Array.isArray(data) ? data : data.products || [];
-  } catch { allProducts = []; }
+    const body = document.getElementById('productsBody');
+    body.innerHTML = '';
 
-  const filtered = filter === 'all' ? allProducts : allProducts.filter(p => p.category === filter);
+    if (!data.length) { body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--ink-muted);padding:2rem">No products yet.</td></tr>`; return; }
 
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">No products found.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(p => `
-    <tr>
-      <td>
-        <div style="font-weight:600">${p.name}</div>
-        <div style="font-size:0.7rem;color:var(--muted2);margin-top:2px">${(p.description||'').slice(0,50)}${(p.description||'').length>50?'…':''}</div>
-      </td>
-      <td>${categoryBadge(p.category)}</td>
-      <td style="color:var(--gold);font-family:var(--font-d);font-weight:700">${formatPrice(p.price)}</td>
-      <td>${statusBadge(p.status || 'active')}</td>
-      <td>
-        <div class="action-btns">
-          <button class="btn-icon" onclick="editProduct('${p._id || p.id}')">✏️ Edit</button>
-          <button class="btn-icon danger" onclick="deleteProduct('${p._id || p.id}')">🗑 Delete</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
+    data.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.name}</td>
+        <td>${p.category || '—'}</td>
+        <td>₦${parseFloat(p.price).toLocaleString()}</td>
+        <td><span class="badge ${p.in_stock ? 'badge-success' : 'badge-failed'}">${p.in_stock ? 'In Stock' : 'Out'}</span></td>
+        <td>
+          <button class="action-btn" onclick="openEditProduct(${p.id})">Edit</button>
+          <button class="action-btn danger" onclick="deleteProduct(${p.id})">Delete</button>
+        </td>`;
+      body.appendChild(tr);
+    });
+  } catch (err) { console.error('Products error:', err); }
 }
 
-// Product filter chips
-document.querySelectorAll('.filter-chip').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    loadProducts(btn.dataset.filter);
-  });
+// Open Add form
+document.getElementById('openAddProduct').addEventListener('click', () => {
+  editingProductId = null;
+  document.getElementById('productFormTitle').textContent = 'Add Product';
+  document.getElementById('pName').value     = '';
+  document.getElementById('pPrice').value    = '';
+  document.getElementById('pCategory').value = '';
+  document.getElementById('pImage').value    = '';
+  document.getElementById('pDesc').value     = '';
+  document.getElementById('pStock').value    = 'true';
+  document.getElementById('productForm').classList.remove('hidden');
 });
 
-// ── ADD / EDIT PRODUCT MODAL ───────────────────────────
-document.getElementById('add-product-btn').addEventListener('click', () => openProductModal());
-
-function openProductModal(product = null) {
-  editingProductId = product ? (product._id || product.id) : null;
-  document.getElementById('product-modal-title').textContent = product ? 'Edit Product' : 'Add Product';
-  document.getElementById('p-name').value        = product?.name        || '';
-  document.getElementById('p-category').value    = product?.category    || '';
-  document.getElementById('p-description').value = product?.description || '';
-  document.getElementById('p-price').value       = product?.price       || '';
-  document.getElementById('p-sizes').value       = (product?.sizes||[]).join(', ');
-  document.getElementById('p-image').value       = product?.image       || '';
-  document.getElementById('p-domain').value      = product?.domain      || '';
-  toggleDomainField();
-  document.getElementById('product-modal-overlay').classList.add('open');
-  document.getElementById('product-modal').classList.add('open');
+// Open Edit form
+async function openEditProduct(id) {
+  try {
+    const res = await fetch(`${API}/api/products/${id}`, { headers: authHeaders() });
+    const p   = await res.json();
+    editingProductId = id;
+    document.getElementById('productFormTitle').textContent = 'Edit Product';
+    document.getElementById('pName').value     = p.name;
+    document.getElementById('pPrice').value    = p.price;
+    document.getElementById('pCategory').value = p.category || '';
+    document.getElementById('pImage').value    = p.image_url || '';
+    document.getElementById('pDesc').value     = p.description || '';
+    document.getElementById('pStock').value    = p.in_stock ? 'true' : 'false';
+    document.getElementById('productForm').classList.remove('hidden');
+    document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
+  } catch (err) { console.error('Edit product error:', err); }
 }
 
-function closeProductModal() {
-  document.getElementById('product-modal-overlay').classList.remove('open');
-  document.getElementById('product-modal').classList.remove('open');
+// Cancel form
+document.getElementById('cancelProductBtn').addEventListener('click', () => {
+  document.getElementById('productForm').classList.add('hidden');
   editingProductId = null;
-}
+});
 
-document.getElementById('product-modal-close').addEventListener('click',  closeProductModal);
-document.getElementById('product-modal-cancel').addEventListener('click', closeProductModal);
-document.getElementById('product-modal-overlay').addEventListener('click', closeProductModal);
-
-document.getElementById('p-category').addEventListener('change', toggleDomainField);
-
-function toggleDomainField() {
-  const cat = document.getElementById('p-category').value;
-  document.getElementById('domain-group').style.display = cat === 'webdev' ? 'flex' : 'none';
-}
-
-document.getElementById('product-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const sizesRaw = document.getElementById('p-sizes').value;
-  const body = {
-    name:        document.getElementById('p-name').value.trim(),
-    category:    document.getElementById('p-category').value,
-    description: document.getElementById('p-description').value.trim(),
-    price:       Number(document.getElementById('p-price').value),
-    sizes:       sizesRaw ? sizesRaw.split(',').map(s => s.trim()).filter(Boolean) : [],
-    image:       document.getElementById('p-image').value.trim() || null,
-    domain:      document.getElementById('p-domain').value.trim() || null,
+// Save product
+document.getElementById('saveProductBtn').addEventListener('click', async () => {
+  const msgEl = document.getElementById('productMsg');
+  const body  = {
+    name:        document.getElementById('pName').value.trim(),
+    price:       document.getElementById('pPrice').value,
+    category:    document.getElementById('pCategory').value.trim(),
+    image_url:   document.getElementById('pImage').value.trim(),
+    description: document.getElementById('pDesc').value.trim(),
+    in_stock:    document.getElementById('pStock').value === 'true',
   };
 
-  const url    = editingProductId ? `${API}/api/products/${editingProductId}` : `${API}/api/products`;
-  const method = editingProductId ? 'PUT' : 'POST';
+  if (!body.name || !body.price) { msgEl.textContent = 'Name and price are required.'; msgEl.className = 'form-msg error'; return; }
 
   try {
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) { const d = await res.json(); toast(d.error || 'Failed to save product.', 'error'); return; }
-    toast(editingProductId ? 'Product updated!' : 'Product added!', 'success');
-    closeProductModal();
-    loadProducts();
-  } catch {
-    toast('Network error. Try again.', 'error');
-  }
+    const url    = editingProductId ? `${API}/api/products/${editingProductId}` : `${API}/api/products`;
+    const method = editingProductId ? 'PUT' : 'POST';
+    const res    = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
+    const data   = await res.json();
+
+    if (!res.ok) { msgEl.textContent = data.error || 'Failed.'; msgEl.className = 'form-msg error'; return; }
+
+    msgEl.textContent = editingProductId ? 'Product updated.' : 'Product added.';
+    msgEl.className   = 'form-msg success';
+    setTimeout(() => {
+      document.getElementById('productForm').classList.add('hidden');
+      editingProductId = null;
+      loadProducts();
+    }, 1000);
+  } catch { msgEl.textContent = 'Network error.'; msgEl.className = 'form-msg error'; }
 });
 
-function editProduct(id) {
-  const p = allProducts.find(x => (x._id || x.id) === id);
-  if (p) openProductModal(p);
-}
-
+// Delete product
 async function deleteProduct(id) {
-  if (!confirm('Delete this product? This cannot be undone.')) return;
+  if (!confirm('Delete this product?')) return;
   try {
-    const res = await fetch(`${API}/api/products/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) { toast('Failed to delete product.', 'error'); return; }
-    toast('Product deleted.', 'success');
+    await fetch(`${API}/api/products/${id}`, { method: 'DELETE', headers: authHeaders() });
     loadProducts();
-  } catch { toast('Network error.', 'error'); }
+  } catch (err) { console.error('Delete error:', err); }
 }
 
-// ── ORDERS ─────────────────────────────────────────────
-async function loadOrders(statusFilter = 'all') {
-  const tbody = document.getElementById('orders-tbody');
-  tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Loading...</td></tr>';
+// ── ORDERS ───────────────────────────────────────────
+async function loadOrders() {
   try {
-    const res  = await fetch(`${API}/api/admin/orders`, { headers: { Authorization: `Bearer ${token}` } });
+    const res  = await fetch(`${API}/api/orders`, { headers: authHeaders() });
     const data = await res.json();
-    allOrders = Array.isArray(data) ? data : data.orders || [];
-  } catch { allOrders = []; }
+    const body = document.getElementById('ordersBody');
+    body.innerHTML = '';
 
-  const filtered = statusFilter === 'all' ? allOrders : allOrders.filter(o => o.status === statusFilter);
+    if (!data.length) { body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--ink-muted);padding:2rem">No orders yet.</td></tr>`; return; }
 
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No orders found.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(o => `
-    <tr>
-      <td style="font-family:var(--font-d);font-size:0.75rem;color:var(--muted2)">#${(o.id||o._id||'').toString().slice(-6).toUpperCase()}</td>
-      <td>
-        <div style="font-weight:600">${o.customer_name || o.user_name || '—'}</div>
-        <div style="font-size:0.7rem;color:var(--muted2)">${o.customer_email || o.user_email || ''}</div>
-      </td>
-      <td style="color:var(--muted2)">${o.items?.length || 0} item(s)</td>
-      <td style="color:var(--gold);font-family:var(--font-d);font-weight:700">${formatPrice(o.total||0)}</td>
-      <td>
-        <select class="select-input" style="font-size:0.7rem;padding:0.2rem 0.5rem"
-          onchange="updateOrderStatus('${o.id||o._id}', this.value)">
-          ${['pending','processing','shipped','delivered','cancelled'].map(s =>
-            `<option value="${s}"${(o.status||'pending')===s?' selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
-          ).join('')}
-        </select>
-      </td>
-      <td style="color:var(--muted2);font-size:0.75rem">${formatDate(o.created_at)}</td>
-      <td>
-        <button class="btn-icon" onclick="viewOrder('${o.id||o._id}')">👁 View</button>
-      </td>
-    </tr>
-  `).join('');
+    data.forEach(o => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>#${o.id}</td>
+        <td>${o.customer_name || '—'}<br><small style="color:var(--ink-muted)">${o.customer_email || ''}</small></td>
+        <td>₦${parseFloat(o.total).toLocaleString()}</td>
+        <td><span class="badge badge-${o.status === 'completed' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending'}">${o.status}</span></td>
+        <td>${new Date(o.created_at).toLocaleDateString()}</td>
+        <td>
+          <select class="status-select" onchange="updateOrderStatus(${o.id}, this.value)">
+            <option ${o.status === 'pending'   ? 'selected' : ''}>pending</option>
+            <option ${o.status === 'completed' ? 'selected' : ''}>completed</option>
+            <option ${o.status === 'cancelled' ? 'selected' : ''}>cancelled</option>
+          </select>
+        </td>`;
+      body.appendChild(tr);
+    });
+  } catch (err) { console.error('Orders error:', err); }
 }
-
-document.getElementById('order-status-filter').addEventListener('change', (e) => {
-  loadOrders(e.target.value);
-});
 
 async function updateOrderStatus(id, status) {
   try {
-    const res = await fetch(`${API}/api/admin/orders/${id}`, {
+    await fetch(`${API}/api/orders/${id}/status`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ status }),
+      headers: authHeaders(),
+      body: JSON.stringify({ status })
     });
-    if (res.ok) toast(`Order status updated to ${status}`, 'success');
-    else toast('Failed to update status.', 'error');
-  } catch { toast('Network error.', 'error'); }
+  } catch (err) { console.error('Update status error:', err); }
 }
 
-function viewOrder(id) {
-  const order = allOrders.find(o => (o.id||o._id) === id);
-  if (!order) return;
-  alert(`Order #${id.toString().slice(-6).toUpperCase()}\nCustomer: ${order.customer_name||'—'}\nTotal: ${formatPrice(order.total||0)}\nStatus: ${order.status||'pending'}\nDate: ${formatDate(order.created_at)}`);
+// ── CALENDAR / TRANSACTIONS ───────────────────────────
+function initCalendar() {
+  const now = new Date();
+  calYear   = now.getFullYear();
+  calMonth  = now.getMonth() + 1;
+  renderCalendar();
 }
 
-// ── USERS ──────────────────────────────────────────────
-async function loadUsers() {
-  const tbody = document.getElementById('users-tbody');
-  tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Loading...</td></tr>';
-  try {
-    const res  = await fetch(`${API}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    allUsers = Array.isArray(data) ? data : data.users || [];
-  } catch { allUsers = []; }
-  renderUsersTable(allUsers);
-}
-
-function renderUsersTable(users) {
-  const tbody = document.getElementById('users-tbody');
-  if (!users.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">No users found.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = users.map(u => `
-    <tr>
-      <td style="font-weight:600">${u.name}</td>
-      <td style="color:var(--muted2)">${u.email}</td>
-      <td><span class="badge badge-${u.role||'user'}">${u.role||'user'}</span></td>
-      <td style="color:var(--muted2);font-size:0.75rem">${formatDate(u.created_at)}</td>
-      <td>
-        <div class="action-btns">
-          ${u.role !== 'admin'
-            ? `<button class="btn-icon" onclick="promoteUser(${u.id})">⬆ Make Admin</button>`
-            : `<button class="btn-icon" onclick="demoteUser(${u.id})">⬇ Remove Admin</button>`}
-          <button class="btn-icon danger" onclick="deleteUser(${u.id})">🗑 Delete</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-
-// User search
-document.getElementById('user-search').addEventListener('input', (e) => {
-  const q = e.target.value.toLowerCase();
-  const filtered = allUsers.filter(u =>
-    u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
-  );
-  renderUsersTable(filtered);
+document.getElementById('calPrev').addEventListener('click', () => {
+  calMonth--;
+  if (calMonth < 1) { calMonth = 12; calYear--; }
+  renderCalendar();
 });
 
-async function promoteUser(id) {
-  if (!confirm('Make this user an admin?')) return;
+document.getElementById('calNext').addEventListener('click', () => {
+  calMonth++;
+  if (calMonth > 12) { calMonth = 1; calYear++; }
+  renderCalendar();
+});
+
+async function renderCalendar() {
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calTitle').textContent = `${months[calMonth - 1]} ${calYear}`;
+
+  // Fetch summary for dots
+  let summary = [];
   try {
-    const res = await fetch(`${API}/api/admin/users/${id}/role`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ role: 'admin' }),
-    });
-    if (res.ok) { toast('User promoted to admin.', 'success'); loadUsers(); }
-    else toast('Failed to update role.', 'error');
-  } catch { toast('Network error.', 'error'); }
+    const res = await fetch(`${API}/api/transactions/summary/${calYear}/${calMonth}`, { headers: authHeaders() });
+    summary   = await res.json();
+  } catch {}
+
+  const datesWithData = new Set((Array.isArray(summary) ? summary : []).map(s => s.date?.slice(0, 10)));
+
+  const grid     = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  // Day name headers
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'cal-day-name';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const firstDay = new Date(calYear, calMonth - 1, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Empty cells
+  for (let i = 0; i < firstDay; i++) {
+    const el = document.createElement('div');
+    el.className = 'cal-day empty';
+    grid.appendChild(el);
+  }
+
+  // Day cells
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const el = document.createElement('div');
+    el.className = 'cal-day';
+    if (dateStr === today)             el.classList.add('today');
+    if (datesWithData.has(dateStr))    el.classList.add('has-data');
+    el.textContent = d;
+    el.addEventListener('click', () => loadDayTransactions(dateStr, el));
+    grid.appendChild(el);
+  }
+
+  // Hide detail panel
+  document.getElementById('txDetail').classList.add('hidden');
 }
 
-async function demoteUser(id) {
-  if (!confirm('Remove admin role from this user?')) return;
+async function loadDayTransactions(dateStr, dayEl) {
+  // Highlight selected
+  document.querySelectorAll('.cal-day').forEach(d => d.classList.remove('selected'));
+  dayEl.classList.add('selected');
+
+  const detail = document.getElementById('txDetail');
+  detail.classList.remove('hidden');
+  document.getElementById('txDetailDate').textContent = new Date(dateStr + 'T00:00:00').toDateString();
+
   try {
-    const res = await fetch(`${API}/api/admin/users/${id}/role`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ role: 'user' }),
-    });
-    if (res.ok) { toast('Admin role removed.', 'success'); loadUsers(); }
-    else toast('Failed to update role.', 'error');
-  } catch { toast('Network error.', 'error'); }
+    const [orders, payments] = await Promise.all([
+      fetch(`${API}/api/orders/by-date/${dateStr}`,       { headers: authHeaders() }).then(r => r.json()),
+      fetch(`${API}/api/transactions/by-date/${dateStr}`, { headers: authHeaders() }).then(r => r.json()),
+    ]);
+
+    // Orders
+    const ordersEl = document.getElementById('txOrders');
+    if (!orders.length) {
+      ordersEl.innerHTML = `<p class="tx-empty">No orders on this date.</p>`;
+    } else {
+      ordersEl.innerHTML = orders.map(o => `
+        <div class="tx-item">
+          <span class="tx-item-label">#${o.id} — ${o.customer_name || 'Guest'}</span>
+          <span class="tx-item-val">₦${parseFloat(o.total).toLocaleString()}</span>
+        </div>`).join('');
+    }
+
+    // Payments
+    const paymentsEl = document.getElementById('txPayments');
+    if (!payments.length) {
+      paymentsEl.innerHTML = `<p class="tx-empty">No payments on this date.</p>`;
+    } else {
+      paymentsEl.innerHTML = payments.map(t => `
+        <div class="tx-item">
+          <span class="tx-item-label">${t.reference || 'N/A'}</span>
+          <span class="tx-item-val">₦${parseFloat(t.amount).toLocaleString()} <span class="badge badge-${t.status === 'success' ? 'success' : 'failed'}">${t.status}</span></span>
+        </div>`).join('');
+    }
+
+  } catch (err) { console.error('Day transactions error:', err); }
 }
 
-async function deleteUser(id) {
-  if (!confirm('Delete this user? This cannot be undone.')) return;
+// ── USERS ─────────────────────────────────────────────
+async function loadUsers() {
   try {
-    const res = await fetch(`${API}/api/admin/users/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
+    const res  = await fetch(`${API}/api/users`, { headers: authHeaders() });
+    const data = await res.json();
+    const body = document.getElementById('usersBody');
+    body.innerHTML = '';
+
+    if (!data.length) { body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--ink-muted);padding:2rem">No users yet.</td></tr>`; return; }
+
+    data.forEach(u => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${u.name}</td>
+        <td>${u.email}</td>
+        <td><span class="badge badge-${u.role === 'admin' ? 'admin' : 'user'}">${u.role}</span></td>
+        <td><span class="badge badge-${u.verified ? 'success' : 'pending'}">${u.verified ? 'Yes' : 'No'}</span></td>
+        <td>${new Date(u.created_at).toLocaleDateString()}</td>`;
+      body.appendChild(tr);
     });
-    if (res.ok) { toast('User deleted.', 'success'); loadUsers(); }
-    else toast('Failed to delete user.', 'error');
-  } catch { toast('Network error.', 'error'); }
+  } catch (err) { console.error('Users error:', err); }
 }
-
-// ── INIT ───────────────────────────────────────────────
-async function init() {
-  await checkAuth();
-  loadDashboard();
-}
-
-init();

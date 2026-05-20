@@ -410,7 +410,11 @@ body {
    ================================ */
 .footer { border-top: 2px solid var(--ink); padding: 2rem 3rem; }
 .footer-inner { display: flex; align-items: center; justify-content: space-between; max-width: 1400px; margin: 0 auto; }
-.footer-brand { font-family: var(--font-display); font-size: 1.1rem; font-weight: 900; letter-spacing: -0.02em; }
+
+.footer-brand {
+height:50px;
+boarder-radius:50px;
+} 
 .footer-copy { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.05em; }
 
 /* ================================
