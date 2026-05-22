@@ -76,7 +76,7 @@ router.post('/login', async (req, res) => {
     if (!user.verified) return res.status(403).json({ error: 'Please verify your email first.', needsVerification: true, email: user.email });
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ error: 'Invalid email or password.' });
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '30d' });
     return res.status(200).json({ message: 'Login successful.', token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (err) { console.error('Login error:', err.message, err.stack); return res.status(500).json({ error: err.message }); }
 });
