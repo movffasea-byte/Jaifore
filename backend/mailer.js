@@ -1,19 +1,16 @@
 /* ================================
-   JAIFORE MAILER
+   JAIFORE MAILER — Resend
    backend/mailer.js
    ================================ */
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function generateOTP() { return Math.floor(1000 + Math.random() * 9000).toString(); }
 
 async function sendOTPEmail(toEmail, name, otp) {
-  await transporter.sendMail({
-    from: `"Jai'fore Studio" <${process.env.GMAIL_USER}>`,
+  await resend.emails.send({
+    from: 'Jaifore Studio <onboarding@resend.dev>',
     to: toEmail,
     subject: `Your Jai'fore verification code: ${otp}`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -41,8 +38,8 @@ async function sendOTPEmail(toEmail, name, otp) {
 }
 
 async function sendAdminNotification(newUser) {
-  await transporter.sendMail({
-    from: `"Jai'fore Studio" <${process.env.GMAIL_USER}>`,
+  await resend.emails.send({
+    from: 'Jaifore Studio <onboarding@resend.dev>',
     to: process.env.ADMIN_EMAIL,
     subject: `New Registration — ${newUser.name}`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0a0a0f;font-family:'Helvetica Neue',Arial,sans-serif;">
