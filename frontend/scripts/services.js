@@ -44,8 +44,14 @@ function getMockProducts(category) {
 
 // ── FETCH ──────────────────────────────────────────────
 async function fetchProducts(category) {
+  const categoryMap = {
+    apparel: 'Apparels & Merchandise',
+    design:  'Graphic Design',
+    webdev:  'Web Development'
+  };
   try {
-    const res = await fetch(`${API}/api/products?category=${category}&limit=3`);
+    const cat = encodeURIComponent(categoryMap[category] || category);
+    const res = await fetch(`${API}/api/products?category=${cat}&limit=3`);
     if (!res.ok) throw new Error();
     const data = await res.json();
     return Array.isArray(data) ? data : data.products || [];
