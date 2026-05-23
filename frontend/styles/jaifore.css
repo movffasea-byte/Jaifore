@@ -588,6 +588,7 @@ img {
 .footer-logo {
   height: 44px;
   object-fit: contain;
+  border-radius: 50px;
 }
 
 .footer-links {
