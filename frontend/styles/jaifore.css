@@ -29,6 +29,7 @@ a {
 img {
   display: block;
   max-width: 100%;
+  border-radius:100%;
 
 }
 
@@ -587,7 +588,6 @@ img {
 .footer-logo {
   height: 44px;
   object-fit: contain;
-  border-radius:50%;
 }
 
 .footer-links {

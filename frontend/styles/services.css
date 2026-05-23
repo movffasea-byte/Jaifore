@@ -413,7 +413,7 @@ body {
 
 .footer-brand {
 height:50px;
-boarder-radius:50px;
+border-radius:50px;
 } 
 .footer-copy { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.05em; }
 
