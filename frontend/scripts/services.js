@@ -44,14 +44,8 @@ function getMockProducts(category) {
 
 // ── FETCH ──────────────────────────────────────────────
 async function fetchProducts(category) {
-  const categoryMap = {
-    apparel: 'Apparels & Merchandise',
-    design:  'Graphic Design',
-    webdev:  'Web Development'
-  };
   try {
-    const cat = encodeURIComponent(categoryMap[category] || category);
-    const res = await fetch(`${API}/api/products?category=${cat}&limit=3`);
+    const res = await fetch(`${API}/api/products?category=${category}&limit=3`);
     if (!res.ok) throw new Error();
     const data = await res.json();
     return Array.isArray(data) ? data : data.products || [];
@@ -76,8 +70,8 @@ function renderCard(product, index, category) {
   const isDesign   = category === 'design';
   const placeholder = getPlaceholder(category, index);
 
-  const imgHTML = product.image
-    ? `<img src="${product.image}" alt="${product.name}" loading="lazy"/>`
+  const imgHTML = product.image_url
+    ? `<img src="${product.image_url}" alt="${product.name}" loading="lazy"/>`
     : `<div class="card-img-placeholder">${placeholder}</div>`;
 
   const sizeHTML = isApparel && product.sizes?.length
@@ -170,8 +164,8 @@ function openModal(product, category) {
   const isApparel = category === 'apparel';
   const placeholder = getPlaceholder(category, 0);
 
-  const imgHTML = product.image
-    ? `<img src="${product.image}" alt="${product.name}"/>`
+  const imgHTML = product.image_url
+    ? `<img src="${product.image_url}" alt="${product.name}"/>`
     : `<div class="modal-img-placeholder">${placeholder}</div>`;
 
   const sizesHTML = isApparel && product.sizes?.length
