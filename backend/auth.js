@@ -26,7 +26,7 @@ router.post('/register', async (req, res) => {
     otpStore[email.toLowerCase().trim()] = { otp, expires: Date.now() + 10 * 60 * 1000, userData: { name: name.trim(), email: email.toLowerCase().trim(), password: hashed } };
     await sendOTPEmail(email, name, otp);
     return res.status(200).json({ message: 'OTP sent to your email.' });
-  } catch (err) { console.error('Register error:', err.message); return res.status(500).json({ error: 'Server error. Please try again.' }); }
+  }  catch (err) { console.error('Register error:', err.message, err.stack); return res.status(500).json({ error: err.message }); }
 });
 
 // VERIFY OTP — Step 2
