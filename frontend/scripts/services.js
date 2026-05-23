@@ -24,19 +24,19 @@ function getPlaceholder(category, index) {
 function getMockProducts(category) {
   const mocks = {
     apparel: [
-      { _id:'a1', name:'Classic Black Tee',   description:'Premium 100% cotton blank tee. Clean cut, heavyweight feel.',         price:8500,   category:'apparel', sizes:['XS','S','M','L','XL','XXL'], image:null },
-      { _id:'a2', name:'Relaxed Fit Hoodie',  description:'Heavyweight fleece hoodie. Oversized fit, kangaroo pocket.',          price:18500,  category:'apparel', sizes:['S','M','L','XL','XXL'],      image:null },
-      { _id:'a3', name:'Cargo Shorts',        description:'Multi-pocket cargo shorts. Durable cotton twill, mid-rise.',          price:12000,  category:'apparel', sizes:['S','M','L','XL'],            image:null },
+      { id:'a1', name:'Classic Black Tee',   description:'Premium 100% cotton blank tee. Clean cut, heavyweight feel.',         price:8500,   category:'apparel', sizes:['XS','S','M','L','XL','XXL'], image:null },
+      { id:'a2', name:'Relaxed Fit Hoodie',  description:'Heavyweight fleece hoodie. Oversized fit, kangaroo pocket.',          price:18500,  category:'apparel', sizes:['S','M','L','XL','XXL'],      image:null },
+      { id:'a3', name:'Cargo Shorts',        description:'Multi-pocket cargo shorts. Durable cotton twill, mid-rise.',          price:12000,  category:'apparel', sizes:['S','M','L','XL'],            image:null },
     ],
     design: [
-      { _id:'d1', name:'Abstract Waves',         description:'Bold fluid wave pattern. Available in mono or full colour print.', price:15000,  category:'design', image:null },
-      { _id:'d2', name:'Custom Logo Design',     description:'Bring your idea — we craft a professional logo from scratch.',     price:35000,  category:'design', image:null },
-      { _id:'d3', name:'Street Art Illustration',description:'Urban-inspired illustration pack. Ready to print on any surface.', price:22000,  category:'design', image:null },
+      { id:'d1', name:'Abstract Waves',         description:'Bold fluid wave pattern. Available in mono or full colour print.', price:15000,  category:'design', image:null },
+      { id:'d2', name:'Custom Logo Design',     description:'Bring your idea — we craft a professional logo from scratch.',     price:35000,  category:'design', image:null },
+      { id:'d3', name:'Street Art Illustration',description:'Urban-inspired illustration pack. Ready to print on any surface.', price:22000,  category:'design', image:null },
     ],
     webdev: [
-      { _id:'w1', name:'E-Commerce Starter',      description:'Full-featured online store with cart, payments, and admin panel.', price:250000, category:'webdev', domain:'aminfinitybites.health',   siteUrl:'https://aminfinitybites.health', image:null },
-      { _id:'w2', name:'Creative Portfolio',      description:'Stunning portfolio site for creatives, artists, and agencies.',   price:120000, category:'webdev', domain:'example-portfolio.com',    siteUrl:null, image:null },
-      { _id:'w3', name:'Business Landing Page',   description:'High-converting landing page with contact forms and analytics.',  price:80000,  category:'webdev', domain:'example-business.com',     siteUrl:null, image:null },
+      { id:'w1', name:'E-Commerce Starter',      description:'Full-featured online store with cart, payments, and admin panel.', price:250000, category:'webdev', domain:'aminfinitybites.health',   siteUrl:'https://aminfinitybites.health', image:null },
+      { id:'w2', name:'Creative Portfolio',      description:'Stunning portfolio site for creatives, artists, and agencies.',   price:120000, category:'webdev', domain:'example-portfolio.com',    siteUrl:null, image:null },
+      { id:'w3', name:'Business Landing Page',   description:'High-converting landing page with contact forms and analytics.',  price:80000,  category:'webdev', domain:'example-business.com',     siteUrl:null, image:null },
     ]
   };
   return mocks[category] || [];
@@ -88,11 +88,11 @@ function renderCard(product, index, category) {
   const footerHTML = isApparel
     ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
        <div style="display:flex;gap:0.4rem">
-         <button class="configure-btn" data-id="${product._id}">🎨 Design</button>
-         <button class="card-action"   data-id="${product._id}">Add to Cart</button>
+         <button class="configure-btn" data-id="${product.id}">🎨 Design</button>
+         <button class="card-action"   data-id="${product.id}">Add to Cart</button>
        </div>`
     : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
-       <button class="card-action" data-id="${product._id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
+       <button class="card-action" data-id="${product.id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
 
   card.innerHTML = `
     <div class="card-img">
@@ -129,7 +129,7 @@ function renderCard(product, index, category) {
   // Design It button — go to configurator
   card.querySelector('.configure-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    window.location.href = `configurator.html?product=${product._id}`;
+    window.location.href = `configurator.html?product=${product.id}`;
   });
 
   return card;
@@ -180,7 +180,7 @@ function openModal(product, category) {
     ? `<a href="mailto:hello@jaifore.com?subject=Enquiry: ${encodeURIComponent(product.name)}" class="modal-link">✉ Enquire About This Site →</a>
        ${product.siteUrl ? `<a href="${product.siteUrl}" target="_blank" class="modal-link">🌐 Visit Live Site →</a>` : ''}`
     : isApparel
-      ? `<button class="modal-configure-btn" onclick="window.location.href='configurator.html?product=${product._id}'">🎨 Design It in Studio</button>
+      ? `<button class="modal-configure-btn" onclick="window.location.href='configurator.html?product=${product.id}'">🎨 Design It in Studio</button>
          <button class="modal-add-btn">Add to Cart</button>`
       : `<button class="modal-add-btn">Order Now</button>`;
 

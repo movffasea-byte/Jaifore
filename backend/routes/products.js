@@ -7,13 +7,31 @@ const router  = express.Router();
 const { pool } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
 
-// GET all products (public)
+
+// GET all products (public) — supports ?category=&limit=
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
+    const { category, limit } = req.query;
+    let query  = 'SELECT * FROM products';
+    const params = [];
+
+    if (category) {
+      params.push(category);
+      query += ` WHERE LOWER(category) = LOWER($1)`;
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    if (limit) {
+      params.push(parseInt(limit));
+      query += ` LIMIT $${params.length}`;
+    }
+
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 
 // GET single product (public)
 router.get('/:id', async (req, res) => {
