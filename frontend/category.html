@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jai'fore — Category</title>
+  <link rel="stylesheet" href="styles/services.css"/>
+  <link rel="stylesheet" href="styles/category.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <div class="noise"></div>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <a href="index.html" class="nav-logo">
+      <img src="logo/rooted2.jpg" alt="Jai'fore"/>
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="services.html">Services</a>
+      <a href="loginsys.html" class="nav-cta">Sign In</a>
+    </div>
+    <button class="cart-btn" id="cart-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      <span class="cart-count" id="cart-count">0</span>
+    </button>
+  </nav>
+
+  <!-- HERO -->
+  <section class="cat-page-hero">
+    <div class="cat-page-hero-inner">
+      <a href="services.html" class="back-link">← Back to Services</a>
+      <div class="hero-tag" id="catTag">Category</div>
+      <h1 class="hero-title" id="catTitle">Products</h1>
+      <p class="hero-sub" id="catDesc"></p>
+    </div>
+  </section>
+
+  <!-- FILTERS -->
+  <div class="cat-toolbar">
+    <div class="cat-count" id="catCount">Loading...</div>
+    <div class="cat-filters">
+      <select class="filter-select" id="sortSelect">
+        <option value="newest">Newest First</option>
+        <option value="price-asc">Price: Low to High</option>
+        <option value="price-desc">Price: High to Low</option>
+      </select>
+      <select class="filter-select" id="stockSelect">
+        <option value="all">All Items</option>
+        <option value="instock">In Stock Only</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- PRODUCTS GRID -->
+  <main class="cat-main">
+    <div class="products-grid" id="cat-grid">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+
+    <div class="load-more-wrap" id="loadMoreWrap">
+      <button class="load-more-btn" id="loadMoreBtn">
+        <span>Load More</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      </button>
+    </div>
+
+    <div class="cat-empty hidden" id="catEmpty">
+      <div class="empty-icon">◎</div>
+      <p>No products found in this category yet.</p>
+      <a href="services.html" class="load-more-btn" style="display:inline-flex;text-decoration:none">← Back to Services</a>
+    </div>
+  </main>
+
+  <!-- PRODUCT MODAL -->
+  <div class="modal-overlay" id="modal-overlay"></div>
+  <div class="product-modal" id="product-modal">
+    <button class="modal-close" id="modal-close">✕</button>
+    <div class="modal-inner" id="modal-inner"></div>
+  </div>
+
+  <!-- CART SIDEBAR -->
+  <div class="cart-overlay" id="cart-overlay"></div>
+  <aside class="cart-sidebar" id="cart-sidebar">
+    <div class="cart-top">
+      <h3>Your Cart</h3>
+      <button class="cart-close" id="cart-close">✕</button>
+    </div>
+    <div class="cart-items" id="cart-items">
+      <div class="cart-empty">Your cart is empty.</div>
+    </div>
+    <div class="cart-footer">
+      <div class="cart-total-row">
+        <span>Total</span>
+        <span id="cart-total">₦0</span>
+      </div>
+      <button class="checkout-btn" id="checkout-btn">Proceed to Checkout</button>
+    </div>
+  </aside>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <img class="footer-brand" src="logo/rooted2.jpg"/>
+      <div class="footer-copy">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</div>
+    </div>
+  </footer>
+
+  <script src="data/cart.js"></script>
+  <script src="scripts/category.js"></script>
+</body>
+</html>
