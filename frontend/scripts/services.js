@@ -51,7 +51,7 @@ async function fetchProducts(category) {
   };
   try {
     const cat = encodeURIComponent(categoryMap[category] || category);
-    const res = await fetch(`${API}/api/products?category=${category}&limit=3`);
+   const res = await fetch(`${API}/api/products?category=${cat}&limit=3`);
     if (!res.ok) throw new Error();
     const data = await res.json();
     return Array.isArray(data) ? data : data.products || [];
