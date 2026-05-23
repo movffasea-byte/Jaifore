@@ -3,7 +3,6 @@
    cart.js
    ================================ */
 
-const API = 'https://jai-fore-website.onrender.com';
 
 let cart = JSON.parse(localStorage.getItem('jaifore_cart') || '[]');
 
