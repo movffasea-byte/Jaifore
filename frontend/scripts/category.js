@@ -213,7 +213,7 @@ function openModal(product) {
       <div class="modal-details">
         <div class="modal-category">${meta.tag}</div>
         <div class="modal-name">${product.name}</div>
-        <div class="modal-price">₦${Number(product.price).toLocaleString('en-NG')}</div>
+        <div class="modal-price">${formatPrice(product.price)}</div>
         <div class="modal-desc">${product.description}</div>
         ${sizesHTML}
         ${actionHTML}
