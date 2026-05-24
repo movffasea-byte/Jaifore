@@ -6,7 +6,6 @@
 const API = 'https://jai-fore-website.onrender.com';
 
 // ── MOCKUP IMAGES ───────────────────────────────────
-// Using placeholder SVG mockups — replace src with real black tee/hoodie images
 const MOCKUPS = {
   tee: {
     front: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Black_T-Shirt.jpg/800px-Black_T-Shirt.jpg',
@@ -21,13 +20,15 @@ const MOCKUPS = {
 };
 
 // ── STATE ───────────────────────────────────────────
-let product        = null;
-let currentView    = 'front';
-let designs        = [];       // { id, src, el, x, y, w, h }
-let selectedDesign = null;
-let history        = [];
-let selectedSize   = null;
-const MAX_DESIGNS  = 5;
+let product              = null;
+let currentView          = 'front';
+let designs              = [];
+let selectedDesign       = null;
+let history              = [];
+let selectedSize         = null;
+let cheapestGraphicPrice = 5000; // fallback ₦
+let uploadFee            = 2500; // half of cheapest
+const MAX_DESIGNS        = 5;
 
 // ── INIT ────────────────────────────────────────────
 const params    = new URLSearchParams(window.location.search);
@@ -37,16 +38,14 @@ async function init() {
   if (!productId) { window.location.href = 'services.html'; return; }
 
   try {
-    const res  = await fetch(`${API}/api/products/${productId}`);
-    product    = await res.json();
+    const res = await fetch(`${API}/api/products/${productId}`);
+    product   = await res.json();
 
     document.getElementById('studioProductName').textContent = product.name;
     document.getElementById('panelMerchName').textContent    = product.name;
     document.getElementById('panelMerchPrice').textContent   = `₦${Number(product.price).toLocaleString('en-NG')}`;
-    document.getElementById('cartBtnPrice').textContent      = `₦${Number(product.price).toLocaleString('en-NG')}`;
     document.title = `Design — ${product.name} | Jai'fore`;
 
-    // Set mockup based on product name
     const type = product.name.toLowerCase().includes('hoodie') ? 'hoodie' : 'tee';
     setView('front', type);
 
@@ -54,6 +53,7 @@ async function init() {
     document.getElementById('studioProductName').textContent = 'Product not found';
   }
 
+  updateTotal();
   loadGraphicDesigns();
 }
 
@@ -66,7 +66,6 @@ function setView(view, type) {
 
   document.getElementById('merchMockup').src = mockup[view] || mockup.front;
 
-  // Show/hide zones
   document.getElementById('zoneChest').style.display = view === 'front' ? 'flex' : 'none';
   document.getElementById('zoneBack').style.display  = view === 'back'  ? 'flex' : 'none';
   document.getElementById('zoneSide').style.display  = view === 'side'  ? 'flex' : 'none';
@@ -93,23 +92,35 @@ async function loadGraphicDesigns() {
       return;
     }
 
+    // Calculate cheapest price for upload fee
+    const prices = data.map(gd => parseFloat(gd.price)).filter(p => p > 0);
+    if (prices.length) {
+      cheapestGraphicPrice = Math.min(...prices);
+      uploadFee = Math.round(cheapestGraphicPrice / 2);
+    }
+
+    // Update upload zone label with fee
+    document.querySelector('.upload-text').innerHTML =
+      `Click to upload<br/><span>PNG, JPG, SVG — max 5MB</span><br/><span style="color:#7b5ea7;font-weight:600">Print fee: ₦${uploadFee.toLocaleString('en-NG')}</span>`;
+
     data.forEach(gd => {
       const item = document.createElement('div');
       item.className = 'gd-item';
       item.innerHTML = gd.image_url
-        ? `<img src="${gd.image_url}" alt="${gd.name}"/><div class="gd-name">${gd.name}</div>`
-        : `<div class="gd-placeholder">🎨</div><div class="gd-name">${gd.name}</div>`;
+        ? `<img src="${gd.image_url}" alt="${gd.name}"/><div class="gd-name">${gd.name} — ₦${Number(gd.price).toLocaleString('en-NG')}</div>`
+        : `<div class="gd-placeholder">🎨</div><div class="gd-name">${gd.name} — ₦${Number(gd.price).toLocaleString('en-NG')}</div>`;
 
-      item.addEventListener('click', () => addDesign(gd.image_url || null, gd.name));
+      item.addEventListener('click', () => addDesign(gd.image_url || null, gd.name, parseFloat(gd.price) || 0));
       grid.appendChild(item);
     });
+
   } catch {
     grid.innerHTML = `<div style="grid-column:1/-1;color:#aaa;font-size:0.8rem">Failed to load designs.</div>`;
   }
 }
 
 // ── ADD DESIGN TO CANVAS ─────────────────────────────
-function addDesign(src, name) {
+function addDesign(src, name, price = 0) {
   if (designs.length >= MAX_DESIGNS) {
     showMsg('Maximum 5 designs allowed.'); return;
   }
@@ -121,10 +132,10 @@ function addDesign(src, name) {
   const cw = container.offsetWidth;
   const ch = container.offsetHeight;
 
-  const w  = Math.round(cw * 0.3);
-  const h  = Math.round(ch * 0.3);
-  const x  = Math.round((cw - w) / 2);
-  const y  = Math.round((ch - h) / 2);
+  const w = Math.round(cw * 0.3);
+  const h = Math.round(ch * 0.3);
+  const x = Math.round((cw - w) / 2);
+  const y = Math.round((ch - h) / 2);
 
   const el = document.createElement('div');
   el.className = 'design-layer';
@@ -135,8 +146,8 @@ function addDesign(src, name) {
     <div class="resize-handle"></div>
   `;
 
-  const id = Date.now();
-  const design = { id, src, name, el, x, y, w, h };
+  const id     = Date.now();
+  const design = { id, src, name, price, el, x, y, w, h };
   designs.push(design);
 
   makeDraggable(el, design);
@@ -150,6 +161,7 @@ function addDesign(src, name) {
   container.appendChild(el);
   selectDesign(design);
   updateSlots();
+  updateTotal();
   showMsg('');
 }
 
@@ -177,10 +189,10 @@ function makeDraggable(el, design) {
     const ch = container.offsetHeight;
 
     function onMove(e) {
-      const dx  = e.clientX - startX;
-      const dy  = e.clientY - startY;
-      design.x  = Math.max(0, Math.min(cw - design.w, startLeft + dx));
-      design.y  = Math.max(0, Math.min(ch - design.h, startTop  + dy));
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      design.x = Math.max(0, Math.min(cw - design.w, startLeft + dx));
+      design.y = Math.max(0, Math.min(ch - design.h, startTop  + dy));
       el.style.left = design.x + 'px';
       el.style.top  = design.y + 'px';
     }
@@ -224,6 +236,13 @@ function makeResizable(el, design) {
   });
 }
 
+// ── UPDATE TOTAL ─────────────────────────────────────
+function updateTotal() {
+  const designsTotal = designs.reduce((sum, d) => sum + (d.price || 0), 0);
+  const total        = parseFloat(product?.price || 0) + designsTotal;
+  document.getElementById('cartBtnPrice').textContent = `₦${total.toLocaleString('en-NG')}`;
+}
+
 // ── SLOTS ────────────────────────────────────────────
 function updateSlots() {
   const wrap = document.getElementById('designSlots');
@@ -257,6 +276,7 @@ function removeDesignById(id) {
   designs.splice(idx, 1);
   if (selectedDesign?.id === id) selectedDesign = null;
   updateSlots();
+  updateTotal();
 }
 
 document.getElementById('removeBtn').addEventListener('click', () => {
@@ -267,15 +287,16 @@ document.getElementById('removeBtn').addEventListener('click', () => {
 document.getElementById('clearBtn').addEventListener('click', () => {
   saveHistory();
   designs.forEach(d => d.el.remove());
-  designs = [];
+  designs        = [];
   selectedDesign = null;
   updateSlots();
+  updateTotal();
 });
 
 // ── UNDO ─────────────────────────────────────────────
 function saveHistory() {
   history.push(designs.map(d => ({
-    id: d.id, src: d.src, name: d.name,
+    id: d.id, src: d.src, name: d.name, price: d.price,
     x: d.x, y: d.y, w: d.w, h: d.h
   })));
   if (history.length > 20) history.shift();
@@ -284,11 +305,12 @@ function saveHistory() {
 document.getElementById('undoBtn').addEventListener('click', () => {
   if (!history.length) { showMsg('Nothing to undo.'); return; }
   designs.forEach(d => d.el.remove());
-  designs = [];
+  designs        = [];
   selectedDesign = null;
-  const prev = history.pop();
-  prev.forEach(d => addDesign(d.src, d.name));
+  const prev     = history.pop();
+  prev.forEach(d => addDesign(d.src, d.name, d.price));
   updateSlots();
+  updateTotal();
 });
 
 // ── UPLOAD ───────────────────────────────────────────
@@ -297,8 +319,8 @@ document.getElementById('uploadInput').addEventListener('change', (e) => {
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) { showMsg('File too large. Max 5MB.'); return; }
 
-  const reader = new FileReader();
-  reader.onload = (ev) => addDesign(ev.target.result, file.name);
+  const reader  = new FileReader();
+  reader.onload = (ev) => addDesign(ev.target.result, file.name, uploadFee);
   reader.readAsDataURL(file);
   e.target.value = '';
 });
@@ -314,19 +336,23 @@ document.querySelectorAll('.sz-btn').forEach(btn => {
 
 // ── ADD TO CART ───────────────────────────────────────
 document.getElementById('addToCartBtn').addEventListener('click', () => {
-  if (!selectedSize) { showMsg('Please select a size first.'); return; }
-  if (!designs.length) { showMsg('Add at least one design to your merch.'); return; }
+  if (!selectedSize)    { showMsg('Please select a size first.'); return; }
+  if (!designs.length)  { showMsg('Add at least one design to your merch.'); return; }
+
+  const designsTotal = designs.reduce((sum, d) => sum + (d.price || 0), 0);
+  const totalPrice   = parseFloat(product.price) + designsTotal;
 
   const cartProduct = {
     ...product,
-    customDesigns: designs.map(d => ({ src: d.src, name: d.name })),
+    price: totalPrice,
+    customDesigns: designs.map(d => ({ src: d.src, name: d.name, price: d.price })),
     selectedSize,
-    notes: document.getElementById('designNotes').value.trim(),
+    notes:    document.getElementById('designNotes').value.trim(),
     isCustom: true
   };
 
   addToCart(cartProduct, selectedSize, 'apparel');
-  showMsg('Added to cart!');
+  showMsg('Added to cart! Redirecting...');
   setTimeout(() => window.location.href = 'services.html', 1200);
 });
 
