@@ -62,7 +62,10 @@ async function fetchProducts(category) {
 
 // ── FORMAT PRICE ───────────────────────────────────────
 function formatPrice(amount) {
-  return `₦${Number(amount).toLocaleString('en-NG')}`;
+  if (window.JaiforeCurrency?.isReady()) {
+    return window.JaiforeCurrency.format(amount);
+  }
+  return `$${Number(amount).toLocaleString()}`;
 }
 
 // ── RENDER CARD ────────────────────────────────────────
