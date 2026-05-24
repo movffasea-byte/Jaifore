@@ -267,6 +267,9 @@ document.querySelectorAll('.category-section').forEach(section => {
 });
 
 // ── INIT ───────────────────────────────────────────────
-loadCategory('apparel');
-loadCategory('design');
-loadCategory('webdev');
+
+window.JaiforeCurrency?.init().then(() => {
+  loadCategory('apparel');
+  loadCategory('design');
+  loadCategory('webdev');
+});

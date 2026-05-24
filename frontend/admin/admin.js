@@ -152,7 +152,7 @@ async function loadProducts() {
       tr.innerHTML = `
         <td>${p.name}</td>
         <td>${p.category || '—'}</td>
-        <td>₦${parseFloat(p.price).toLocaleString()}</td>
+        <td>$${parseFloat(p.price).toFixed(2)}</td>
         <td><span class="badge ${p.in_stock ? 'badge-success' : 'badge-failed'}">${p.in_stock ? 'In Stock' : 'Out'}</span></td>
         <td>
           <button class="action-btn" onclick="openEditProduct(${p.id})">Edit</button>
@@ -256,7 +256,7 @@ async function loadOrders() {
       tr.innerHTML = `
         <td>#${o.id}</td>
         <td>${o.customer_name || '—'}<br><small style="color:var(--ink-muted)">${o.customer_email || ''}</small></td>
-        <td>₦${parseFloat(o.total).toLocaleString()}</td>
+        <td>$${parseFloat(p.price).toFixed(2)}</td>
         <td><span class="badge badge-${o.status === 'completed' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending'}">${o.status}</span></td>
         <td>${new Date(o.created_at).toLocaleDateString()}</td>
         <td>
@@ -375,7 +375,7 @@ async function loadDayTransactions(dateStr, dayEl) {
       ordersEl.innerHTML = orders.map(o => `
         <div class="tx-item">
           <span class="tx-item-label">#${o.id} — ${o.customer_name || 'Guest'}</span>
-          <span class="tx-item-val">₦${parseFloat(o.total).toLocaleString()}</span>
+          <span class="tx-item-val">$${parseFloat(p.price).toFixed(2)}</span>
         </div>`).join('');
     }
 
