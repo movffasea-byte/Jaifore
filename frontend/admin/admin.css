@@ -50,11 +50,14 @@ body {
   gap: 0.4rem;
 }
 
-.brand-logo{
-  width: 32px; height: 32px;
-  border-radius: 6px;
-  object-fit: cover;
+.brand-dot {
+  width: 8px; height: 8px;
+  background: var(--purple);
+  border-radius: 50%;
+  display: inline-block;
 }
+
+.brand-slash { color: var(--border); }
 
 .login-card {
   background: var(--surface);
@@ -233,6 +236,13 @@ body {
   color: var(--ink);
   margin-bottom: 2rem;
   padding-left: 0.4rem;
+}
+
+.sidebar-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
 }
 
 .sidebar-nav {
