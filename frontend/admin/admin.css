@@ -50,14 +50,11 @@ body {
   gap: 0.4rem;
 }
 
-.brand-dot {
-  width: 8px; height: 8px;
-  background: var(--purple);
-  border-radius: 50%;
-  display: inline-block;
+.brand-logo{
+  width: 32px; height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
 }
-
-.brand-slash { color: var(--border); }
 
 .login-card {
   background: var(--surface);
