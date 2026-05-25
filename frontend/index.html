@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <a href="">
+  <a href="index.html">
     <link rel="icon" href="logo/rooted1.jpg" type="image/x-icon">
   </a>
   
@@ -19,23 +19,25 @@
 </head>
 <body>
 
- <!-- NAV -->
-<nav class="nav">
-  <a href="index.html" class="nav-logo">
-    <img src="logo/rooted2.jpg" alt="Jai'fore"/>
-  </a>
-  <div class="nav-links">
-    <a href="index.html">Home</a>
-    <a href="services.html" class="active">Services</a>
-  </div>
-  <div class="nav-right">
-    <div id="nav-actions"></div>
-    <button class="cart-btn" id="cart-btn">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-      <span class="cart-count" id="cart-count">0</span>
-    </button>
-  </div>
-</nav>
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <img src="logo/rooted2.jpg" alt="Jaifore" />
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="#about" class="nav-link">About</a>
+        <a href="services.html" class="nav-link">Services</a>
+        <a href="loginsys.html" class="nav-link">Sign in</a>
+        <button class="nav-pill" id="ctaBtn">Get in Touch</button>
+      </div>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </nav>
 
   <!-- HERO -->
   <section class="hero" id="home">
