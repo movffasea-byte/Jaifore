@@ -19,14 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="nav-avatar">${initials}</div>
           <span class="nav-username">Hi, <strong>${firstName}</strong></span>
         </a>
-        <button class="nav-logout-btn" id="nav-logout">Logout</button>
       </div>`;
-
-    document.getElementById('nav-logout').addEventListener('click', () => {
-      localStorage.removeItem('jaifore_token');
-      localStorage.removeItem('jaifore_user');
-      window.location.reload();
-    });
   } else {
     navActions.innerHTML = `<a href="loginsys.html" class="nav-signin-btn">Sign In</a>`;
   }
