@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jai'fore — My Dashboard</title>
+  <link rel="stylesheet" href="styles/services.css"/>
+  <link rel="stylesheet" href="styles/dashboard.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <div class="noise"></div>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <a href="index.html" class="nav-logo">
+      <img src="logo/rooted2.jpg" alt="Jai'fore"/>
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="services.html">Services</a>
+    </div>
+    <div class="nav-right">
+      <div id="nav-actions"></div>
+    </div>
+  </nav>
+
+  <!-- DASHBOARD -->
+  <div class="dash-wrap">
+
+    <!-- SIDEBAR -->
+    <aside class="dash-sidebar">
+      <div class="dash-profile">
+        <div class="dash-avatar" id="dashAvatar">—</div>
+        <div class="dash-profile-info">
+          <div class="dash-name" id="dashName">—</div>
+          <div class="dash-email" id="dashEmail">—</div>
+        </div>
+      </div>
+
+      <nav class="dash-nav">
+        <button class="dash-nav-item active" data-tab="orders">
+          <span>◎</span> Order History
+        </button>
+        <button class="dash-nav-item" data-tab="designs">
+          <span>🎨</span> Saved Designs
+        </button>
+        <button class="dash-nav-item" data-tab="profile">
+          <span>◉</span> Profile Settings
+        </button>
+      </nav>
+
+      <button class="dash-logout-btn" id="dashLogout">⏻ Logout</button>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="dash-main">
+
+      <!-- ── ORDERS TAB ── -->
+      <section class="dash-tab active" id="tab-orders">
+        <div class="dash-section-header">
+          <h2>Order History</h2>
+          <p>Track and view all your past orders.</p>
+        </div>
+        <div id="ordersList"></div>
+      </section>
+
+      <!-- ── DESIGNS TAB ── -->
+      <section class="dash-tab hidden" id="tab-designs">
+        <div class="dash-section-header">
+          <h2>Saved Designs</h2>
+          <p>Your custom designs saved from the studio.</p>
+        </div>
+        <div class="designs-grid" id="designsList"></div>
+      </section>
+
+      <!-- ── PROFILE TAB ── -->
+      <section class="dash-tab hidden" id="tab-profile">
+        <div class="dash-section-header">
+          <h2>Profile Settings</h2>
+          <p>Update your personal information.</p>
+        </div>
+
+        <div class="profile-form">
+          <div class="pf-group">
+            <label>Full Name</label>
+            <input type="text" id="pfName" placeholder="Your name"/>
+          </div>
+          <div class="pf-group">
+            <label>Email</label>
+            <input type="email" id="pfEmail" placeholder="your@email.com" disabled/>
+          </div>
+          <div class="pf-divider">Change Password</div>
+          <div class="pf-group">
+            <label>Current Password</label>
+            <input type="password" id="pfCurrentPw" placeholder="••••••••"/>
+          </div>
+          <div class="pf-group">
+            <label>New Password</label>
+            <input type="password" id="pfNewPw" placeholder="••••••••"/>
+          </div>
+          <div class="pf-group">
+            <label>Confirm New Password</label>
+            <input type="password" id="pfConfirmPw" placeholder="••••••••"/>
+          </div>
+          <p class="pf-msg" id="pfMsg"></p>
+          <button class="pf-save-btn" id="pfSaveBtn">Save Changes</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <img class="footer-brand" src="logo/rooted2.jpg"/>
+      <div class="footer-copy">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</div>
+    </div>
+  </footer>
+
+  <script src="scripts/currency.js"></script>
+  <script src="scripts/header.js"></script>
+  <script src="scripts/dashboard.js"></script>
+</body>
+</html>

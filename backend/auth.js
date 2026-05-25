@@ -90,4 +90,28 @@ router.get('/me', authenticate, async (req, res) => {
   } catch (err) { return res.status(500).json({ error: 'Server error.' }); }
 });
 
+
+// UPDATE PROFILE
+router.put('/update-profile', authenticate, async (req, res) => {
+  const { name, currentPassword, newPassword } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name is required.' });
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user   = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    if (newPassword) {
+      const match = await bcrypt.compare(currentPassword, user.password);
+      if (!match) return res.status(401).json({ error: 'Current password is incorrect.' });
+      const hashed = await bcrypt.hash(newPassword, 12);
+      await pool.query('UPDATE users SET name=$1, password=$2 WHERE id=$3', [name, hashed, req.user.id]);
+    } else {
+      await pool.query('UPDATE users SET name=$1 WHERE id=$2', [name, req.user.id]);
+    }
+
+    const updated = await pool.query('SELECT id, name, email, role FROM users WHERE id=$1', [req.user.id]);
+    res.json({ message: 'Profile updated.', user: updated.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = { router, authenticate };
