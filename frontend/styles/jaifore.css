@@ -33,6 +33,64 @@ img {
 
 }
 
+/* ── NAV PROFILE ─────────────────────────────────── */
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.nav-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  padding: 0.3rem 0.6rem;
+  border-radius: 20px;
+  border: 1px solid rgba(107, 63, 160, 0.2);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.nav-profile:hover {
+  border-color: #6B3FA0;
+  background: #f5f0ff;
+}
+
+.nav-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #6B3FA0;
+  color: #fff;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-username {
+  font-size: 0.82rem;
+  color: #555;
+}
+
+.nav-signin-btn {
+  background: #6B3FA0;
+  color: #fff;
+  border-radius: 20px;
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 22px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.nav-signin-btn:hover { background: #5a3490; }
+
 /* ---------- NAVBAR ---------- */
 .navbar {
   position: fixed;
