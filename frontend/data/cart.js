@@ -8,7 +8,8 @@ let cart = JSON.parse(localStorage.getItem('jaifore_cart') || '[]');
 
 // ── FORMAT PRICE ───────────────────────────────────────
 function formatPrice(amount) {
-  return `₦${Number(amount).toLocaleString('en-NG')}`;
+  if (window.JaiforeCurrency?.isReady()) return window.JaiforeCurrency.format(amount);
+  return `$${Number(amount).toFixed(2)}`;
 }
 
 // ── ADD TO CART ────────────────────────────────────────
@@ -109,7 +110,18 @@ function closeCart() {
 
 // ── CART BUTTON LISTENERS ──────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('cart-btn')?.addEventListener('click', openCart);
+  // Cart btn → go to checkout (require login)
+  document.getElementById('cart-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('jaifore_token');
+    if (!token) {
+      sessionStorage.setItem('jaifore_return', 'checkout.html');
+      window.location.href = 'loginsys.html';
+      return;
+    }
+    window.location.href = 'checkout.html';
+  });
+
   document.getElementById('cart-close')?.addEventListener('click', closeCart);
   document.getElementById('cart-overlay')?.addEventListener('click', () => {
     if (!document.getElementById('product-modal')?.classList.contains('open')) {
@@ -117,38 +129,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── CHECKOUT ─────────────────────────────────────────
-  document.getElementById('checkout-btn')?.addEventListener('click', async () => {
+  document.getElementById('checkout-btn')?.addEventListener('click', () => {
     const token = localStorage.getItem('jaifore_token');
-    if (!token) { window.location.href = 'auth.html'; return; }
-    if (!cart.length) return;
-
-    try {
-      const res = await fetch(`${API}/api/cart`, {
-        method: 'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ items: cart })
-      });
-
-      if (res.ok) {
-        cart = [];
-        saveCart();
-        renderCart();
-        updateCartCount();
-        closeCart();
-        window.location.href = 'checkout.html';
-      } else {
-        alert('Failed to process cart. Please try again.');
-      }
-    } catch {
-      alert('Network error. Please try again.');
+    if (!token) {
+      sessionStorage.setItem('jaifore_return', 'checkout.html');
+      window.location.href = 'loginsys.html';
+      return;
     }
+    window.location.href = 'checkout.html';
   });
 
-  // Init on load
   renderCart();
   updateCartCount();
 });

@@ -50,12 +50,12 @@ router.get('/:id', authenticate, requireAdmin, async (req, res) => {
 
 // POST create order (authenticated user)
 router.post('/', authenticate, async (req, res) => {
-  const { items, total } = req.body;
+  const { items, total, shipping } = req.body;
   if (!items || !total) return res.status(400).json({ error: 'Items and total are required.' });
   try {
     const result = await pool.query(
-      `INSERT INTO orders (user_id, items, total) VALUES ($1, $2, $3) RETURNING *`,
-      [req.user.id, JSON.stringify(items), total]
+      `INSERT INTO orders (user_id, items, total, shipping) VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.user.id, JSON.stringify(items), total, JSON.stringify(shipping || {})]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }

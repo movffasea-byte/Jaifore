@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jai'fore — Checkout</title>
+  <link rel="stylesheet" href="styles/services.css"/>
+  <link rel="stylesheet" href="styles/checkout.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <div class="noise"></div>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <a href="index.html" class="nav-logo">
+      <img src="logo/rooted2.jpg" alt="Jai'fore"/>
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="services.html">Services</a>
+    </div>
+    <div class="nav-right">
+      <div id="nav-actions"></div>
+    </div>
+  </nav>
+
+  <!-- CHECKOUT -->
+  <main class="checkout-wrap">
+
+    <!-- LEFT: ITEMS + SHIPPING -->
+    <div class="checkout-left">
+
+      <!-- Back link -->
+      <a href="services.html" class="back-link">← Continue Shopping</a>
+
+      <!-- Cart Items -->
+      <div class="checkout-section">
+        <h2 class="checkout-section-title">Your Order</h2>
+        <div id="checkoutItems"></div>
+      </div>
+
+      <!-- Shipping Details -->
+      <div class="checkout-section">
+        <h2 class="checkout-section-title">Shipping Details</h2>
+        <div class="shipping-form">
+          <div class="sf-row">
+            <div class="sf-group">
+              <label>First Name</label>
+              <input type="text" id="sfFirstName" placeholder="John"/>
+            </div>
+            <div class="sf-group">
+              <label>Last Name</label>
+              <input type="text" id="sfLastName" placeholder="Doe"/>
+            </div>
+          </div>
+          <div class="sf-group">
+            <label>Email</label>
+            <input type="email" id="sfEmail" placeholder="you@example.com"/>
+          </div>
+          <div class="sf-group">
+            <label>Phone</label>
+            <input type="tel" id="sfPhone" placeholder="+234 800 000 0000"/>
+          </div>
+          <div class="sf-group">
+            <label>Address</label>
+            <input type="text" id="sfAddress" placeholder="Street address"/>
+          </div>
+          <div class="sf-row">
+            <div class="sf-group">
+              <label>City</label>
+              <input type="text" id="sfCity" placeholder="City"/>
+            </div>
+            <div class="sf-group">
+              <label>State / Region</label>
+              <input type="text" id="sfState" placeholder="State"/>
+            </div>
+          </div>
+          <div class="sf-row">
+            <div class="sf-group">
+              <label>Country</label>
+              <input type="text" id="sfCountry" placeholder="Country"/>
+            </div>
+            <div class="sf-group">
+              <label>Postal Code</label>
+              <input type="text" id="sfPostal" placeholder="000000"/>
+            </div>
+          </div>
+          <div class="sf-group">
+            <label>Order Notes <span class="sf-optional">(optional)</span></label>
+            <textarea id="sfNotes" rows="3" placeholder="Any special instructions..."></textarea>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: ORDER SUMMARY -->
+    <div class="checkout-right">
+      <div class="order-summary">
+        <h2 class="checkout-section-title">Order Summary</h2>
+
+        <div class="summary-lines" id="summaryLines"></div>
+
+        <div class="summary-divider"></div>
+
+        <div class="summary-row">
+          <span>Subtotal</span>
+          <span id="summarySubtotal">$0.00</span>
+        </div>
+        <div class="summary-row">
+          <span>Shipping</span>
+          <span id="summaryShipping">Calculated at order</span>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-row total-row">
+          <span>Total</span>
+          <span id="summaryTotal">$0.00</span>
+        </div>
+
+        <p class="checkout-msg" id="checkoutMsg"></p>
+
+        <button class="place-order-btn" id="placeOrderBtn">
+          <span id="placeOrderText">Place Order</span>
+          <span class="spinner hidden" id="placeOrderSpinner"></span>
+        </button>
+
+        <p class="checkout-secure">🔒 Secure checkout — your data is safe with us</p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <img class="footer-brand" src="logo/rooted2.jpg"/>
+      <div class="footer-copy">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</div>
+    </div>
+  </footer>
+
+  <script src="scripts/currency.js"></script>
+  <script src="scripts/header.js"></script>
+  <script src="scripts/checkout.js"></script>
+</body>
+</html>
