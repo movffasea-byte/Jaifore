@@ -10,7 +10,7 @@ let otpTimer = null;
 const existingToken = localStorage.getItem('jaifore_token');
 const existingUser = JSON.parse(localStorage.getItem('jaifore_user') || 'null');
 if (existingToken && existingUser) {
-  if (existingUser.role === 'admin') window.location.href = 'admin/admin-auth.html';
+  if (existingUser.role === 'admin') window.location.href = 'admin/admin.html';
   else {
     const returnTo = sessionStorage.getItem('jaifore_return');
     if (returnTo) { sessionStorage.removeItem('jaifore_return'); window.location.href = returnTo; }
@@ -53,7 +53,7 @@ function showMsg(id, text, type) {
 }
 
 function redirectAfterLogin(user) {
-  if (user.role === 'admin') { window.location.href = 'admin/admin-auth.html'; return; }
+  if (user.role === 'admin') { window.location.href = 'admin/admin.html'; return; }
   const returnTo = sessionStorage.getItem('jaifore_return');
   if (returnTo) { sessionStorage.removeItem('jaifore_return'); window.location.href = returnTo; }
   else window.location.href = 'services.html';
