@@ -91,36 +91,27 @@ body {
   align-items: center;
   gap: 0.5rem;
   text-decoration: none;
-  color: inherit;
-  padding: 0.3rem 0.6rem;
-  border-radius: 20px;
-  border: 1px solid #d8d0c4;
-  transition: border-color 0.2s, background 0.2s;
+  color: var(--ink);
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  transition: border-color var(--transition);
 }
 
 .nav-profile:hover {
-  border-color: #7b5ea7;
-  background: #faf8ff;
+  border-color: var(--purple);
 }
 
 .nav-avatar {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: #7b5ea7;
-  color: #fff;
-  font-family: 'Syne', sans-serif;
-  font-size: 0.72rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+  background: var(--purple);
 
 .nav-username {
-  font-size: 0.82rem;
-  color: #333;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--ink);
 }
 
 .nav-logout-btn {
@@ -141,18 +132,19 @@ body {
 }
 
 .nav-signin-btn {
-  background: #111;
+  background: var(--purple);
   color: #fff;
-  border-radius: 20px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.82rem;
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
   font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   padding: 0.4rem 1rem;
   text-decoration: none;
-  transition: background 0.2s;
+  transition: background var(--transition);
 }
-
-.nav-signin-btn:hover { background: #7b5ea7; }
+.nav-signin-btn:hover { background: var(--ink); }
 
 .cart-btn {
   position: relative;
