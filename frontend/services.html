@@ -5,30 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Jai'fore — Services</title>
   <link rel="stylesheet" href="styles/services.css"/>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Karla:wght@300;400;500&display=swap" rel="stylesheet"/>
 </head>
 <body>
 
   <div class="noise"></div>
 
-  
-<!-- NAV -->
-<nav class="nav">
-  <a href="index.html" class="nav-logo">
-    <img src="logo/rooted2.jpg" alt="Jai'fore"/>
-  </a>
-  <div class="nav-links">
-    <a href="index.html">Home</a>
-    <a href="services.html" class="active">Services</a>
-  </div>
-  <div class="nav-right">
-    <div id="nav-actions"></div>
-   <a href="checkout.html" class="cart-btn" id="cart-btn">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-      <span class="cart-count" id="cart-count">0</span>
-    </button>
-  </div>
-</nav>
+  <!-- NAV -->
+  <nav class="nav">
+    <a href="index.html" class="nav-logo">
+      <img src="logo/rooted2.jpg" alt="Jai'fore"/>
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="services.html" class="active">Services</a>
+    </div>
+    <div class="nav-right">
+      <div id="nav-actions"></div>
+      <a href="checkout.html" class="cart-btn" id="cart-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        <span class="cart-count" id="cart-count">0</span>
+      </a>
+    </div>
+  </nav>
 
   <!-- HERO -->
   <section class="hero">
@@ -53,13 +52,11 @@
         </div>
         <a href="category.html?cat=apparel" class="cat-view-all">View All <span>→</span></a>
       </div>
-
       <div class="products-grid" id="apparel-grid">
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
       </div>
-
       <div class="load-more-wrap">
         <button class="load-more-btn" data-category="apparel">
           <span>Load More</span>
@@ -68,10 +65,7 @@
       </div>
     </section>
 
-    <!-- DIVIDER -->
-    <div class="section-divider">
-      <span></span><span class="divider-dot"></span><span></span>
-    </div>
+    <div class="section-divider"><span></span><span class="divider-dot"></span><span></span></div>
 
     <!-- ── CATEGORY 2: GRAPHIC DESIGN ── -->
     <section class="category-section" id="design">
@@ -83,13 +77,11 @@
         </div>
         <a href="category.html?cat=design" class="cat-view-all">View All <span>→</span></a>
       </div>
-
       <div class="products-grid" id="design-grid">
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
       </div>
-
       <div class="load-more-wrap">
         <button class="load-more-btn" data-category="design">
           <span>Load More</span>
@@ -98,10 +90,7 @@
       </div>
     </section>
 
-    <!-- DIVIDER -->
-    <div class="section-divider">
-      <span></span><span class="divider-dot"></span><span></span>
-    </div>
+    <div class="section-divider"><span></span><span class="divider-dot"></span><span></span></div>
 
     <!-- ── CATEGORY 3: WEB DEVELOPMENT ── -->
     <section class="category-section" id="webdev">
@@ -113,13 +102,11 @@
         </div>
         <a href="category.html?cat=webdev" class="cat-view-all">View All <span>→</span></a>
       </div>
-
       <div class="products-grid webdev-grid" id="webdev-grid">
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
       </div>
-
       <div class="load-more-wrap">
         <button class="load-more-btn" data-category="webdev">
           <span>Load More</span>
@@ -143,7 +130,7 @@
     <div class="cart-footer">
       <div class="cart-total-row">
         <span>Total</span>
-        <span id="cart-total">₦0</span>
+        <span id="cart-total">$0.00</span>
       </div>
       <button class="checkout-btn" id="checkout-btn">Proceed to Checkout</button>
     </div>
@@ -158,13 +145,13 @@
 
   <footer class="footer">
     <div class="footer-inner">
-      <img class="footer-brand" src="logo/rooted2.jpg">
+      <img class="footer-brand" src="logo/rooted2.jpg"/>
       <div class="footer-copy">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</div>
     </div>
   </footer>
 
-  <script src="scripts/header.js"></script>
   <script src="scripts/currency.js"></script>
+  <script src="scripts/header.js"></script>
   <script src="data/cart.js"></script>
   <script src="scripts/services.js"></script>
 </body>
