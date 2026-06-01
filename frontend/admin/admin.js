@@ -40,6 +40,35 @@ document.getElementById('togglePw').addEventListener('click', function () {
   this.textContent = input.type === 'password' ? 'show' : 'hide';
 });
 
+
+const forgotBtn = document.getElementById("forgotBtn");
+const forgotModal = document.getElementById("forgotModal");
+const closeForgotBtn = document.getElementById("closeForgotBtn");
+const sendResetBtn = document.getElementById("sendResetBtn");
+const forgotMsg = document.getElementById("forgotMsg");
+
+forgotBtn.addEventListener("click", () => {
+  forgotModal.classList.remove("hidden");
+});
+
+closeForgotBtn.addEventListener("click", () => {
+  forgotModal.classList.add("hidden");
+});
+
+sendResetBtn.addEventListener("click", () => {
+  const email = document.getElementById("forgotEmail").value;
+
+  if(!email){
+    forgotMsg.textContent = "Please enter your email.";
+    return;
+  }
+
+  forgotMsg.textContent = "Reset link sent successfully.";
+  
+  // backend API call here
+  // fetch("/api/admin/forgot-password", {...})
+});
+
 // Login button
 document.getElementById('loginBtn').addEventListener('click', async () => {
   const email    = document.getElementById('loginEmail').value.trim();
@@ -82,6 +111,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
 document.getElementById('loginPassword').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('loginBtn').click();
 });
+
 
 // Logout
 document.getElementById('logoutBtn').addEventListener('click', () => {

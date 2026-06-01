@@ -12,7 +12,7 @@ const existingUser = JSON.parse(localStorage.getItem('jaifore_user') || 'null');
 if (existingToken && existingUser) {
   const returnTo = sessionStorage.getItem('jaifore_return');
   if (returnTo) { sessionStorage.removeItem('jaifore_return'); window.location.href = returnTo; }
-  else window.location.href = 'dashboard.html';
+  else window.location.href = 'services.html';
 }
 
 // Tab switching

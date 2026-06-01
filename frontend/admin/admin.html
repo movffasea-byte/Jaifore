@@ -22,9 +22,71 @@
         <input type="email" id="loginEmail" placeholder="admin@jaifore.com"/>
       </div>
       <div class="field-group">
-        <label>Password <span class="toggle-pw" id="togglePw">show</span></label>
-        <input type="password" id="loginPassword" placeholder="••••••••"/>
-      </div>
+  <label>Password <span class="toggle-pw" id="togglePw">show</span></label>
+  <input type="password" id="loginPassword" placeholder="••••••••"/>
+</div>
+
+<div class="forgot-wrap">
+  <button type="button" class="forgot-btn" id="forgotBtn">
+    Forgot Password?
+  </button>
+</div>
+
+<div class="forgot-modal hidden" id="forgotModal">
+  <div class="forgot-box">
+    <h3>Reset Password</h3>
+    <p>Enter your admin email to receive a reset link.</p>
+
+    <div class="field-group">
+      <label>Email</label>
+      <input type="email" id="forgotEmail" placeholder="admin@jaifore.com"/>
+    </div>
+
+    <p class="form-msg" id="forgotMsg"></p>
+
+    <div class="form-actions">
+      <button class="btn-primary small" id="sendResetBtn">
+        Send Reset Link
+      </button>
+
+      <button class="btn-ghost small" id="closeForgotBtn">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+      <div class="forgot-wrap">
+  <button type="button" class="forgot-btn" id="forgotBtn">
+    Forgot Password?
+  </button>
+</div>
+
+<!-- Forgot Password Modal -->
+<div class="forgot-modal hidden" id="forgotModal">
+  <div class="forgot-box">
+    <h3>Reset Password</h3>
+    <p>Enter your admin email to receive a reset link.</p>
+
+    <div class="field-group">
+      <label>Email</label>
+      <input type="email" id="forgotEmail" placeholder="admin@jaifore.com"/>
+    </div>
+
+    <p class="form-msg" id="forgotMsg"></p>
+
+    <div class="form-actions">
+      <button class="btn-primary small" id="sendResetBtn">
+        Send Reset Link
+      </button>
+
+      <button class="btn-ghost small" id="closeForgotBtn">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
       <p class="login-error" id="loginError"></p>
       <button class="btn-primary" id="loginBtn">
         <span id="loginBtnText">Enter</span>
