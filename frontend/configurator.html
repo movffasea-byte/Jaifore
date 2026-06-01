@@ -13,22 +13,22 @@
   <div class="noise"></div>
 
   <!-- NAV -->
-<nav class="nav">
-  <a href="index.html" class="nav-logo">
-    <img src="logo/rooted2.jpg" alt="Jai'fore"/>
-  </a>
-  <div class="nav-links">
-    <a href="index.html">Home</a>
-    <a href="services.html" class="active">Services</a>
-  </div>
-  <div class="nav-right">
-    <div id="nav-actions"></div>
-    <a href="checkout.html" class="cart-btn" id="cart-btn">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-      <span class="cart-count" id="cart-count">0</span>
-    </button>
-  </div>
-</nav>
+  <nav class="nav">
+    <a href="index.html" class="nav-logo">
+      <img src="logo/rooted2.jpg" alt="Jai'fore"/>
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="services.html">Services</a>
+    </div>
+    <div class="nav-right">
+      <div id="nav-actions"></div>
+      <button class="cart-btn" id="cart-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        <span class="cart-count" id="cart-count">0</span>
+      </button>
+    </div>
+  </nav>
 
   <!-- STUDIO -->
   <main class="studio">
@@ -49,21 +49,10 @@
       <!-- Canvas -->
       <div class="canvas-outer">
         <div class="canvas-container" id="canvasContainer">
-          <!-- Merch mockup -->
           <img class="merch-mockup" id="merchMockup" src="" alt="Merch"/>
-
-          <!-- Preset zones -->
-          <div class="zone zone-chest" id="zoneChest" title="Chest zone">
-            <span>Chest</span>
-          </div>
-          <div class="zone zone-back" id="zoneBack" title="Back zone" style="display:none">
-            <span>Back</span>
-          </div>
-          <div class="zone zone-side" id="zoneSide" title="Side zone" style="display:none">
-            <span>Side</span>
-          </div>
-
-          <!-- Design layers will be injected here -->
+          <div class="zone zone-chest" id="zoneChest" title="Chest zone"><span>Chest</span></div>
+          <div class="zone zone-back" id="zoneBack" title="Back zone" style="display:none"><span>Back</span></div>
+          <div class="zone zone-side" id="zoneSide" title="Side zone" style="display:none"><span>Side</span></div>
         </div>
       </div>
 
@@ -79,7 +68,6 @@
     <!-- RIGHT: PANEL -->
     <div class="studio-panel">
 
-      <!-- Step 1: Merch info -->
       <div class="panel-section">
         <div class="panel-label">Selected Merch</div>
         <div class="panel-merch-info" id="panelMerchInfo">
@@ -88,13 +76,11 @@
         </div>
       </div>
 
-      <!-- Step 2: Design count -->
       <div class="panel-section">
         <div class="panel-label">Designs Applied <span class="design-count" id="designCount">0 / 5</span></div>
         <div class="design-slots" id="designSlots"></div>
       </div>
 
-      <!-- Step 3: Pick from Jaifore designs -->
       <div class="panel-section">
         <div class="panel-label">Jaifore Graphic Designs</div>
         <div class="graphic-grid" id="graphicGrid">
@@ -105,7 +91,6 @@
         </div>
       </div>
 
-      <!-- Step 4: Upload own image -->
       <div class="panel-section">
         <div class="panel-label">Upload Your Own Design</div>
         <label class="upload-zone" id="uploadZone">
@@ -115,7 +100,6 @@
         </label>
       </div>
 
-      <!-- Step 5: Size -->
       <div class="panel-section">
         <div class="panel-label">Select Size</div>
         <div class="size-row" id="sizeRow">
@@ -128,23 +112,21 @@
         </div>
       </div>
 
-      <!-- Step 6: Notes -->
       <div class="panel-section">
         <div class="panel-label">Design Notes <span style="color:#aaa;font-weight:400">(optional)</span></div>
         <textarea class="design-notes" id="designNotes" placeholder="Any special instructions for the print team..." rows="3"></textarea>
       </div>
 
-      <!-- Add to Cart -->
       <button class="add-to-cart-btn" id="addToCartBtn">
-        Add to Cart — <span id="cartBtnPrice">₦0</span>
+        Add to Cart — <span id="cartBtnPrice">$0.00</span>
       </button>
       <p class="studio-msg" id="studioMsg"></p>
 
     </div>
   </main>
 
-  <script src="scripts/header.js"></script>
   <script src="scripts/currency.js"></script>
+  <script src="scripts/header.js"></script>
   <script src="data/cart.js"></script>
   <script src="scripts/configurator.js"></script>
 </body>
