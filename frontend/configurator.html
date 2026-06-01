@@ -40,7 +40,6 @@
       <div class="view-toggle">
         <button class="view-btn active" data-view="front">Front</button>
         <button class="view-btn" data-view="back">Back</button>
-        <button class="view-btn" data-view="side">Side</button>
       </div>
 
       <!-- Product Name -->
@@ -50,9 +49,7 @@
       <div class="canvas-outer">
         <div class="canvas-container" id="canvasContainer">
           <img class="merch-mockup" id="merchMockup" src="" alt="Merch"/>
-          <div class="zone zone-chest" id="zoneChest" title="Chest zone"><span>Chest</span></div>
-          <div class="zone zone-back" id="zoneBack" title="Back zone" style="display:none"><span>Back</span></div>
-          <div class="zone zone-side" id="zoneSide" title="Side zone" style="display:none"><span>Side</span></div>
+          <div class="zone" id="printZone"><span>Print Area</span></div>
         </div>
       </div>
 
@@ -68,19 +65,22 @@
     <!-- RIGHT: PANEL -->
     <div class="studio-panel">
 
+      <!-- Merch info -->
       <div class="panel-section">
         <div class="panel-label">Selected Merch</div>
-        <div class="panel-merch-info" id="panelMerchInfo">
+        <div class="panel-merch-info">
           <div class="panel-merch-name" id="panelMerchName">—</div>
           <div class="panel-merch-price" id="panelMerchPrice">—</div>
         </div>
       </div>
 
+      <!-- Design count -->
       <div class="panel-section">
         <div class="panel-label">Designs Applied <span class="design-count" id="designCount">0 / 5</span></div>
         <div class="design-slots" id="designSlots"></div>
       </div>
 
+      <!-- Jaifore graphic designs -->
       <div class="panel-section">
         <div class="panel-label">Jaifore Graphic Designs</div>
         <div class="graphic-grid" id="graphicGrid">
@@ -91,6 +91,7 @@
         </div>
       </div>
 
+      <!-- Upload -->
       <div class="panel-section">
         <div class="panel-label">Upload Your Own Design</div>
         <label class="upload-zone" id="uploadZone">
@@ -100,9 +101,16 @@
         </label>
       </div>
 
+      <!-- Print Size -->
       <div class="panel-section">
-        <div class="panel-label">Select Size</div>
-        <div class="size-row" id="sizeRow">
+        <div class="panel-label">Print Size <span style="color:#aaa;font-weight:400;text-transform:none;letter-spacing:0">(price per design)</span></div>
+        <div class="print-size-row" id="printSizeRow"></div>
+      </div>
+
+      <!-- Garment Size -->
+      <div class="panel-section">
+        <div class="panel-label">Garment Size</div>
+        <div class="size-row">
           <button class="sz-btn" data-size="XS">XS</button>
           <button class="sz-btn" data-size="S">S</button>
           <button class="sz-btn" data-size="M">M</button>
@@ -112,11 +120,13 @@
         </div>
       </div>
 
+      <!-- Notes -->
       <div class="panel-section">
         <div class="panel-label">Design Notes <span style="color:#aaa;font-weight:400">(optional)</span></div>
         <textarea class="design-notes" id="designNotes" placeholder="Any special instructions for the print team..." rows="3"></textarea>
       </div>
 
+      <!-- Add to Cart -->
       <button class="add-to-cart-btn" id="addToCartBtn">
         Add to Cart — <span id="cartBtnPrice">$0.00</span>
       </button>

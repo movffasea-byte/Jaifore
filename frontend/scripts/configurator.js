@@ -7,28 +7,29 @@ const API = 'https://jai-fore-website.onrender.com';
 
 // ── MOCKUP IMAGES ───────────────────────────────────
 const MOCKUPS = {
-  tee: {
-    front: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Black_T-Shirt.jpg/800px-Black_T-Shirt.jpg',
-    back:  'https://via.placeholder.com/480x640/1a1a1a/ffffff?text=Back+View',
-    side:  'https://via.placeholder.com/480x640/1a1a1a/ffffff?text=Side+View'
-  },
-  hoodie: {
-    front: 'https://via.placeholder.com/480x640/1a1a1a/ffffff?text=Hoodie+Front',
-    back:  'https://via.placeholder.com/480x640/1a1a1a/ffffff?text=Hoodie+Back',
-    side:  'https://via.placeholder.com/480x640/1a1a1a/ffffff?text=Hoodie+Side'
-  }
+  front: 'https://jai-fore-website.vercel.app/images/FFH_P.jpg',
+  back:  'https://jai-fore-website.vercel.app/images/BFH_P.jpg',
+};
+
+// ── PRINT ZONES (as % of canvas) ────────────────────
+// These define where designs can be placed per view
+const PRINT_ZONES = {
+  front: { top: '22%', left: '25%', width: '50%', height: '30%' },
+  back:  { top: '18%', left: '20%', width: '60%', height: '38%' },
 };
 
 // ── STATE ───────────────────────────────────────────
-let product              = null;
-let currentView          = 'front';
-let designs              = [];
-let selectedDesign       = null;
-let history              = [];
-let selectedSize         = null;
-let cheapestGraphicPrice = 5000; // fallback ₦
-let uploadFee            = 2500; // half of cheapest
-const MAX_DESIGNS        = 5;
+let product          = null;
+let currentView      = 'front';
+let designs          = [];
+let selectedDesign   = null;
+let history          = [];
+let selectedSize     = null;
+let printPricing     = [];
+let selectedPrintSize = null;
+let cheapestPrice    = 1;
+let uploadFee        = 0.50;
+const MAX_DESIGNS    = 5;
 
 // ── INIT ────────────────────────────────────────────
 const params    = new URLSearchParams(window.location.search);
@@ -38,37 +39,89 @@ async function init() {
   if (!productId) { window.location.href = 'services.html'; return; }
 
   try {
-    const res = await fetch(`${API}/api/products/${productId}`);
-    product   = await res.json();
+    const [productRes, pricingRes] = await Promise.all([
+      fetch(`${API}/api/products/${productId}`),
+      fetch(`${API}/api/print-pricing`)
+    ]);
+
+    product      = await productRes.json();
+    printPricing = await pricingRes.json();
 
     document.getElementById('studioProductName').textContent = product.name;
     document.getElementById('panelMerchName').textContent    = product.name;
-    document.getElementById('panelMerchPrice').textContent   = `₦${Number(product.price).toLocaleString('en-NG')}`;
+    document.getElementById('panelMerchPrice').textContent   =
+      window.JaiforeCurrency?.isReady()
+        ? window.JaiforeCurrency.format(product.price)
+        : `$${parseFloat(product.price).toFixed(2)}`;
     document.title = `Design — ${product.name} | Jai'fore`;
 
-    const type = product.name.toLowerCase().includes('hoodie') ? 'hoodie' : 'tee';
-    setView('front', type);
+    // Set cheapest for upload fee
+    if (printPricing.length) {
+      cheapestPrice = Math.min(...printPricing.map(p => parseFloat(p.price)));
+      uploadFee     = parseFloat((cheapestPrice / 2).toFixed(2));
+    }
 
-  } catch {
+    // Render print size options
+    renderPrintSizes();
+
+    // Set front view
+    setView('front');
+
+  } catch (err) {
+    console.error('Init error:', err);
     document.getElementById('studioProductName').textContent = 'Product not found';
   }
 
   updateTotal();
   loadGraphicDesigns();
+  updateSlots();
+}
+
+// ── RENDER PRINT SIZES ────────────────────────────────
+function renderPrintSizes() {
+  const wrap = document.getElementById('printSizeRow');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  printPricing.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className   = 'print-size-btn';
+    btn.dataset.id  = p.id;
+    btn.dataset.price = p.price;
+    btn.innerHTML   = `
+      <span class="ps-label">${p.size_label}</span>
+      <span class="ps-dim">${p.dimensions}</span>
+      <span class="ps-price">+$${parseFloat(p.price).toFixed(2)}</span>
+    `;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.print-size-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedPrintSize = p;
+      updateTotal();
+    });
+    wrap.appendChild(btn);
+  });
 }
 
 // ── VIEW TOGGLE ─────────────────────────────────────
-function setView(view, type) {
+function setView(view) {
   currentView = view;
-  const merchType = product?.name?.toLowerCase().includes('hoodie') ? 'hoodie' : 'tee';
-  const t = type || merchType;
-  const mockup = MOCKUPS[t] || MOCKUPS.tee;
+  const mockup = document.getElementById('merchMockup');
+  mockup.style.opacity = '0';
+  setTimeout(() => {
+    mockup.src = MOCKUPS[view];
+    mockup.style.opacity = '1';
+  }, 200);
 
-  document.getElementById('merchMockup').src = mockup[view] || mockup.front;
-
-  document.getElementById('zoneChest').style.display = view === 'front' ? 'flex' : 'none';
-  document.getElementById('zoneBack').style.display  = view === 'back'  ? 'flex' : 'none';
-  document.getElementById('zoneSide').style.display  = view === 'side'  ? 'flex' : 'none';
+  // Update zones
+  const zone = document.getElementById('printZone');
+  if (zone) {
+    const z = PRINT_ZONES[view];
+    zone.style.top    = z.top;
+    zone.style.left   = z.left;
+    zone.style.width  = z.width;
+    zone.style.height = z.height;
+  }
 }
 
 document.querySelectorAll('.view-btn').forEach(btn => {
@@ -92,28 +145,23 @@ async function loadGraphicDesigns() {
       return;
     }
 
-    // Calculate cheapest price for upload fee
-    const prices = data.map(gd => parseFloat(gd.price)).filter(p => p > 0);
-    if (prices.length) {
-      cheapestGraphicPrice = Math.min(...prices);
-      uploadFee = Math.round(cheapestGraphicPrice / 2);
-    }
-
-    // Update upload zone label with fee
+    // Update upload fee label
     document.querySelector('.upload-text').innerHTML =
-      `Click to upload<br/><span>PNG, JPG, SVG — max 5MB</span><br/><span style="color:#7b5ea7;font-weight:600">Print fee: ₦${uploadFee.toLocaleString('en-NG')}</span>`;
+      `Click to upload<br/><span>PNG, JPG, SVG — max 5MB</span><br/>
+       <span style="color:#7b5ea7;font-weight:600">Print fee: $${uploadFee.toFixed(2)}</span>`;
 
     data.forEach(gd => {
       const item = document.createElement('div');
       item.className = 'gd-item';
       item.innerHTML = gd.image_url
-        ? `<img src="${gd.image_url}" alt="${gd.name}"/><div class="gd-name">${gd.name} — ₦${Number(gd.price).toLocaleString('en-NG')}</div>`
-        : `<div class="gd-placeholder">🎨</div><div class="gd-name">${gd.name} — ₦${Number(gd.price).toLocaleString('en-NG')}</div>`;
+        ? `<img src="${gd.image_url}" alt="${gd.name}"/>
+           <div class="gd-name">${gd.name}<br/>$${parseFloat(gd.price).toFixed(2)}</div>`
+        : `<div class="gd-placeholder">🎨</div>
+           <div class="gd-name">${gd.name}<br/>$${parseFloat(gd.price).toFixed(2)}</div>`;
 
       item.addEventListener('click', () => addDesign(gd.image_url || null, gd.name, parseFloat(gd.price) || 0));
       grid.appendChild(item);
     });
-
   } catch {
     grid.innerHTML = `<div style="grid-column:1/-1;color:#aaa;font-size:0.8rem">Failed to load designs.</div>`;
   }
@@ -121,9 +169,7 @@ async function loadGraphicDesigns() {
 
 // ── ADD DESIGN TO CANVAS ─────────────────────────────
 function addDesign(src, name, price = 0) {
-  if (designs.length >= MAX_DESIGNS) {
-    showMsg('Maximum 5 designs allowed.'); return;
-  }
+  if (designs.length >= MAX_DESIGNS) { showMsg('Maximum 5 designs allowed.'); return; }
   if (!src) { showMsg('This design has no image yet.'); return; }
 
   saveHistory();
@@ -132,22 +178,28 @@ function addDesign(src, name, price = 0) {
   const cw = container.offsetWidth;
   const ch = container.offsetHeight;
 
-  const w = Math.round(cw * 0.3);
-  const h = Math.round(ch * 0.3);
-  const x = Math.round((cw - w) / 2);
-  const y = Math.round((ch - h) / 2);
+  // Place design within the print zone
+  const zone  = PRINT_ZONES[currentView];
+  const zLeft = parseFloat(zone.left) / 100 * cw;
+  const zTop  = parseFloat(zone.top) / 100 * ch;
+  const zW    = parseFloat(zone.width) / 100 * cw;
+  const zH    = parseFloat(zone.height) / 100 * ch;
+
+  const w = Math.round(zW * 0.5);
+  const h = Math.round(zH * 0.5);
+  const x = Math.round(zLeft + (zW - w) / 2);
+  const y = Math.round(zTop  + (zH - h) / 2);
 
   const el = document.createElement('div');
   el.className = 'design-layer';
   el.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
-
   el.innerHTML = `
     <img src="${src}" alt="${name}" draggable="false"/>
     <div class="resize-handle"></div>
   `;
 
   const id     = Date.now();
-  const design = { id, src, name, price, el, x, y, w, h };
+  const design = { id, src, name, price, view: currentView, el, x, y, w, h };
   designs.push(design);
 
   makeDraggable(el, design);
@@ -174,34 +226,27 @@ function selectDesign(design) {
 
 // ── DRAG ─────────────────────────────────────────────
 function makeDraggable(el, design) {
-  let startX, startY, startLeft, startTop;
-
   el.addEventListener('pointerdown', (e) => {
     if (e.target.classList.contains('resize-handle')) return;
     e.preventDefault();
-    startX    = e.clientX;
-    startY    = e.clientY;
-    startLeft = design.x;
-    startTop  = design.y;
-
+    const startX    = e.clientX;
+    const startY    = e.clientY;
+    const startLeft = design.x;
+    const startTop  = design.y;
     const container = document.getElementById('canvasContainer');
     const cw = container.offsetWidth;
     const ch = container.offsetHeight;
 
     function onMove(e) {
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      design.x = Math.max(0, Math.min(cw - design.w, startLeft + dx));
-      design.y = Math.max(0, Math.min(ch - design.h, startTop  + dy));
+      design.x = Math.max(0, Math.min(cw - design.w, startLeft + (e.clientX - startX)));
+      design.y = Math.max(0, Math.min(ch - design.h, startTop  + (e.clientY - startY)));
       el.style.left = design.x + 'px';
       el.style.top  = design.y + 'px';
     }
-
     function onUp() {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup',   onUp);
     }
-
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup',   onUp);
   });
@@ -210,14 +255,10 @@ function makeDraggable(el, design) {
 // ── RESIZE ───────────────────────────────────────────
 function makeResizable(el, design) {
   const handle = el.querySelector('.resize-handle');
-
   handle.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startW = design.w;
-    const startH = design.h;
+    e.preventDefault(); e.stopPropagation();
+    const startX = e.clientX, startY = e.clientY;
+    const startW = design.w,  startH = design.h;
 
     function onMove(e) {
       design.w = Math.max(40, startW + (e.clientX - startX));
@@ -225,12 +266,10 @@ function makeResizable(el, design) {
       el.style.width  = design.w + 'px';
       el.style.height = design.h + 'px';
     }
-
     function onUp() {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup',   onUp);
     }
-
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup',   onUp);
   });
@@ -238,9 +277,17 @@ function makeResizable(el, design) {
 
 // ── UPDATE TOTAL ─────────────────────────────────────
 function updateTotal() {
+  const merchPrice   = parseFloat(product?.price || 0);
   const designsTotal = designs.reduce((sum, d) => sum + (d.price || 0), 0);
-  const total        = parseFloat(product?.price || 0) + designsTotal;
-  document.getElementById('cartBtnPrice').textContent = `₦${total.toLocaleString('en-NG')}`;
+  const printTotal   = selectedPrintSize
+    ? parseFloat(selectedPrintSize.price) * designs.length
+    : 0;
+  const total = merchPrice + designsTotal + printTotal;
+
+  const formatted = window.JaiforeCurrency?.isReady()
+    ? window.JaiforeCurrency.format(total)
+    : `$${total.toFixed(2)}`;
+  document.getElementById('cartBtnPrice').textContent = formatted;
 }
 
 // ── SLOTS ────────────────────────────────────────────
@@ -252,7 +299,6 @@ function updateSlots() {
   for (let i = 0; i < MAX_DESIGNS; i++) {
     const slot = document.createElement('div');
     slot.className = 'design-slot' + (designs[i] ? ' filled' : '');
-
     if (designs[i]) {
       const d = designs[i];
       slot.innerHTML = `
@@ -287,16 +333,14 @@ document.getElementById('removeBtn').addEventListener('click', () => {
 document.getElementById('clearBtn').addEventListener('click', () => {
   saveHistory();
   designs.forEach(d => d.el.remove());
-  designs        = [];
-  selectedDesign = null;
-  updateSlots();
-  updateTotal();
+  designs = []; selectedDesign = null;
+  updateSlots(); updateTotal();
 });
 
 // ── UNDO ─────────────────────────────────────────────
 function saveHistory() {
   history.push(designs.map(d => ({
-    id: d.id, src: d.src, name: d.name, price: d.price,
+    id: d.id, src: d.src, name: d.name, price: d.price, view: d.view,
     x: d.x, y: d.y, w: d.w, h: d.h
   })));
   if (history.length > 20) history.shift();
@@ -305,12 +349,10 @@ function saveHistory() {
 document.getElementById('undoBtn').addEventListener('click', () => {
   if (!history.length) { showMsg('Nothing to undo.'); return; }
   designs.forEach(d => d.el.remove());
-  designs        = [];
-  selectedDesign = null;
-  const prev     = history.pop();
+  designs = []; selectedDesign = null;
+  const prev = history.pop();
   prev.forEach(d => addDesign(d.src, d.name, d.price));
-  updateSlots();
-  updateTotal();
+  updateSlots(); updateTotal();
 });
 
 // ── UPLOAD ───────────────────────────────────────────
@@ -318,7 +360,6 @@ document.getElementById('uploadInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) { showMsg('File too large. Max 5MB.'); return; }
-
   const reader  = new FileReader();
   reader.onload = (ev) => addDesign(ev.target.result, file.name, uploadFee);
   reader.readAsDataURL(file);
@@ -336,23 +377,30 @@ document.querySelectorAll('.sz-btn').forEach(btn => {
 
 // ── ADD TO CART ───────────────────────────────────────
 document.getElementById('addToCartBtn').addEventListener('click', () => {
-  if (!selectedSize)    { showMsg('Please select a size first.'); return; }
-  if (!designs.length)  { showMsg('Add at least one design to your merch.'); return; }
+  if (!selectedSize)      { showMsg('Please select a garment size first.'); return; }
+  if (!designs.length)    { showMsg('Add at least one design to your merch.'); return; }
+  if (!selectedPrintSize) { showMsg('Please select a print size.'); return; }
 
   const designsTotal = designs.reduce((sum, d) => sum + (d.price || 0), 0);
-  const totalPrice   = parseFloat(product.price) + designsTotal;
+  const printTotal   = parseFloat(selectedPrintSize.price) * designs.length;
+  const totalPrice   = parseFloat(product.price) + designsTotal + printTotal;
 
   const cartProduct = {
     ...product,
-    price: totalPrice,
-    customDesigns: designs.map(d => ({ src: d.src, name: d.name, price: d.price })),
+    id:           product.id,
+    price:        totalPrice,
+    customDesigns: designs.map(d => ({
+      src: d.src, name: d.name, price: d.price,
+      view: d.view, x: d.x, y: d.y, w: d.w, h: d.h
+    })),
+    printSize:    selectedPrintSize,
     selectedSize,
-    notes:    document.getElementById('designNotes').value.trim(),
-    isCustom: true
+    notes:        document.getElementById('designNotes').value.trim(),
+    isCustom:     true
   };
 
   addToCart(cartProduct, selectedSize, 'apparel');
-  showMsg('Added to cart! Redirecting...');
+  showMsg('✓ Added to cart! Redirecting...');
   setTimeout(() => window.location.href = 'services.html', 1200);
 });
 
@@ -361,6 +409,10 @@ function showMsg(text) {
   document.getElementById('studioMsg').textContent = text;
 }
 
+// ── MERCH IMAGE TRANSITION ────────────────────────────
+document.getElementById('merchMockup').style.transition = 'opacity 0.2s ease';
+
 // ── START ─────────────────────────────────────────────
-init();
-updateSlots();
+window.JaiforeCurrency?.init().then(() => {
+  init();
+}).catch(() => init());
