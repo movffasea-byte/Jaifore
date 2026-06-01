@@ -139,6 +139,7 @@ function switchTab(name) {
   if (name === 'orders')       loadOrders();
   if (name === 'transactions') initCalendar();
   if (name === 'users')        loadUsers();
+  if (name === 'pricing') loadPrintPricing();
 }
 
 // ── AUTH HEADER ──────────────────────────────────────
@@ -445,4 +446,49 @@ async function loadUsers() {
       body.appendChild(tr);
     });
   } catch (err) { console.error('Users error:', err); }
+
+  // ── PRINT PRICING ─────────────────────────────────────
+async function loadPrintPricing() {
+  try {
+    const res  = await fetch(`${API}/api/print-pricing`, { headers: authHeaders() });
+    const data = await res.json();
+    const body = document.getElementById('pricingBody');
+    body.innerHTML = '';
+
+    data.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.size_label}</td>
+        <td>${p.dimensions}</td>
+        <td>
+          <input class="pricing-input" type="number" value="${p.price}" 
+            step="0.01" min="0" data-id="${p.id}" 
+            style="background:var(--surface2);border:1px solid var(--border);
+            color:var(--ink);border-radius:6px;padding:0.3rem 0.6rem;width:80px"/>
+        </td>
+        <td>
+          <button class="action-btn" onclick="savePrintPrice(${p.id})">Save</button>
+        </td>`;
+      body.appendChild(tr);
+    });
+  } catch (err) { console.error('Print pricing error:', err); }
+}
+
+async function savePrintPrice(id) {
+  const input = document.querySelector(`.pricing-input[data-id="${id}"]`);
+  const price = input?.value;
+  if (!price) return;
+  try {
+    const res = await fetch(`${API}/api/print-pricing/${id}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ price })
+    });
+    if (res.ok) {
+      input.style.borderColor = 'var(--success)';
+      setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
+    }
+  } catch (err) { console.error('Save price error:', err); }
+}
+
 }

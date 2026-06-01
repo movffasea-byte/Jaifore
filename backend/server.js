@@ -40,6 +40,9 @@ app.use('/api/products',     require('./routes/products'));
 app.use('/api/orders',       require('./routes/orders'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/users',        require('./routes/users'));
+app.use('/api/print-pricing', require('./routes/print-pricing'));
+
+
 
 // ── 404 HANDLER ────────────────────────────────────────
 app.use((req, res) => {

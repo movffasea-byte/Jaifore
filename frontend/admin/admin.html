@@ -119,6 +119,9 @@
         <button class="nav-item" data-tab="users">
           <span class="nav-icon">◉</span> Users
         </button>
+        <button class="nav-item" data-tab="pricing">
+          <span class="nav-icon">◑</span> Print Pricing
+        </button>
       </nav>
       <button class="btn-logout" id="logoutBtn">⏻ Logout</button>
     </aside>
@@ -270,6 +273,23 @@
           </table>
         </div>
       </section>
+
+      <!-- ── PRINT PRICING TAB ── -->
+<section class="tab hidden" id="tab-pricing">
+  <div class="tab-toolbar">
+    <p style="color:var(--ink-muted);font-size:0.85rem">Manage print size pricing. Changes reflect immediately on the configurator.</p>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Size</th><th>Dimensions</th><th>Price (USD)</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="pricingBody"></tbody>
+    </table>
+  </div>
+</section>
 
     </main>
   </div>
