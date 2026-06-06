@@ -36,7 +36,11 @@ const params    = new URLSearchParams(window.location.search);
 const productId = params.get('product');
 
 async function init() {
-  if (!productId) { window.location.href = 'services.html'; return; }
+ if (!productId) {
+  document.getElementById('studioProductName').textContent = 'No product selected.';
+  document.getElementById('studioMsg').textContent = 'Please select a product from the services page.';
+  return;
+}
 
   try {
     const [productRes, pricingRes] = await Promise.all([

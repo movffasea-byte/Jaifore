@@ -4,9 +4,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Jai'fore — Design Studio</title>
-  
+  <link rel="stylesheet" href="styles/services.css"/>
   <link rel="stylesheet" href="styles/configurator.css"/>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Karla:wght@300;400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
 </head>
 <body>
 
@@ -36,16 +36,13 @@
     <!-- LEFT: CANVAS -->
     <div class="studio-canvas-wrap">
 
-      <!-- View Toggle -->
       <div class="view-toggle">
         <button class="view-btn active" data-view="front">Front</button>
         <button class="view-btn" data-view="back">Back</button>
       </div>
 
-      <!-- Product Name -->
       <div class="studio-product-name" id="studioProductName">Loading...</div>
 
-      <!-- Canvas -->
       <div class="canvas-outer">
         <div class="canvas-container" id="canvasContainer">
           <img class="merch-mockup" id="merchMockup" src="" alt="Merch"/>
@@ -53,7 +50,6 @@
         </div>
       </div>
 
-      <!-- Canvas actions -->
       <div class="canvas-actions">
         <button class="ca-btn" id="undoBtn">↩ Undo</button>
         <button class="ca-btn" id="clearBtn">✕ Clear All</button>
@@ -65,7 +61,6 @@
     <!-- RIGHT: PANEL -->
     <div class="studio-panel">
 
-      <!-- Merch info -->
       <div class="panel-section">
         <div class="panel-label">Selected Merch</div>
         <div class="panel-merch-info">
@@ -74,13 +69,11 @@
         </div>
       </div>
 
-      <!-- Design count -->
       <div class="panel-section">
         <div class="panel-label">Designs Applied <span class="design-count" id="designCount">0 / 5</span></div>
         <div class="design-slots" id="designSlots"></div>
       </div>
 
-      <!-- Jaifore graphic designs -->
       <div class="panel-section">
         <div class="panel-label">Jaifore Graphic Designs</div>
         <div class="graphic-grid" id="graphicGrid">
@@ -91,7 +84,6 @@
         </div>
       </div>
 
-      <!-- Upload -->
       <div class="panel-section">
         <div class="panel-label">Upload Your Own Design</div>
         <label class="upload-zone" id="uploadZone">
@@ -101,13 +93,11 @@
         </label>
       </div>
 
-      <!-- Print Size -->
       <div class="panel-section">
         <div class="panel-label">Print Size <span style="color:#aaa;font-weight:400;text-transform:none;letter-spacing:0">(price per design)</span></div>
         <div class="print-size-row" id="printSizeRow"></div>
       </div>
 
-      <!-- Garment Size -->
       <div class="panel-section">
         <div class="panel-label">Garment Size</div>
         <div class="size-row">
@@ -120,13 +110,11 @@
         </div>
       </div>
 
-      <!-- Notes -->
       <div class="panel-section">
         <div class="panel-label">Design Notes <span style="color:#aaa;font-weight:400">(optional)</span></div>
         <textarea class="design-notes" id="designNotes" placeholder="Any special instructions for the print team..." rows="3"></textarea>
       </div>
 
-      <!-- Add to Cart -->
       <button class="add-to-cart-btn" id="addToCartBtn">
         Add to Cart — <span id="cartBtnPrice">$0.00</span>
       </button>
