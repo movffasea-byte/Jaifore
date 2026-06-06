@@ -6,10 +6,11 @@
 const API = 'https://jai-fore-website.onrender.com';
 
 // ── MOCKUP IMAGES ───────────────────────────────────
-const MOCKUPS = {
-  front: 'https://jai-fore-website.vercel.app/images/FFH_P.jpg',
-  back:  'https://jai-fore-website.vercel.app/images/BFH_P.jpg',
+const MOCKUPS = {front: '', back: ''
+  
 };
+
+
 
 // ── PRINT ZONES (as % of canvas) ────────────────────
 // These define where designs can be placed per view
@@ -67,6 +68,12 @@ async function init() {
 
     // Render print size options
     renderPrintSizes();
+
+
+    // Set mockups from product
+    MOCKUPS.front = product.image_url || 'https://jai-fore-website.vercel.app/images/FFH&P.jpg';
+    MOCKUPS.back  = product.back_image || product.image_url || 'https://jai-fore-website.vercel.app/images/BFH&P.jpg';
+
 
     // Set front view
     setView('front');

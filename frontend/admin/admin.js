@@ -217,7 +217,8 @@ async function openEditProduct(id) {
     document.getElementById('pName').value     = p.name;
     document.getElementById('pPrice').value    = p.price;
     document.getElementById('pCategory').value = p.category || '';
-    document.getElementById('pImage').value    = p.image_url || '';
+    document.getElementById('pImage').value     = p.image_url  || '';
+    document.getElementById('pBackImage').value = p.back_image || '';
     document.getElementById('pDesc').value     = p.description || '';
     document.getElementById('pStock').value    = p.in_stock ? 'true' : 'false';
     document.getElementById('productForm').classList.remove('hidden');
