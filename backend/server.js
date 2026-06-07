@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
+const path    = require('path');
 
 const { initDB }          = require('./database');
 const { router: authRouter } = require('./auth');
@@ -41,7 +42,7 @@ app.use('/api/orders',       require('./routes/orders'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/users',        require('./routes/users'));
 app.use('/api/print-pricing', require('./routes/print-pricing'));
-
+app.use('/images', express.static(path.join(__dirname, 'images')));
 
 
 // ── 404 HANDLER ────────────────────────────────────────
