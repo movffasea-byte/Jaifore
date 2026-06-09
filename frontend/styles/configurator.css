@@ -1,45 +1,4 @@
-/* ── PRINT SIZE ────────────────────────────────────── */
-.print-size-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.print-size-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #faf8f5;
-  border: 1.5px solid #d8d0c4;
-  border-radius: 8px;
-  padding: 0.6rem 0.9rem;
-  cursor: pointer;
-  transition: all 0.15s;
-  width: 100%;
-}
-
-.print-size-btn:hover { border-color: #7b5ea7; }
-.print-size-btn.selected { background: #f0ecff; border-color: #7b5ea7; }
-
-.ps-label {
-  font-family: 'Syne', sans-serif;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #111;
-}
-
-.ps-dim {
-  font-size: 0.75rem;
-  color: #888;
-  flex: 1;
-  text-align: center;
-}
-
-.ps-price {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #7b5ea7;
-}/* ================================
+/* ================================
    JAIFORE — CONFIGURATOR CSS
    styles/configurator.css
    ================================ */
@@ -103,33 +62,72 @@
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
+/* ── ZOOM CONTROLS ─────────────────────────────────── */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #ede8df;
+  border-radius: 10px;
+  padding: 4px 8px;
+}
+
+.zoom-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+
+.zoom-btn:hover { background: #7b5ea7; color: #fff; }
+
+.zoom-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #555;
+  min-width: 36px;
+  text-align: center;
+}
+
 /* ── CANVAS ────────────────────────────────────────── */
 .canvas-outer {
   width: 100%;
   max-width: 480px;
-  aspect-ratio: 2/3;
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 8px 40px rgba(0,0,0,0.15);
   background: #1a1a1a;
   position: relative;
+  /* Height is driven by the image naturally */
 }
 
 .canvas-container {
   width: 100%;
-  height: 100%;
   position: relative;
   overflow: hidden;
   cursor: crosshair;
+  transform-origin: top center;
+  transition: transform 0.2s ease;
 }
 
 .merch-mockup {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;          /* let image define its own height */
+  object-fit: contain;   /* show full image, no cropping */
   display: block;
   pointer-events: none;
-  border-radius: 0;
   user-select: none;
   transition: opacity 0.2s ease;
 }
@@ -177,7 +175,6 @@
   object-fit: contain;
   display: block;
   pointer-events: none;
-  border-radius: 0;
 }
 
 .resize-handle {
@@ -350,7 +347,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 0;
 }
 
 .gd-item .gd-placeholder {
@@ -389,7 +385,7 @@
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
+  0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
@@ -453,7 +449,7 @@
   width: 100%;
 }
 
-.print-size-btn:hover { border-color: #7b5ea7; }
+.print-size-btn:hover  { border-color: #7b5ea7; }
 .print-size-btn.selected { background: #f0ecff; border-color: #7b5ea7; }
 
 .ps-label {
@@ -498,7 +494,7 @@
   transition: all 0.15s;
 }
 
-.sz-btn:hover { border-color: #7b5ea7; color: #7b5ea7; }
+.sz-btn:hover  { border-color: #7b5ea7; color: #7b5ea7; }
 .sz-btn.selected { background: #7b5ea7; border-color: #7b5ea7; color: #fff; }
 
 /* ── NOTES ─────────────────────────────────────────── */
@@ -514,6 +510,7 @@
   resize: vertical;
   outline: none;
   transition: border-color 0.2s;
+  box-sizing: border-box;
 }
 
 .design-notes:focus { border-color: #7b5ea7; }
@@ -534,7 +531,7 @@
   width: calc(100% - 3rem);
 }
 
-.add-to-cart-btn:hover { background: #7b5ea7; transform: translateY(-1px); }
+.add-to-cart-btn:hover    { background: #7b5ea7; transform: translateY(-1px); }
 .add-to-cart-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .studio-msg {

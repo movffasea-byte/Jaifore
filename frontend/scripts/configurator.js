@@ -476,6 +476,34 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
   setTimeout(() => window.location.href = 'services.html', 1200);
 });
 
+// ── ZOOM ─────────────────────────────────────────────
+let zoomLevel = 1;
+const ZOOM_STEP = 0.25;
+const ZOOM_MIN  = 0.5;
+const ZOOM_MAX  = 3;
+
+function applyZoom() {
+  const container = document.getElementById('canvasContainer');
+  container.style.transform = `scale(${zoomLevel})`;
+  container.style.transformOrigin = 'top center';
+  // Expand outer to avoid clipping
+  const outer = document.querySelector('.canvas-outer');
+  outer.style.height = `${container.offsetHeight * zoomLevel}px`;
+  document.getElementById('zoomLabel').textContent = `${Math.round(zoomLevel * 100)}%`;
+}
+
+document.getElementById('zoomInBtn').addEventListener('click', () => {
+  if (zoomLevel < ZOOM_MAX) { zoomLevel = Math.min(ZOOM_MAX, +(zoomLevel + ZOOM_STEP).toFixed(2)); applyZoom(); }
+});
+
+document.getElementById('zoomOutBtn').addEventListener('click', () => {
+  if (zoomLevel > ZOOM_MIN) { zoomLevel = Math.max(ZOOM_MIN, +(zoomLevel - ZOOM_STEP).toFixed(2)); applyZoom(); }
+});
+
+document.getElementById('zoomResetBtn').addEventListener('click', () => {
+  zoomLevel = 1; applyZoom();
+});
+
 // ── MSG ───────────────────────────────────────────────
 function showMsg(text) {
   document.getElementById('studioMsg').textContent = text;
