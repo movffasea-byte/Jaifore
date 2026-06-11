@@ -105,20 +105,27 @@
 .canvas-outer {
   width: 100%;
   max-width: 480px;
+  max-height: 65vh;
   border-radius: 16px;
-  overflow: hidden;
+  overflow: auto;
   box-shadow: 0 8px 40px rgba(0,0,0,0.15);
   background: #1a1a1a;
   position: relative;
-  /* Height is driven by the image naturally */
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #7b5ea7 #f0ece6;
 }
+
+.canvas-outer::-webkit-scrollbar { width: 6px; height: 6px; }
+.canvas-outer::-webkit-scrollbar-track { background: #f0ece6; border-radius: 4px; }
+.canvas-outer::-webkit-scrollbar-thumb { background: #7b5ea7; border-radius: 4px; }
 
 .canvas-container {
   width: 100%;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   cursor: crosshair;
-  transform-origin: top center;
+  transform-origin: top left;
   transition: transform 0.2s ease;
 }
 

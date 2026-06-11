@@ -484,11 +484,9 @@ const ZOOM_MAX  = 3;
 
 function applyZoom() {
   const container = document.getElementById('canvasContainer');
-  container.style.transform = `scale(${zoomLevel})`;
-  container.style.transformOrigin = 'top center';
-  // Expand outer to avoid clipping
-  const outer = document.querySelector('.canvas-outer');
-  outer.style.height = `${container.offsetHeight * zoomLevel}px`;
+  container.style.transform       = `scale(${zoomLevel})`;
+  container.style.transformOrigin = 'top left';
+  container.style.width           = `${100 / zoomLevel}%`;
   document.getElementById('zoomLabel').textContent = `${Math.round(zoomLevel * 100)}%`;
 }
 
