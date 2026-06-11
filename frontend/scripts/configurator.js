@@ -5,7 +5,7 @@
 
 const API = 'https://jai-fore-website.onrender.com';
 
-// ── MOCKUPS (populated after product fetch + gender selection) ───
+// ── MOCKUPS ──────────────────────────────────────────
 const MOCKUPS = {
   male:   { front: '', back: '' },
   female: { front: '', back: '' },
@@ -17,13 +17,22 @@ const PRINT_ZONES = {
   back:  { top: '18%', left: '20%', width: '60%', height: '38%' },
 };
 
+// ── SIZE PREVIEW DATA ────────────────────────────────
+const SIZE_DATA = {
+  XS:  { scaleX: 0.72, scaleY: 0.90, fit: 'Extra Slim Fit', silW: 38 },
+  S:   { scaleX: 0.82, scaleY: 0.93, fit: 'Slim Fit',       silW: 44 },
+  M:   { scaleX: 0.91, scaleY: 0.97, fit: 'Regular Fit',    silW: 50 },
+  L:   { scaleX: 1.00, scaleY: 1.00, fit: 'Standard Fit',   silW: 56 },
+  XL:  { scaleX: 1.09, scaleY: 1.02, fit: 'Relaxed Fit',    silW: 62 },
+  XXL: { scaleX: 1.18, scaleY: 1.04, fit: 'Oversized',      silW: 70 },
+};
+
 // ── STATE ───────────────────────────────────────────
 let product           = null;
 let currentView       = 'front';
-let currentGender     = null;   // 'male' | 'female'
+let currentGender     = null;
 
-// designs is now keyed by view: { male_front: [], male_back: [], female_front: [], female_back: [] }
-const designsByView   = {
+const designsByView = {
   male_front:   [],
   male_back:    [],
   female_front: [],
@@ -39,12 +48,16 @@ let cheapestPrice     = 1;
 let uploadFee         = 0.50;
 const MAX_DESIGNS     = 5;
 
-// ── HELPER: current view key ────────────────────────
+// ── ZOOM (image-only) ────────────────────────────────
+let zoomLevel   = 1;
+const ZOOM_STEP = 0.25;
+const ZOOM_MIN  = 0.5;
+const ZOOM_MAX  = 3;
+
+// ── HELPERS ─────────────────────────────────────────
 function viewKey() {
   return `${currentGender || 'male'}_${currentView}`;
 }
-
-// ── HELPER: get designs for current view ────────────
 function currentDesigns() {
   return designsByView[viewKey()];
 }
@@ -77,7 +90,6 @@ async function init() {
         : `$${parseFloat(product.price).toFixed(2)}`;
     document.title = `Design — ${product.name} | Jai'fore`;
 
-    // Set cheapest for upload fee
     if (printPricing.length) {
       cheapestPrice = Math.min(...printPricing.map(p => parseFloat(p.price)));
       uploadFee     = parseFloat((cheapestPrice / 2).toFixed(2));
@@ -85,13 +97,11 @@ async function init() {
 
     renderPrintSizes();
 
-    // Populate all 4 mockup slots from product fields
     MOCKUPS.male.front   = product.front_male   || product.image_url || '';
     MOCKUPS.male.back    = product.back_male    || product.image_url || '';
     MOCKUPS.female.front = product.front_female || product.image_url || '';
     MOCKUPS.female.back  = product.back_female  || product.image_url || '';
 
-    // Show gender modal before anything else
     showGenderModal();
 
   } catch (err) {
@@ -143,13 +153,9 @@ function showGenderModal() {
 // ── SELECT GENDER ─────────────────────────────────────
 function selectGender(gender) {
   currentGender = gender;
-
-  // Sync gender toggle buttons
   document.querySelectorAll('.gender-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.gender === gender);
   });
-
-  // Re-render current view with new gender (swaps mockup + designs)
   setView(currentView);
 }
 
@@ -161,10 +167,10 @@ function renderPrintSizes() {
 
   printPricing.forEach(p => {
     const btn = document.createElement('button');
-    btn.className   = 'print-size-btn';
-    btn.dataset.id  = p.id;
+    btn.className     = 'print-size-btn';
+    btn.dataset.id    = p.id;
     btn.dataset.price = p.price;
-    btn.innerHTML   = `
+    btn.innerHTML = `
       <span class="ps-label">${p.size_label}</span>
       <span class="ps-dim">${p.dimensions}</span>
       <span class="ps-price">+$${parseFloat(p.price).toFixed(2)}</span>
@@ -180,24 +186,24 @@ function renderPrintSizes() {
 }
 
 // ── SET VIEW ─────────────────────────────────────────
-// Swaps mockup image AND hides/shows the correct design layer set
 function setView(view) {
-  const prevKey = viewKey();           // key BEFORE updating currentView
+  const prevKey = viewKey();
   currentView   = view;
-  const nextKey = viewKey();           // key AFTER
+  const nextKey = viewKey();
 
-  const gender  = currentGender || 'male';
-  const mockup  = document.getElementById('merchMockup');
-  const src     = MOCKUPS[gender][view] || '';
+  const gender = currentGender || 'male';
+  const mockup = document.getElementById('merchMockup');
+  const src    = MOCKUPS[gender][view] || '';
 
-  // Fade mockup
   mockup.style.opacity = '0';
   setTimeout(() => {
     mockup.src = src;
     mockup.style.opacity = '1';
+    // Re-apply zoom to new image
+    applyMockupTransform();
   }, 200);
 
-  // Update print zone
+  // Update print zone position (label already hidden via CSS/HTML change)
   const zone = document.getElementById('printZone');
   if (zone) {
     const z = PRINT_ZONES[view];
@@ -207,24 +213,16 @@ function setView(view) {
     zone.style.height = z.height;
   }
 
-  // Hide all design layers for the OLD view, show for the NEW view
   if (prevKey !== nextKey) {
-    // Hide previous view's designs
-    (designsByView[prevKey] || []).forEach(d => {
-      d.el.style.display = 'none';
-    });
-    // Show new view's designs
-    (designsByView[nextKey] || []).forEach(d => {
-      d.el.style.display = '';
-    });
+    (designsByView[prevKey] || []).forEach(d => { d.el.style.display = 'none'; });
+    (designsByView[nextKey] || []).forEach(d => { d.el.style.display = ''; });
   }
 
-  // Deselect — selected design may belong to a different view
   selectedDesign = null;
   designs_deselect_all();
-
   updateSlots();
   updateTotal();
+  updatePrintZoneVisibility();
 }
 
 function designs_deselect_all() {
@@ -233,7 +231,15 @@ function designs_deselect_all() {
   });
 }
 
-// Side toggle (Front / Back)
+// Fade print zone border out when this view has designs, back in when empty
+function updatePrintZoneVisibility() {
+  const zone = document.getElementById('printZone');
+  if (!zone) return;
+  zone.style.transition = 'opacity 0.4s ease';
+  zone.style.opacity    = currentDesigns().length > 0 ? '0' : '1';
+}
+
+// Side toggle
 document.querySelectorAll('.view-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
@@ -242,12 +248,10 @@ document.querySelectorAll('.view-btn').forEach(btn => {
   });
 });
 
-// Gender toggle (Male / Female)
+// Gender toggle
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.gender-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      selectGender(btn.dataset.gender);
-    });
+    btn.addEventListener('click', () => selectGender(btn.dataset.gender));
   });
 });
 
@@ -285,7 +289,7 @@ async function loadGraphicDesigns() {
   }
 }
 
-// ── ADD DESIGN TO CANVAS ─────────────────────────────
+// ── ADD DESIGN ───────────────────────────────────────
 function addDesign(src, name, price = 0) {
   const cd = currentDesigns();
   if (cd.length >= MAX_DESIGNS) { showMsg('Maximum 5 designs allowed.'); return; }
@@ -298,9 +302,9 @@ function addDesign(src, name, price = 0) {
   const ch = container.offsetHeight;
 
   const zone  = PRINT_ZONES[currentView];
-  const zLeft = parseFloat(zone.left) / 100 * cw;
-  const zTop  = parseFloat(zone.top) / 100 * ch;
-  const zW    = parseFloat(zone.width) / 100 * cw;
+  const zLeft = parseFloat(zone.left)   / 100 * cw;
+  const zTop  = parseFloat(zone.top)    / 100 * ch;
+  const zW    = parseFloat(zone.width)  / 100 * cw;
   const zH    = parseFloat(zone.height) / 100 * ch;
 
   const w = Math.round(zW * 0.5);
@@ -317,11 +321,9 @@ function addDesign(src, name, price = 0) {
   `;
 
   const id     = Date.now();
-  // Store which viewKey this design belongs to
   const design = { id, src, name, price, viewKey: viewKey(), el, x, y, w, h };
 
   designsByView[viewKey()].push(design);
-
   makeDraggable(el, design);
   makeResizable(el, design);
 
@@ -334,10 +336,10 @@ function addDesign(src, name, price = 0) {
   selectDesign(design);
   updateSlots();
   updateTotal();
+  updatePrintZoneVisibility();
   showMsg('');
 }
 
-// ── SELECT DESIGN ────────────────────────────────────
 function selectDesign(design) {
   designs_deselect_all();
   selectedDesign = design;
@@ -349,17 +351,14 @@ function makeDraggable(el, design) {
   el.addEventListener('pointerdown', (e) => {
     if (e.target.classList.contains('resize-handle')) return;
     e.preventDefault();
-    const startX    = e.clientX;
-    const startY    = e.clientY;
-    const startLeft = design.x;
-    const startTop  = design.y;
+    const startX = e.clientX, startY = e.clientY;
+    const startL = design.x,  startT = design.y;
     const container = document.getElementById('canvasContainer');
-    const cw = container.offsetWidth;
-    const ch = container.offsetHeight;
+    const cw = container.offsetWidth, ch = container.offsetHeight;
 
     function onMove(e) {
-      design.x = Math.max(0, Math.min(cw - design.w, startLeft + (e.clientX - startX)));
-      design.y = Math.max(0, Math.min(ch - design.h, startTop  + (e.clientY - startY)));
+      design.x = Math.max(0, Math.min(cw - design.w, startL + (e.clientX - startX)));
+      design.y = Math.max(0, Math.min(ch - design.h, startT + (e.clientY - startY)));
       el.style.left = design.x + 'px';
       el.style.top  = design.y + 'px';
     }
@@ -397,12 +396,10 @@ function makeResizable(el, design) {
 
 // ── UPDATE TOTAL ─────────────────────────────────────
 function updateTotal() {
-  const merchPrice = parseFloat(product?.price || 0);
-
-  // Sum designs across ALL views (customer pays for everything they placed)
-  const allDesigns     = Object.values(designsByView).flat();
-  const designsTotal   = allDesigns.reduce((sum, d) => sum + (d.price || 0), 0);
-  const printTotal     = selectedPrintSize
+  const merchPrice   = parseFloat(product?.price || 0);
+  const allDesigns   = Object.values(designsByView).flat();
+  const designsTotal = allDesigns.reduce((sum, d) => sum + (d.price || 0), 0);
+  const printTotal   = selectedPrintSize
     ? parseFloat(selectedPrintSize.price) * allDesigns.length
     : 0;
   const total = merchPrice + designsTotal + printTotal;
@@ -414,11 +411,9 @@ function updateTotal() {
 }
 
 // ── SLOTS ─────────────────────────────────────────────
-// Shows only the designs for the CURRENT view
 function updateSlots() {
   const wrap = document.getElementById('designSlots');
   wrap.innerHTML = '';
-
   const cd = currentDesigns();
   document.getElementById('designCount').textContent = `${cd.length} / ${MAX_DESIGNS}`;
 
@@ -439,11 +434,9 @@ function updateSlots() {
   }
 }
 
-// ── REMOVE DESIGN ─────────────────────────────────────
+// ── REMOVE ───────────────────────────────────────────
 function removeDesignById(id) {
   saveHistory();
-
-  // Search across all views
   for (const key of Object.keys(designsByView)) {
     const idx = designsByView[key].findIndex(d => d.id === id);
     if (idx !== -1) {
@@ -453,9 +446,9 @@ function removeDesignById(id) {
       break;
     }
   }
-
   updateSlots();
   updateTotal();
+  updatePrintZoneVisibility();
 }
 
 document.getElementById('removeBtn').addEventListener('click', () => {
@@ -463,20 +456,18 @@ document.getElementById('removeBtn').addEventListener('click', () => {
   removeDesignById(selectedDesign.id);
 });
 
-// Clear All — only clears designs on the CURRENT view
 document.getElementById('clearBtn').addEventListener('click', () => {
   saveHistory();
-  const cd = currentDesigns();
-  cd.forEach(d => d.el.remove());
+  currentDesigns().forEach(d => d.el.remove());
   designsByView[viewKey()] = [];
   selectedDesign = null;
   updateSlots();
   updateTotal();
+  updatePrintZoneVisibility();
 });
 
 // ── UNDO ─────────────────────────────────────────────
 function saveHistory() {
-  // Snapshot current view's designs only
   history.push({
     key: viewKey(),
     snapshot: currentDesigns().map(d => ({
@@ -489,26 +480,17 @@ function saveHistory() {
 
 document.getElementById('undoBtn').addEventListener('click', () => {
   if (!history.length) { showMsg('Nothing to undo.'); return; }
-
   const { key, snapshot } = history.pop();
-
-  // Remove current DOM elements for that view
   (designsByView[key] || []).forEach(d => d.el.remove());
   designsByView[key] = [];
   selectedDesign = null;
 
-  // Temporarily switch to that view key to re-add designs there
   const savedView   = currentView;
   const savedGender = currentGender;
-  const [g, v]      = key.split('_');   // e.g. 'male_front' → ['male','front']
-  currentGender     = g;
-  currentView       = v;
-
+  const [g, v]      = key.split('_');
+  currentGender = g; currentView = v;
   snapshot.forEach(d => addDesign(d.src, d.name, d.price));
-
-  // Restore original view if different
-  currentGender = savedGender;
-  currentView   = savedView;
+  currentGender = savedGender; currentView = savedView;
 
   updateSlots();
   updateTotal();
@@ -519,24 +501,101 @@ document.getElementById('uploadInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) { showMsg('File too large. Max 5MB.'); return; }
-  const reader  = new FileReader();
+  const reader = new FileReader();
   reader.onload = (ev) => addDesign(ev.target.result, file.name, uploadFee);
   reader.readAsDataURL(file);
   e.target.value = '';
 });
 
-// ── SIZE ─────────────────────────────────────────────
+// ── SIZE PREVIEW ─────────────────────────────────────
+
+function ensureSilhouette() {
+  let sil = document.getElementById('bodySilhouette');
+  if (!sil) {
+    sil = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    sil.id = 'bodySilhouette';
+    sil.setAttribute('viewBox', '0 0 100 160');
+    sil.setAttribute('preserveAspectRatio', 'xMidYMax meet');
+    sil.style.cssText = `
+      position:absolute; inset:0; width:100%; height:100%;
+      pointer-events:none; z-index:0;
+      opacity:0; transition:opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.4,0.64,1);
+    `;
+    sil.innerHTML = `
+      <ellipse cx="50" cy="14" rx="10" ry="13" fill="rgba(123,94,167,0.10)"/>
+      <path d="M22,42 Q18,30 30,26 Q40,22 50,22 Q60,22 70,26 Q82,30 78,42
+               L80,100 Q80,108 70,108 L30,108 Q20,108 20,100 Z"
+            fill="rgba(123,94,167,0.10)"/>
+    `;
+    document.getElementById('canvasContainer').prepend(sil);
+  }
+  return sil;
+}
+
+function ensureFitBadge() {
+  let badge = document.getElementById('fitBadge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'fitBadge';
+    badge.style.cssText = `
+      position:absolute; top:8px; right:8px;
+      background:rgba(123,94,167,0.88); color:#fff;
+      font-family:'Karla',sans-serif; font-size:0.72rem; font-weight:700;
+      padding:4px 10px; border-radius:20px;
+      letter-spacing:0.04em; text-transform:uppercase;
+      pointer-events:none; z-index:20;
+      opacity:0; transform:translateY(-4px);
+      transition:opacity 0.3s ease, transform 0.3s ease;
+    `;
+    document.getElementById('canvasContainer').appendChild(badge);
+  }
+  return badge;
+}
+
+// Combines size scaleX/scaleY + zoom into one transform on the mockup image
+function applyMockupTransform() {
+  const mockup = document.getElementById('merchMockup');
+  const data   = selectedSize ? SIZE_DATA[selectedSize] : null;
+  const sx     = data ? data.scaleX * zoomLevel : zoomLevel;
+  const sy     = data ? data.scaleY * zoomLevel : zoomLevel;
+  mockup.style.transition      = 'transform 0.35s cubic-bezier(0.34,1.4,0.64,1), opacity 0.2s ease';
+  mockup.style.transformOrigin = 'bottom center';
+  mockup.style.transform       = `scaleX(${sx.toFixed(3)}) scaleY(${sy.toFixed(3)})`;
+}
+
+function applySizePreview(size) {
+  const data = SIZE_DATA[size];
+  if (!data) return;
+
+  // 1. Shirt width/height via mockup transform (zoom-aware)
+  applyMockupTransform();
+
+  // 2. Silhouette
+  const sil = ensureSilhouette();
+  const silScale = data.silW / 56;
+  sil.style.transform      = `scaleX(${silScale})`;
+  sil.style.transformOrigin = 'bottom center';
+  sil.style.opacity        = '1';
+
+  // 3. Fit badge
+  const badge = ensureFitBadge();
+  badge.textContent     = data.fit;
+  badge.style.opacity   = '1';
+  badge.style.transform = 'translateY(0)';
+}
+
 document.querySelectorAll('.sz-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.sz-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     selectedSize = btn.dataset.size;
+    applySizePreview(selectedSize);
   });
 });
 
 // ── ADD TO CART ───────────────────────────────────────
 document.getElementById('addToCartBtn').addEventListener('click', () => {
-  if (!selectedSize)      { showMsg('Please select a garment size first.'); return; }
+  if (!selectedSize) { showMsg('Please select a garment size first.'); return; }
 
   const allDesigns = Object.values(designsByView).flat();
   if (!allDesigns.length) { showMsg('Add at least one design to your merch.'); return; }
@@ -548,9 +607,9 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
 
   const cartProduct = {
     ...product,
-    id:           product.id,
-    price:        totalPrice,
-    gender:       currentGender,
+    id:            product.id,
+    price:         totalPrice,
+    gender:        currentGender,
     customDesigns: allDesigns.map(d => ({
       src: d.src, name: d.name, price: d.price,
       viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
@@ -566,30 +625,27 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
   setTimeout(() => window.location.href = 'services.html', 1200);
 });
 
-// ── ZOOM ─────────────────────────────────────────────
-let zoomLevel = 1;
-const ZOOM_STEP = 0.25;
-const ZOOM_MIN  = 0.5;
-const ZOOM_MAX  = 3;
-
+// ── ZOOM (image only) ────────────────────────────────
 function applyZoom() {
-  const container = document.getElementById('canvasContainer');
-  container.style.transform       = `scale(${zoomLevel})`;
-  container.style.transformOrigin = 'top left';
-  container.style.width           = `${100 / zoomLevel}%`;
   document.getElementById('zoomLabel').textContent = `${Math.round(zoomLevel * 100)}%`;
+  applyMockupTransform(); // zoom baked into mockup transform, not the container
 }
 
 document.getElementById('zoomInBtn').addEventListener('click', () => {
-  if (zoomLevel < ZOOM_MAX) { zoomLevel = Math.min(ZOOM_MAX, +(zoomLevel + ZOOM_STEP).toFixed(2)); applyZoom(); }
+  if (zoomLevel < ZOOM_MAX) {
+    zoomLevel = Math.min(ZOOM_MAX, +(zoomLevel + ZOOM_STEP).toFixed(2));
+    applyZoom();
+  }
 });
-
 document.getElementById('zoomOutBtn').addEventListener('click', () => {
-  if (zoomLevel > ZOOM_MIN) { zoomLevel = Math.max(ZOOM_MIN, +(zoomLevel - ZOOM_STEP).toFixed(2)); applyZoom(); }
+  if (zoomLevel > ZOOM_MIN) {
+    zoomLevel = Math.max(ZOOM_MIN, +(zoomLevel - ZOOM_STEP).toFixed(2));
+    applyZoom();
+  }
 });
-
 document.getElementById('zoomResetBtn').addEventListener('click', () => {
-  zoomLevel = 1; applyZoom();
+  zoomLevel = 1;
+  applyZoom();
 });
 
 // ── MSG ───────────────────────────────────────────────
@@ -597,8 +653,15 @@ function showMsg(text) {
   document.getElementById('studioMsg').textContent = text;
 }
 
+// ── PRINT ZONE — hide the "Print Area" text label ────
+// The zone border stays for visual guidance, just no text
+document.addEventListener('DOMContentLoaded', () => {
+  const zoneSpan = document.querySelector('#printZone span');
+  if (zoneSpan) zoneSpan.style.display = 'none';
+});
+
 // ── MERCH IMAGE TRANSITION ────────────────────────────
-document.getElementById('merchMockup').style.transition = 'opacity 0.2s ease';
+document.getElementById('merchMockup').style.transition = 'transform 0.35s cubic-bezier(0.34,1.4,0.64,1), opacity 0.2s ease';
 
 // ── START ─────────────────────────────────────────────
 window.JaiforeCurrency?.init().then(() => {
