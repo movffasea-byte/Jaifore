@@ -17,6 +17,16 @@ const PRINT_ZONES = {
   back:  { top: '18%', left: '20%', width: '60%', height: '38%' },
 };
 
+// ── SIZE → MOCKUP SCALE MAP ──────────────────────────
+const SIZE_SCALES = {
+  XS:  0.78,
+  S:   0.87,
+  M:   0.94,
+  L:   1.00,
+  XL:  1.07,
+  XXL: 1.14,
+};
+
 // ── STATE ───────────────────────────────────────────
 let product           = null;
 let currentView       = 'front';
@@ -526,11 +536,20 @@ document.getElementById('uploadInput').addEventListener('change', (e) => {
 });
 
 // ── SIZE ─────────────────────────────────────────────
+function applyMockupScale(size) {
+  const scale     = SIZE_SCALES[size] ?? 1;
+  const container = document.getElementById('canvasContainer');
+  container.style.transition      = 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1)';
+  container.style.transformOrigin = 'top center';
+  container.style.transform       = `scale(${(scale * zoomLevel).toFixed(3)})`;
+}
+
 document.querySelectorAll('.sz-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.sz-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     selectedSize = btn.dataset.size;
+    applyMockupScale(selectedSize);
   });
 });
 
@@ -573,10 +592,12 @@ const ZOOM_MIN  = 0.5;
 const ZOOM_MAX  = 3;
 
 function applyZoom() {
-  const container = document.getElementById('canvasContainer');
-  container.style.transform       = `scale(${zoomLevel})`;
-  container.style.transformOrigin = 'top left';
-  container.style.width           = `${100 / zoomLevel}%`;
+  const container  = document.getElementById('canvasContainer');
+  const sizeScale  = selectedSize ? (SIZE_SCALES[selectedSize] ?? 1) : 1;
+  const combined   = +(sizeScale * zoomLevel).toFixed(3);
+  container.style.transition      = 'transform 0.2s ease';
+  container.style.transformOrigin = 'top center';
+  container.style.transform       = `scale(${combined})`;
   document.getElementById('zoomLabel').textContent = `${Math.round(zoomLevel * 100)}%`;
 }
 
