@@ -21,7 +21,15 @@ const PRINT_ZONES = {
 let product           = null;
 let currentView       = 'front';
 let currentGender     = null;   // 'male' | 'female'
-let designs           = [];
+
+// designs is now keyed by view: { male_front: [], male_back: [], female_front: [], female_back: [] }
+const designsByView   = {
+  male_front:   [],
+  male_back:    [],
+  female_front: [],
+  female_back:  [],
+};
+
 let selectedDesign    = null;
 let history           = [];
 let selectedSize      = null;
@@ -30,6 +38,16 @@ let selectedPrintSize = null;
 let cheapestPrice     = 1;
 let uploadFee         = 0.50;
 const MAX_DESIGNS     = 5;
+
+// ── HELPER: current view key ────────────────────────
+function viewKey() {
+  return `${currentGender || 'male'}_${currentView}`;
+}
+
+// ── HELPER: get designs for current view ────────────
+function currentDesigns() {
+  return designsByView[viewKey()];
+}
 
 // ── INIT ────────────────────────────────────────────
 const params    = new URLSearchParams(window.location.search);
@@ -88,7 +106,6 @@ async function init() {
 
 // ── GENDER MODAL ─────────────────────────────────────
 function showGenderModal() {
-  // Remove any existing modal
   const existing = document.getElementById('genderModal');
   if (existing) existing.remove();
 
@@ -120,8 +137,6 @@ function showGenderModal() {
   });
 
   document.body.appendChild(overlay);
-
-  // Slight delay so transition is visible
   requestAnimationFrame(() => overlay.classList.add('visible'));
 }
 
@@ -134,7 +149,7 @@ function selectGender(gender) {
     b.classList.toggle('active', b.dataset.gender === gender);
   });
 
-  // Re-render current view with new gender
+  // Re-render current view with new gender (swaps mockup + designs)
   setView(currentView);
 }
 
@@ -164,19 +179,25 @@ function renderPrintSizes() {
   });
 }
 
-// ── VIEW TOGGLE ─────────────────────────────────────
+// ── SET VIEW ─────────────────────────────────────────
+// Swaps mockup image AND hides/shows the correct design layer set
 function setView(view) {
-  currentView = view;
+  const prevKey = viewKey();           // key BEFORE updating currentView
+  currentView   = view;
+  const nextKey = viewKey();           // key AFTER
+
   const gender  = currentGender || 'male';
   const mockup  = document.getElementById('merchMockup');
   const src     = MOCKUPS[gender][view] || '';
 
+  // Fade mockup
   mockup.style.opacity = '0';
   setTimeout(() => {
     mockup.src = src;
     mockup.style.opacity = '1';
   }, 200);
 
+  // Update print zone
   const zone = document.getElementById('printZone');
   if (zone) {
     const z = PRINT_ZONES[view];
@@ -185,6 +206,31 @@ function setView(view) {
     zone.style.width  = z.width;
     zone.style.height = z.height;
   }
+
+  // Hide all design layers for the OLD view, show for the NEW view
+  if (prevKey !== nextKey) {
+    // Hide previous view's designs
+    (designsByView[prevKey] || []).forEach(d => {
+      d.el.style.display = 'none';
+    });
+    // Show new view's designs
+    (designsByView[nextKey] || []).forEach(d => {
+      d.el.style.display = '';
+    });
+  }
+
+  // Deselect — selected design may belong to a different view
+  selectedDesign = null;
+  designs_deselect_all();
+
+  updateSlots();
+  updateTotal();
+}
+
+function designs_deselect_all() {
+  Object.values(designsByView).forEach(arr => {
+    arr.forEach(d => d.el.classList.remove('selected'));
+  });
 }
 
 // Side toggle (Front / Back)
@@ -196,7 +242,7 @@ document.querySelectorAll('.view-btn').forEach(btn => {
   });
 });
 
-// Gender toggle (Male / Female) — wired up after DOM ready
+// Gender toggle (Male / Female)
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.gender-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -241,7 +287,8 @@ async function loadGraphicDesigns() {
 
 // ── ADD DESIGN TO CANVAS ─────────────────────────────
 function addDesign(src, name, price = 0) {
-  if (designs.length >= MAX_DESIGNS) { showMsg('Maximum 5 designs allowed.'); return; }
+  const cd = currentDesigns();
+  if (cd.length >= MAX_DESIGNS) { showMsg('Maximum 5 designs allowed.'); return; }
   if (!src) { showMsg('This design has no image yet.'); return; }
 
   saveHistory();
@@ -270,8 +317,10 @@ function addDesign(src, name, price = 0) {
   `;
 
   const id     = Date.now();
-  const design = { id, src, name, price, view: currentView, el, x, y, w, h };
-  designs.push(design);
+  // Store which viewKey this design belongs to
+  const design = { id, src, name, price, viewKey: viewKey(), el, x, y, w, h };
+
+  designsByView[viewKey()].push(design);
 
   makeDraggable(el, design);
   makeResizable(el, design);
@@ -290,7 +339,7 @@ function addDesign(src, name, price = 0) {
 
 // ── SELECT DESIGN ────────────────────────────────────
 function selectDesign(design) {
-  designs.forEach(d => d.el.classList.remove('selected'));
+  designs_deselect_all();
   selectedDesign = design;
   if (design) design.el.classList.add('selected');
 }
@@ -348,10 +397,13 @@ function makeResizable(el, design) {
 
 // ── UPDATE TOTAL ─────────────────────────────────────
 function updateTotal() {
-  const merchPrice   = parseFloat(product?.price || 0);
-  const designsTotal = designs.reduce((sum, d) => sum + (d.price || 0), 0);
-  const printTotal   = selectedPrintSize
-    ? parseFloat(selectedPrintSize.price) * designs.length
+  const merchPrice = parseFloat(product?.price || 0);
+
+  // Sum designs across ALL views (customer pays for everything they placed)
+  const allDesigns     = Object.values(designsByView).flat();
+  const designsTotal   = allDesigns.reduce((sum, d) => sum + (d.price || 0), 0);
+  const printTotal     = selectedPrintSize
+    ? parseFloat(selectedPrintSize.price) * allDesigns.length
     : 0;
   const total = merchPrice + designsTotal + printTotal;
 
@@ -361,17 +413,20 @@ function updateTotal() {
   document.getElementById('cartBtnPrice').textContent = formatted;
 }
 
-// ── SLOTS ────────────────────────────────────────────
+// ── SLOTS ─────────────────────────────────────────────
+// Shows only the designs for the CURRENT view
 function updateSlots() {
   const wrap = document.getElementById('designSlots');
   wrap.innerHTML = '';
-  document.getElementById('designCount').textContent = `${designs.length} / ${MAX_DESIGNS}`;
+
+  const cd = currentDesigns();
+  document.getElementById('designCount').textContent = `${cd.length} / ${MAX_DESIGNS}`;
 
   for (let i = 0; i < MAX_DESIGNS; i++) {
     const slot = document.createElement('div');
-    slot.className = 'design-slot' + (designs[i] ? ' filled' : '');
-    if (designs[i]) {
-      const d = designs[i];
+    slot.className = 'design-slot' + (cd[i] ? ' filled' : '');
+    if (cd[i]) {
+      const d = cd[i];
       slot.innerHTML = `
         <img src="${d.src}" alt="${d.name}"/>
         <button class="slot-remove" data-id="${d.id}">✕</button>
@@ -387,11 +442,18 @@ function updateSlots() {
 // ── REMOVE DESIGN ─────────────────────────────────────
 function removeDesignById(id) {
   saveHistory();
-  const idx = designs.findIndex(d => d.id === id);
-  if (idx === -1) return;
-  designs[idx].el.remove();
-  designs.splice(idx, 1);
-  if (selectedDesign?.id === id) selectedDesign = null;
+
+  // Search across all views
+  for (const key of Object.keys(designsByView)) {
+    const idx = designsByView[key].findIndex(d => d.id === id);
+    if (idx !== -1) {
+      designsByView[key][idx].el.remove();
+      designsByView[key].splice(idx, 1);
+      if (selectedDesign?.id === id) selectedDesign = null;
+      break;
+    }
+  }
+
   updateSlots();
   updateTotal();
 }
@@ -401,29 +463,55 @@ document.getElementById('removeBtn').addEventListener('click', () => {
   removeDesignById(selectedDesign.id);
 });
 
+// Clear All — only clears designs on the CURRENT view
 document.getElementById('clearBtn').addEventListener('click', () => {
   saveHistory();
-  designs.forEach(d => d.el.remove());
-  designs = []; selectedDesign = null;
-  updateSlots(); updateTotal();
+  const cd = currentDesigns();
+  cd.forEach(d => d.el.remove());
+  designsByView[viewKey()] = [];
+  selectedDesign = null;
+  updateSlots();
+  updateTotal();
 });
 
 // ── UNDO ─────────────────────────────────────────────
 function saveHistory() {
-  history.push(designs.map(d => ({
-    id: d.id, src: d.src, name: d.name, price: d.price, view: d.view,
-    x: d.x, y: d.y, w: d.w, h: d.h
-  })));
+  // Snapshot current view's designs only
+  history.push({
+    key: viewKey(),
+    snapshot: currentDesigns().map(d => ({
+      id: d.id, src: d.src, name: d.name, price: d.price,
+      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
+    }))
+  });
   if (history.length > 20) history.shift();
 }
 
 document.getElementById('undoBtn').addEventListener('click', () => {
   if (!history.length) { showMsg('Nothing to undo.'); return; }
-  designs.forEach(d => d.el.remove());
-  designs = []; selectedDesign = null;
-  const prev = history.pop();
-  prev.forEach(d => addDesign(d.src, d.name, d.price));
-  updateSlots(); updateTotal();
+
+  const { key, snapshot } = history.pop();
+
+  // Remove current DOM elements for that view
+  (designsByView[key] || []).forEach(d => d.el.remove());
+  designsByView[key] = [];
+  selectedDesign = null;
+
+  // Temporarily switch to that view key to re-add designs there
+  const savedView   = currentView;
+  const savedGender = currentGender;
+  const [g, v]      = key.split('_');   // e.g. 'male_front' → ['male','front']
+  currentGender     = g;
+  currentView       = v;
+
+  snapshot.forEach(d => addDesign(d.src, d.name, d.price));
+
+  // Restore original view if different
+  currentGender = savedGender;
+  currentView   = savedView;
+
+  updateSlots();
+  updateTotal();
 });
 
 // ── UPLOAD ───────────────────────────────────────────
@@ -449,11 +537,13 @@ document.querySelectorAll('.sz-btn').forEach(btn => {
 // ── ADD TO CART ───────────────────────────────────────
 document.getElementById('addToCartBtn').addEventListener('click', () => {
   if (!selectedSize)      { showMsg('Please select a garment size first.'); return; }
-  if (!designs.length)    { showMsg('Add at least one design to your merch.'); return; }
+
+  const allDesigns = Object.values(designsByView).flat();
+  if (!allDesigns.length) { showMsg('Add at least one design to your merch.'); return; }
   if (!selectedPrintSize) { showMsg('Please select a print size.'); return; }
 
-  const designsTotal = designs.reduce((sum, d) => sum + (d.price || 0), 0);
-  const printTotal   = parseFloat(selectedPrintSize.price) * designs.length;
+  const designsTotal = allDesigns.reduce((sum, d) => sum + (d.price || 0), 0);
+  const printTotal   = parseFloat(selectedPrintSize.price) * allDesigns.length;
   const totalPrice   = parseFloat(product.price) + designsTotal + printTotal;
 
   const cartProduct = {
@@ -461,9 +551,9 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
     id:           product.id,
     price:        totalPrice,
     gender:       currentGender,
-    customDesigns: designs.map(d => ({
+    customDesigns: allDesigns.map(d => ({
       src: d.src, name: d.name, price: d.price,
-      view: d.view, x: d.x, y: d.y, w: d.w, h: d.h
+      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
     })),
     printSize:    selectedPrintSize,
     selectedSize,
