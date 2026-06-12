@@ -17,15 +17,6 @@ const PRINT_ZONES = {
   back:  { top: '18%', left: '20%', width: '60%', height: '38%' },
 };
 
-// ── SIZE PREVIEW DATA ────────────────────────────────
-const SIZE_DATA = {
-  XS:  { scaleX: 0.72, scaleY: 0.90, fit: 'Extra Slim Fit', silW: 38 },
-  S:   { scaleX: 0.82, scaleY: 0.93, fit: 'Slim Fit',       silW: 44 },
-  M:   { scaleX: 0.91, scaleY: 0.97, fit: 'Regular Fit',    silW: 50 },
-  L:   { scaleX: 1.00, scaleY: 1.00, fit: 'Standard Fit',   silW: 56 },
-  XL:  { scaleX: 1.09, scaleY: 1.02, fit: 'Relaxed Fit',    silW: 62 },
-  XXL: { scaleX: 1.18, scaleY: 1.04, fit: 'Oversized',      silW: 70 },
-};
 
 // ── STATE ───────────────────────────────────────────
 let product           = null;
@@ -201,7 +192,6 @@ function setView(view) {
   setTimeout(() => {
     mockup.src = src;
     mockup.style.opacity = '1';
-    applyMockupTransform();
   }, 200);
 
   const zone = document.getElementById('printZone');
@@ -611,83 +601,15 @@ document.getElementById('uploadInput').addEventListener('change', (e) => {
 
 // ── SIZE PREVIEW ─────────────────────────────────────
 
-function ensureSilhouette() {
-  let sil = document.getElementById('bodySilhouette');
-  if (!sil) {
-    sil = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    sil.id = 'bodySilhouette';
-    sil.setAttribute('viewBox', '0 0 100 160');
-    sil.setAttribute('preserveAspectRatio', 'xMidYMax meet');
-    sil.style.cssText = `
-      position:absolute; inset:0; width:100%; height:100%;
-      pointer-events:none; z-index:0;
-      opacity:0; transition:opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.4,0.64,1);
-    `;
-    sil.innerHTML = `
-      <ellipse cx="50" cy="14" rx="10" ry="13" fill="rgba(123,94,167,0.10)"/>
-      <path d="M22,42 Q18,30 30,26 Q40,22 50,22 Q60,22 70,26 Q82,30 78,42
-               L80,100 Q80,108 70,108 L30,108 Q20,108 20,100 Z"
-            fill="rgba(123,94,167,0.10)"/>
-    `;
-    document.getElementById('canvasContainer').prepend(sil);
-  }
-  return sil;
-}
 
-function ensureFitBadge() {
-  let badge = document.getElementById('fitBadge');
-  if (!badge) {
-    badge = document.createElement('div');
-    badge.id = 'fitBadge';
-    badge.style.cssText = `
-      position:absolute; top:8px; right:8px;
-      background:rgba(123,94,167,0.88); color:#fff;
-      font-family:'Karla',sans-serif; font-size:0.72rem; font-weight:700;
-      padding:4px 10px; border-radius:20px;
-      letter-spacing:0.04em; text-transform:uppercase;
-      pointer-events:none; z-index:20;
-      opacity:0; transform:translateY(-4px);
-      transition:opacity 0.3s ease, transform 0.3s ease;
-    `;
-    document.getElementById('canvasContainer').appendChild(badge);
-  }
-  return badge;
-}
 
-function applyMockupTransform() {
-  const mockup = document.getElementById('merchMockup');
-  const data   = selectedSize ? SIZE_DATA[selectedSize] : null;
-  const sx     = data ? data.scaleX * zoomLevel : zoomLevel;
-  const sy     = data ? data.scaleY * zoomLevel : zoomLevel;
-  mockup.style.transition      = 'transform 0.35s cubic-bezier(0.34,1.4,0.64,1), opacity 0.2s ease';
-  mockup.style.transformOrigin = 'bottom center';
-  mockup.style.transform       = `scaleX(${sx.toFixed(3)}) scaleY(${sy.toFixed(3)})`;
-}
 
-function applySizePreview(size) {
-  const data = SIZE_DATA[size];
-  if (!data) return;
-
-  applyMockupTransform();
-
-  const sil = ensureSilhouette();
-  const silScale = data.silW / 56;
-  sil.style.transform       = `scaleX(${silScale})`;
-  sil.style.transformOrigin = 'bottom center';
-  sil.style.opacity         = '1';
-
-  const badge = ensureFitBadge();
-  badge.textContent     = data.fit;
-  badge.style.opacity   = '1';
-  badge.style.transform = 'translateY(0)';
-}
 
 document.querySelectorAll('.sz-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.sz-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     selectedSize = btn.dataset.size;
-    applySizePreview(selectedSize);
   });
 });
 
@@ -726,6 +648,10 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
 // ── ZOOM (image only, canvas-outer scrollable) ───────
 function applyZoom() {
   document.getElementById('zoomLabel').textContent = `${Math.round(zoomLevel * 100)}%`;
+  const container = document.getElementById('canvasContainer');
+  container.style.transition      = 'transform 0.2s ease';
+  container.style.transformOrigin = 'top left';
+  container.style.transform       = `scale(${zoomLevel})`;
 
   // Scale the canvasContainer inside the scrollable canvas-outer
   // so the user can scroll to see clipped parts when zoomed in
@@ -745,8 +671,6 @@ function applyZoom() {
     outer.style.minHeight = zoomLevel > 1 ? `${container.offsetHeight * zoomLevel}px` : '';
   }
 
-  // Also apply size transform to just the mockup img on top of canvas scale
-  applyMockupTransform();
 }
 
 document.getElementById('zoomInBtn').addEventListener('click', () => {
