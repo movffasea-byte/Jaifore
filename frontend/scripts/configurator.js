@@ -17,7 +17,6 @@ const PRINT_ZONES = {
   back:  { top: '18%', left: '20%', width: '60%', height: '38%' },
 };
 
-
 // ── STATE ───────────────────────────────────────────
 let product           = null;
 let currentView       = 'front';
@@ -31,8 +30,8 @@ const designsByView = {
 };
 
 let selectedDesign    = null;
-let undoStack         = [];   // each entry: { key, snapshot[] }
-let redoStack         = [];   // same shape
+let undoStack         = [];
+let redoStack         = [];
 let selectedSize      = null;
 let printPricing      = [];
 let selectedPrintSize = null;
@@ -190,7 +189,7 @@ function setView(view) {
 
   mockup.style.opacity = '0';
   setTimeout(() => {
-    mockup.src = src;
+    mockup.src           = src;
     mockup.style.opacity = '1';
   }, 200);
 
@@ -228,7 +227,7 @@ function updatePrintZoneVisibility() {
   zone.style.opacity    = currentDesigns().length > 0 ? '0' : '1';
 }
 
-// Side toggle
+// ── SIDE TOGGLE ──────────────────────────────────────
 document.querySelectorAll('.view-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
@@ -237,7 +236,7 @@ document.querySelectorAll('.view-btn').forEach(btn => {
   });
 });
 
-// Gender toggle
+// ── GENDER TOGGLE ────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.gender-btn').forEach(btn => {
     btn.addEventListener('click', () => selectGender(btn.dataset.gender));
@@ -246,12 +245,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── DESELECT ON CANVAS BACKGROUND CLICK ─────────────
 document.getElementById('canvasContainer').addEventListener('pointerdown', (e) => {
-  // Only deselect if clicking directly on the container, mockup, or print zone — not on a design layer
   if (
-    e.target.id === 'canvasContainer'  ||
-    e.target.id === 'merchMockup'      ||
-    e.target.id === 'printZone'        ||
-    e.target.id === 'bodySilhouette'
+    e.target.id === 'canvasContainer' ||
+    e.target.id === 'merchMockup'     ||
+    e.target.id === 'printZone'
   ) {
     selectedDesign = null;
     designs_deselect_all();
@@ -371,7 +368,6 @@ function makeDraggable(el, design) {
     function onUp() {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup',   onUp);
-      // Save undo snapshot after a drag move, deselect border stays until user clicks elsewhere
       if (moved) saveToUndo();
     }
     document.addEventListener('pointermove', onMove);
@@ -396,7 +392,6 @@ function makeResizable(el, design) {
     function onUp() {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup',   onUp);
-      // Save undo snapshot after resize; deselect on next background click
       saveToUndo();
     }
     document.addEventListener('pointermove', onMove);
@@ -479,8 +474,6 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 });
 
 // ── UNDO / REDO ───────────────────────────────────────
-
-// Snapshot the CURRENT view's designs onto the undo stack and clear redo
 function saveToUndo() {
   undoStack.push({
     key:      viewKey(),
@@ -490,11 +483,10 @@ function saveToUndo() {
     }))
   });
   if (undoStack.length > 30) undoStack.shift();
-  redoStack = [];   // new action clears redo
+  redoStack = [];
   updateUndoRedoBtns();
 }
 
-// Restore a snapshot to the canvas for a given view key
 function restoreSnapshot(key, snapshot) {
   (designsByView[key] || []).forEach(d => d.el.remove());
   designsByView[key] = [];
@@ -502,15 +494,14 @@ function restoreSnapshot(key, snapshot) {
 
   const savedView   = currentView;
   const savedGender = currentGender;
-  const parts = key.split('_');
-  currentGender = parts[0];
-  currentView   = parts[1];
+  const parts       = key.split('_');
+  currentGender     = parts[0];
+  currentView       = parts[1];
 
   snapshot.forEach(d => {
-    // Rebuild DOM element directly (no undo push, no redo clear)
     const container = document.getElementById('canvasContainer');
     const el = document.createElement('div');
-    el.className = 'design-layer';
+    el.className     = 'design-layer';
     el.style.cssText = `left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;`;
     el.innerHTML = `
       <img src="${d.src}" alt="${d.name}" draggable="false"/>
@@ -518,7 +509,6 @@ function restoreSnapshot(key, snapshot) {
     `;
     const design = { ...d, el };
 
-    // Hide if not the currently displayed view
     if (key !== `${savedGender || 'male'}_${savedView}`) {
       el.style.display = 'none';
     }
@@ -540,7 +530,6 @@ function restoreSnapshot(key, snapshot) {
 document.getElementById('undoBtn').addEventListener('click', () => {
   if (!undoStack.length) { showMsg('Nothing to undo.'); return; }
 
-  // Push current state to redo before undoing
   redoStack.push({
     key:      viewKey(),
     snapshot: currentDesigns().map(d => ({
@@ -551,18 +540,13 @@ document.getElementById('undoBtn').addEventListener('click', () => {
 
   const { key, snapshot } = undoStack.pop();
   restoreSnapshot(key, snapshot);
-
-  updateSlots();
-  updateTotal();
-  updatePrintZoneVisibility();
-  updateUndoRedoBtns();
+  updateSlots(); updateTotal(); updatePrintZoneVisibility(); updateUndoRedoBtns();
   showMsg('');
 });
 
 document.getElementById('redoBtn').addEventListener('click', () => {
   if (!redoStack.length) { showMsg('Nothing to redo.'); return; }
 
-  // Push current state to undo before redoing
   undoStack.push({
     key:      viewKey(),
     snapshot: currentDesigns().map(d => ({
@@ -573,11 +557,7 @@ document.getElementById('redoBtn').addEventListener('click', () => {
 
   const { key, snapshot } = redoStack.pop();
   restoreSnapshot(key, snapshot);
-
-  updateSlots();
-  updateTotal();
-  updatePrintZoneVisibility();
-  updateUndoRedoBtns();
+  updateSlots(); updateTotal(); updatePrintZoneVisibility(); updateUndoRedoBtns();
   showMsg('');
 });
 
@@ -599,12 +579,7 @@ document.getElementById('uploadInput').addEventListener('change', (e) => {
   e.target.value = '';
 });
 
-// ── SIZE PREVIEW ─────────────────────────────────────
-
-
-
-
-
+// ── GARMENT SIZE — selection only, no image effect ───
 document.querySelectorAll('.sz-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.sz-btn').forEach(b => b.classList.remove('selected'));
@@ -645,32 +620,23 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
   setTimeout(() => window.location.href = 'services.html', 1200);
 });
 
-// ── ZOOM (image only, canvas-outer scrollable) ───────
+// ── ZOOM ─────────────────────────────────────────────
 function applyZoom() {
   document.getElementById('zoomLabel').textContent = `${Math.round(zoomLevel * 100)}%`;
+
   const container = document.getElementById('canvasContainer');
   container.style.transition      = 'transform 0.2s ease';
   container.style.transformOrigin = 'top left';
   container.style.transform       = `scale(${zoomLevel})`;
 
-  // Scale the canvasContainer inside the scrollable canvas-outer
-  // so the user can scroll to see clipped parts when zoomed in
-  const container = document.getElementById('canvasContainer');
-  container.style.transition      = 'transform 0.2s ease';
-  container.style.transformOrigin = 'top center';
-  container.style.transform       = `scale(${zoomLevel})`;
-
-  // Expand the scroll area to match the scaled size
-  const outer = document.getElementById('canvasOuter') || container.parentElement;
+  const outer = document.getElementById('canvasOuter');
   if (outer) {
-    const base = container.offsetWidth;
-    const scaled = base * zoomLevel;
     outer.style.overflowX = zoomLevel > 1 ? 'auto' : 'hidden';
     outer.style.overflowY = zoomLevel > 1 ? 'auto' : 'hidden';
-    // Give the outer enough height so scaled content is scrollable
-    outer.style.minHeight = zoomLevel > 1 ? `${container.offsetHeight * zoomLevel}px` : '';
+    outer.style.minHeight = zoomLevel > 1
+      ? `${container.offsetHeight * zoomLevel}px`
+      : '';
   }
-
 }
 
 document.getElementById('zoomInBtn').addEventListener('click', () => {
@@ -688,7 +654,7 @@ document.getElementById('zoomOutBtn').addEventListener('click', () => {
 document.getElementById('zoomResetBtn').addEventListener('click', () => {
   zoomLevel = 1;
   applyZoom();
-  const outer = document.getElementById('canvasOuter') || document.getElementById('canvasContainer').parentElement;
+  const outer = document.getElementById('canvasOuter');
   if (outer) { outer.style.overflowX = ''; outer.style.overflowY = ''; outer.style.minHeight = ''; }
 });
 
@@ -697,14 +663,8 @@ function showMsg(text) {
   document.getElementById('studioMsg').textContent = text;
 }
 
-// ── PRINT ZONE — hide text label ─────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  const zoneSpan = document.querySelector('#printZone span');
-  if (zoneSpan) zoneSpan.style.display = 'none';
-});
-
-// ── MERCH IMAGE TRANSITION ────────────────────────────
-document.getElementById('merchMockup').style.transition = 'transform 0.35s cubic-bezier(0.34,1.4,0.64,1), opacity 0.2s ease';
+// ── MERCH IMAGE — fade only, no transform ────────────
+document.getElementById('merchMockup').style.transition = 'opacity 0.2s ease';
 
 // ── START ─────────────────────────────────────────────
 window.JaiforeCurrency?.init().then(() => {
