@@ -101,11 +101,11 @@
   text-align: center;
 }
 
-/* ── CANVAS ────────────────────────────────────────── */
+/* ── CANVAS OUTER (scrollable when zoomed) ─────────── */
 .canvas-outer {
   width: 100%;
   max-width: 480px;
-  max-height: 65vh;
+  /* No fixed max-height — let it be natural so zoomed content scrolls */
   border-radius: 16px;
   overflow: auto;
   box-shadow: 0 8px 40px rgba(0,0,0,0.15);
@@ -116,10 +116,11 @@
   scrollbar-color: #7b5ea7 #f0ece6;
 }
 
-.canvas-outer::-webkit-scrollbar { width: 6px; height: 6px; }
+.canvas-outer::-webkit-scrollbar       { width: 6px; height: 6px; }
 .canvas-outer::-webkit-scrollbar-track { background: #f0ece6; border-radius: 4px; }
 .canvas-outer::-webkit-scrollbar-thumb { background: #7b5ea7; border-radius: 4px; }
 
+/* ── CANVAS CONTAINER ──────────────────────────────── */
 .canvas-container {
   width: 100%;
   position: relative;
@@ -127,16 +128,19 @@
   cursor: crosshair;
   transform-origin: top left;
   transition: transform 0.2s ease;
+  /* Allows scaled content to push scroll area */
+  display: inline-block;
+  min-width: 100%;
 }
 
 .merch-mockup {
   width: 100%;
-  height: auto;          /* let image define its own height */
-  object-fit: contain;   /* show full image, no cropping */
+  height: auto;
+  object-fit: contain;
   display: block;
   pointer-events: none;
   user-select: none;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.35s cubic-bezier(0.34,1.4,0.64,1);
 }
 
 /* ── PRINT ZONE ────────────────────────────────────── */
@@ -149,15 +153,11 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  transition: all 0.3s ease;
+  transition: opacity 0.4s ease;
 }
 
 .zone span {
-  font-size: 0.65rem;
-  color: rgba(123, 94, 167, 0.8);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  display: none; /* label hidden, border stays */
 }
 
 /* ── DESIGN LAYER ──────────────────────────────────── */
@@ -168,12 +168,18 @@
   touch-action: none;
   border: 2px solid transparent;
   border-radius: 4px;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .design-layer.selected {
   border-color: #7b5ea7;
   box-shadow: 0 0 0 3px rgba(123, 94, 167, 0.25);
+}
+
+/* Border fades out when not selected — no lingering outline after drag/resize */
+.design-layer:not(.selected) {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .design-layer img {
@@ -194,6 +200,13 @@
   border-radius: 50%;
   cursor: se-resize;
   border: 2px solid #fff;
+  /* Only visible when parent is selected */
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.design-layer.selected .resize-handle {
+  opacity: 1;
 }
 
 /* ── CANVAS ACTIONS ────────────────────────────────── */
@@ -213,11 +226,17 @@
   color: #555;
   padding: 0.45rem 0.9rem;
   cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
+  transition: border-color 0.2s, color 0.2s, opacity 0.2s;
 }
 
-.ca-btn:hover { border-color: #7b5ea7; color: #7b5ea7; }
-.ca-btn.danger:hover { border-color: #c0392b; color: #c0392b; }
+.ca-btn:hover:not(:disabled)       { border-color: #7b5ea7; color: #7b5ea7; }
+.ca-btn.danger:hover:not(:disabled) { border-color: #c0392b; color: #c0392b; }
+
+/* Disabled state for undo/redo */
+.ca-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 
 /* ── PANEL SIDE ────────────────────────────────────── */
 .studio-panel {
@@ -456,7 +475,7 @@
   width: 100%;
 }
 
-.print-size-btn:hover  { border-color: #7b5ea7; }
+.print-size-btn:hover   { border-color: #7b5ea7; }
 .print-size-btn.selected { background: #f0ecff; border-color: #7b5ea7; }
 
 .ps-label {
@@ -501,7 +520,7 @@
   transition: all 0.15s;
 }
 
-.sz-btn:hover  { border-color: #7b5ea7; color: #7b5ea7; }
+.sz-btn:hover    { border-color: #7b5ea7; color: #7b5ea7; }
 .sz-btn.selected { background: #7b5ea7; border-color: #7b5ea7; color: #fff; }
 
 /* ── NOTES ─────────────────────────────────────────── */

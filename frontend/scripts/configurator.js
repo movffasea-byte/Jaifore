@@ -40,7 +40,8 @@ const designsByView = {
 };
 
 let selectedDesign    = null;
-let history           = [];
+let undoStack         = [];   // each entry: { key, snapshot[] }
+let redoStack         = [];   // same shape
 let selectedSize      = null;
 let printPricing      = [];
 let selectedPrintSize = null;
@@ -48,7 +49,7 @@ let cheapestPrice     = 1;
 let uploadFee         = 0.50;
 const MAX_DESIGNS     = 5;
 
-// ── ZOOM (image-only) ────────────────────────────────
+// ── ZOOM ─────────────────────────────────────────────
 let zoomLevel   = 1;
 const ZOOM_STEP = 0.25;
 const ZOOM_MIN  = 0.5;
@@ -112,6 +113,7 @@ async function init() {
   updateTotal();
   loadGraphicDesigns();
   updateSlots();
+  updateUndoRedoBtns();
 }
 
 // ── GENDER MODAL ─────────────────────────────────────
@@ -199,11 +201,9 @@ function setView(view) {
   setTimeout(() => {
     mockup.src = src;
     mockup.style.opacity = '1';
-    // Re-apply zoom to new image
     applyMockupTransform();
   }, 200);
 
-  // Update print zone position (label already hidden via CSS/HTML change)
   const zone = document.getElementById('printZone');
   if (zone) {
     const z = PRINT_ZONES[view];
@@ -231,7 +231,6 @@ function designs_deselect_all() {
   });
 }
 
-// Fade print zone border out when this view has designs, back in when empty
 function updatePrintZoneVisibility() {
   const zone = document.getElementById('printZone');
   if (!zone) return;
@@ -253,6 +252,20 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.gender-btn').forEach(btn => {
     btn.addEventListener('click', () => selectGender(btn.dataset.gender));
   });
+});
+
+// ── DESELECT ON CANVAS BACKGROUND CLICK ─────────────
+document.getElementById('canvasContainer').addEventListener('pointerdown', (e) => {
+  // Only deselect if clicking directly on the container, mockup, or print zone — not on a design layer
+  if (
+    e.target.id === 'canvasContainer'  ||
+    e.target.id === 'merchMockup'      ||
+    e.target.id === 'printZone'        ||
+    e.target.id === 'bodySilhouette'
+  ) {
+    selectedDesign = null;
+    designs_deselect_all();
+  }
 });
 
 // ── LOAD GRAPHIC DESIGNS ─────────────────────────────
@@ -295,7 +308,7 @@ function addDesign(src, name, price = 0) {
   if (cd.length >= MAX_DESIGNS) { showMsg('Maximum 5 designs allowed.'); return; }
   if (!src) { showMsg('This design has no image yet.'); return; }
 
-  saveHistory();
+  saveToUndo();
 
   const container = document.getElementById('canvasContainer');
   const cw = container.offsetWidth;
@@ -337,6 +350,7 @@ function addDesign(src, name, price = 0) {
   updateSlots();
   updateTotal();
   updatePrintZoneVisibility();
+  updateUndoRedoBtns();
   showMsg('');
 }
 
@@ -355,8 +369,10 @@ function makeDraggable(el, design) {
     const startL = design.x,  startT = design.y;
     const container = document.getElementById('canvasContainer');
     const cw = container.offsetWidth, ch = container.offsetHeight;
+    let moved = false;
 
     function onMove(e) {
+      moved = true;
       design.x = Math.max(0, Math.min(cw - design.w, startL + (e.clientX - startX)));
       design.y = Math.max(0, Math.min(ch - design.h, startT + (e.clientY - startY)));
       el.style.left = design.x + 'px';
@@ -365,6 +381,8 @@ function makeDraggable(el, design) {
     function onUp() {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup',   onUp);
+      // Save undo snapshot after a drag move, deselect border stays until user clicks elsewhere
+      if (moved) saveToUndo();
     }
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup',   onUp);
@@ -388,6 +406,8 @@ function makeResizable(el, design) {
     function onUp() {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup',   onUp);
+      // Save undo snapshot after resize; deselect on next background click
+      saveToUndo();
     }
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup',   onUp);
@@ -436,7 +456,7 @@ function updateSlots() {
 
 // ── REMOVE ───────────────────────────────────────────
 function removeDesignById(id) {
-  saveHistory();
+  saveToUndo();
   for (const key of Object.keys(designsByView)) {
     const idx = designsByView[key].findIndex(d => d.id === id);
     if (idx !== -1) {
@@ -449,6 +469,7 @@ function removeDesignById(id) {
   updateSlots();
   updateTotal();
   updatePrintZoneVisibility();
+  updateUndoRedoBtns();
 }
 
 document.getElementById('removeBtn').addEventListener('click', () => {
@@ -457,44 +478,125 @@ document.getElementById('removeBtn').addEventListener('click', () => {
 });
 
 document.getElementById('clearBtn').addEventListener('click', () => {
-  saveHistory();
+  saveToUndo();
   currentDesigns().forEach(d => d.el.remove());
   designsByView[viewKey()] = [];
   selectedDesign = null;
   updateSlots();
   updateTotal();
   updatePrintZoneVisibility();
+  updateUndoRedoBtns();
 });
 
-// ── UNDO ─────────────────────────────────────────────
-function saveHistory() {
-  history.push({
-    key: viewKey(),
+// ── UNDO / REDO ───────────────────────────────────────
+
+// Snapshot the CURRENT view's designs onto the undo stack and clear redo
+function saveToUndo() {
+  undoStack.push({
+    key:      viewKey(),
     snapshot: currentDesigns().map(d => ({
       id: d.id, src: d.src, name: d.name, price: d.price,
       viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
     }))
   });
-  if (history.length > 20) history.shift();
+  if (undoStack.length > 30) undoStack.shift();
+  redoStack = [];   // new action clears redo
+  updateUndoRedoBtns();
 }
 
-document.getElementById('undoBtn').addEventListener('click', () => {
-  if (!history.length) { showMsg('Nothing to undo.'); return; }
-  const { key, snapshot } = history.pop();
+// Restore a snapshot to the canvas for a given view key
+function restoreSnapshot(key, snapshot) {
   (designsByView[key] || []).forEach(d => d.el.remove());
   designsByView[key] = [];
   selectedDesign = null;
 
   const savedView   = currentView;
   const savedGender = currentGender;
-  const [g, v]      = key.split('_');
-  currentGender = g; currentView = v;
-  snapshot.forEach(d => addDesign(d.src, d.name, d.price));
-  currentGender = savedGender; currentView = savedView;
+  const parts = key.split('_');
+  currentGender = parts[0];
+  currentView   = parts[1];
+
+  snapshot.forEach(d => {
+    // Rebuild DOM element directly (no undo push, no redo clear)
+    const container = document.getElementById('canvasContainer');
+    const el = document.createElement('div');
+    el.className = 'design-layer';
+    el.style.cssText = `left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;`;
+    el.innerHTML = `
+      <img src="${d.src}" alt="${d.name}" draggable="false"/>
+      <div class="resize-handle"></div>
+    `;
+    const design = { ...d, el };
+
+    // Hide if not the currently displayed view
+    if (key !== `${savedGender || 'male'}_${savedView}`) {
+      el.style.display = 'none';
+    }
+
+    designsByView[key].push(design);
+    makeDraggable(el, design);
+    makeResizable(el, design);
+    el.addEventListener('pointerdown', (e) => {
+      if (e.target.classList.contains('resize-handle')) return;
+      selectDesign(design);
+    });
+    container.appendChild(el);
+  });
+
+  currentGender = savedGender;
+  currentView   = savedView;
+}
+
+document.getElementById('undoBtn').addEventListener('click', () => {
+  if (!undoStack.length) { showMsg('Nothing to undo.'); return; }
+
+  // Push current state to redo before undoing
+  redoStack.push({
+    key:      viewKey(),
+    snapshot: currentDesigns().map(d => ({
+      id: d.id, src: d.src, name: d.name, price: d.price,
+      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
+    }))
+  });
+
+  const { key, snapshot } = undoStack.pop();
+  restoreSnapshot(key, snapshot);
 
   updateSlots();
   updateTotal();
+  updatePrintZoneVisibility();
+  updateUndoRedoBtns();
+  showMsg('');
 });
+
+document.getElementById('redoBtn').addEventListener('click', () => {
+  if (!redoStack.length) { showMsg('Nothing to redo.'); return; }
+
+  // Push current state to undo before redoing
+  undoStack.push({
+    key:      viewKey(),
+    snapshot: currentDesigns().map(d => ({
+      id: d.id, src: d.src, name: d.name, price: d.price,
+      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
+    }))
+  });
+
+  const { key, snapshot } = redoStack.pop();
+  restoreSnapshot(key, snapshot);
+
+  updateSlots();
+  updateTotal();
+  updatePrintZoneVisibility();
+  updateUndoRedoBtns();
+  showMsg('');
+});
+
+function updateUndoRedoBtns() {
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  if (undoBtn) undoBtn.disabled = undoStack.length === 0;
+  if (redoBtn) redoBtn.disabled = redoStack.length === 0;
+}
 
 // ── UPLOAD ───────────────────────────────────────────
 document.getElementById('uploadInput').addEventListener('change', (e) => {
@@ -552,7 +654,6 @@ function ensureFitBadge() {
   return badge;
 }
 
-// Combines size scaleX/scaleY + zoom into one transform on the mockup image
 function applyMockupTransform() {
   const mockup = document.getElementById('merchMockup');
   const data   = selectedSize ? SIZE_DATA[selectedSize] : null;
@@ -567,17 +668,14 @@ function applySizePreview(size) {
   const data = SIZE_DATA[size];
   if (!data) return;
 
-  // 1. Shirt width/height via mockup transform (zoom-aware)
   applyMockupTransform();
 
-  // 2. Silhouette
   const sil = ensureSilhouette();
   const silScale = data.silW / 56;
-  sil.style.transform      = `scaleX(${silScale})`;
+  sil.style.transform       = `scaleX(${silScale})`;
   sil.style.transformOrigin = 'bottom center';
-  sil.style.opacity        = '1';
+  sil.style.opacity         = '1';
 
-  // 3. Fit badge
   const badge = ensureFitBadge();
   badge.textContent     = data.fit;
   badge.style.opacity   = '1';
@@ -625,10 +723,30 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
   setTimeout(() => window.location.href = 'services.html', 1200);
 });
 
-// ── ZOOM (image only) ────────────────────────────────
+// ── ZOOM (image only, canvas-outer scrollable) ───────
 function applyZoom() {
   document.getElementById('zoomLabel').textContent = `${Math.round(zoomLevel * 100)}%`;
-  applyMockupTransform(); // zoom baked into mockup transform, not the container
+
+  // Scale the canvasContainer inside the scrollable canvas-outer
+  // so the user can scroll to see clipped parts when zoomed in
+  const container = document.getElementById('canvasContainer');
+  container.style.transition      = 'transform 0.2s ease';
+  container.style.transformOrigin = 'top center';
+  container.style.transform       = `scale(${zoomLevel})`;
+
+  // Expand the scroll area to match the scaled size
+  const outer = document.getElementById('canvasOuter') || container.parentElement;
+  if (outer) {
+    const base = container.offsetWidth;
+    const scaled = base * zoomLevel;
+    outer.style.overflowX = zoomLevel > 1 ? 'auto' : 'hidden';
+    outer.style.overflowY = zoomLevel > 1 ? 'auto' : 'hidden';
+    // Give the outer enough height so scaled content is scrollable
+    outer.style.minHeight = zoomLevel > 1 ? `${container.offsetHeight * zoomLevel}px` : '';
+  }
+
+  // Also apply size transform to just the mockup img on top of canvas scale
+  applyMockupTransform();
 }
 
 document.getElementById('zoomInBtn').addEventListener('click', () => {
@@ -646,6 +764,8 @@ document.getElementById('zoomOutBtn').addEventListener('click', () => {
 document.getElementById('zoomResetBtn').addEventListener('click', () => {
   zoomLevel = 1;
   applyZoom();
+  const outer = document.getElementById('canvasOuter') || document.getElementById('canvasContainer').parentElement;
+  if (outer) { outer.style.overflowX = ''; outer.style.overflowY = ''; outer.style.minHeight = ''; }
 });
 
 // ── MSG ───────────────────────────────────────────────
@@ -653,8 +773,7 @@ function showMsg(text) {
   document.getElementById('studioMsg').textContent = text;
 }
 
-// ── PRINT ZONE — hide the "Print Area" text label ────
-// The zone border stays for visual guidance, just no text
+// ── PRINT ZONE — hide text label ─────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const zoneSpan = document.querySelector('#printZone span');
   if (zoneSpan) zoneSpan.style.display = 'none';

@@ -100,7 +100,7 @@
     }
     .gender-btn:hover:not(.active) { background: #e0e0e0; color: #333; }
 
-    /* ── TOGGLE ROW (wraps both toggles) ─────────── */
+    /* ── TOGGLE ROW ──────────────────────────────── */
     .toggle-row {
       display: flex;
       align-items: center;
@@ -138,15 +138,11 @@
     <!-- LEFT: CANVAS -->
     <div class="studio-canvas-wrap">
 
-      <!-- Both toggles in one row -->
       <div class="toggle-row">
-        <!-- Side toggle -->
         <div class="view-toggle">
           <button class="view-btn active" data-view="front">Front</button>
           <button class="view-btn" data-view="back">Back</button>
         </div>
-
-        <!-- Gender toggle -->
         <div class="gender-toggle">
           <button class="gender-btn active" data-gender="male">👨 Male</button>
           <button class="gender-btn" data-gender="female">👩 Female</button>
@@ -155,7 +151,8 @@
 
       <div class="studio-product-name" id="studioProductName">Loading...</div>
 
-      <div class="canvas-outer">
+      <!-- id="canvasOuter" added so JS can target it for scroll on zoom -->
+      <div class="canvas-outer" id="canvasOuter">
         <div class="canvas-container" id="canvasContainer">
           <img class="merch-mockup" id="merchMockup" src="" alt="Merch"/>
           <div class="zone" id="printZone"><span>Print Area</span></div>
@@ -170,7 +167,8 @@
       </div>
 
       <div class="canvas-actions">
-        <button class="ca-btn" id="undoBtn">↩ Undo</button>
+        <button class="ca-btn" id="undoBtn" disabled>↩ Undo</button>
+        <button class="ca-btn" id="redoBtn" disabled>↪ Redo</button>
         <button class="ca-btn" id="clearBtn">✕ Clear All</button>
         <button class="ca-btn danger" id="removeBtn">🗑 Remove Selected</button>
       </div>
