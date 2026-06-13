@@ -32,7 +32,6 @@
     <!-- LEFT: ITEMS + SHIPPING -->
     <div class="checkout-left">
 
-      <!-- Back link -->
       <a href="services.html" class="back-link">← Continue Shopping</a>
 
       <!-- Cart Items -->
@@ -126,7 +125,7 @@
           <span class="spinner hidden" id="placeOrderSpinner"></span>
         </button>
 
-        <p class="checkout-secure">🔒 Secure checkout — your data is safe with us</p>
+        <p class="checkout-secure">🔒 Secure checkout powered by Flutterwave</p>
       </div>
     </div>
 
@@ -139,6 +138,8 @@
     </div>
   </footer>
 
+  <!-- Flutterwave inline script — must load before checkout.js -->
+  <script src="https://checkout.flutterwave.com/v3.js"></script>
   <script src="scripts/currency.js"></script>
   <script src="scripts/header.js"></script>
   <script src="scripts/checkout.js"></script>
