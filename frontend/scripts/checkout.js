@@ -131,7 +131,7 @@ function launchFlutterwave(shipping, total, ref) {
   const amountInNGN = parseFloat(total.toFixed(2));
 
   FlutterwaveCheckout({
-    public_key: 'FLWPUBK_TEST-PASTE-YOUR-KEY-HERE', // ← replace with your actual key
+    public_key: 'FLWPUBK_TEST-5a9198e86e6dac9a62d878731aec566e-X', // ← replace with your actual key
     tx_ref:     ref,
     amount:     amountInNGN,
     currency:   'NGN',
