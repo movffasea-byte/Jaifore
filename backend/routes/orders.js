@@ -76,7 +76,7 @@ router.post('/verify-payment', authenticate, async (req, res) => {
         tx_ref,
         'paid',
         txData.payment_type || 'card',
-        txData.currency     || 'USD',
+        txData.currency     || 'NGN',
       ]
     );
 

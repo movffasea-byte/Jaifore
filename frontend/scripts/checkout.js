@@ -123,22 +123,18 @@ function txRef() {
 }
 
 // ── FLUTTERWAVE PAYMENT ───────────────────────────────
+// total is the raw NGN amount from the cart (database truth).
+// We ALWAYS charge in NGN — Flutterwave's own checkout UI shows
+// the customer their local-currency equivalent automatically.
+// This avoids double-conversion bugs and keeps settlement simple.
 function launchFlutterwave(shipping, total, ref) {
-  // Amount must be in the currency's base unit (USD cents not needed — FLW takes full units)
-  // Detect currency from JaiforeCurrency if available, else default USD
-  const currency = window.JaiforeCurrency?.isReady()
-    ? (window.JaiforeCurrency.getCurrency?.() || 'USD')
-    : 'USD';
-
-  // Convert total to USD cents equivalent for NGN: FLW expects full Naira, not kobo
-  // So we always pass the raw total amount; FLW handles currency internally
-  const amountInCurrency = parseFloat(total.toFixed(2));
+  const amountInNGN = parseFloat(total.toFixed(2));
 
   FlutterwaveCheckout({
-    public_key: 'FLWPUBK_TEST-5a9198e86e6dac9a62d878731aec566e-X', // ← replace with your actual key
+    public_key: 'FLWPUBK_TEST-PASTE-YOUR-KEY-HERE', // ← replace with your actual key
     tx_ref:     ref,
-    amount:     amountInCurrency,
-    currency,
+    amount:     amountInNGN,
+    currency:   'NGN',
     payment_options: 'card, mobilemoney, ussd, banktransfer',
     customer: {
       email:       shipping.email,
@@ -146,7 +142,7 @@ function launchFlutterwave(shipping, total, ref) {
       name:        shipping.name,
     },
     customizations: {
-      title:       "Jai'fore ",
+      title:       "Jai'fore Creative Studio",
       description: `Order of ${cart.length} item(s)`,
       logo:        'https://jaifore-website.vercel.app/logo/rooted2.jpg',
     },
@@ -154,7 +150,7 @@ function launchFlutterwave(shipping, total, ref) {
       // response.status === 'successful' or 'completed'
       if (response.status === 'successful' || response.status === 'completed') {
         showMsg('Payment received. Confirming your order...');
-        await verifyAndCreateOrder(response.transaction_id, ref, shipping, total);
+        await verifyAndCreateOrder(response.transaction_id, ref, shipping, amountInNGN);
       } else {
         setLoading(false);
         showMsg('Payment was not completed. Please try again.');

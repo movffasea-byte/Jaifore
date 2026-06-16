@@ -4,7 +4,7 @@
    ================================ */
 
 const EXCHANGE_API_KEY = '18fefffb14881d99346b100d';
-const BASE_CURRENCY    = 'USD'; // all prices stored in USD
+const BASE_CURRENCY    = 'NGN'; // all prices stored in NGN (database truth)
 
 // ── CURRENCY MAP BY COUNTRY ──────────────────────────
 const COUNTRY_CURRENCY = {
@@ -42,22 +42,22 @@ const COUNTRY_CURRENCY = {
 
 // ── STATE ────────────────────────────────────────────
 let exchangeRate  = 1;
-currencyInfo  = { code: 'USD', symbol: '$', name: 'US Dollar' };
+let currencyInfo  = { code: 'NGN', symbol: '₦', name: 'Nigerian Naira' };
 let currencyReady = false;
 
 // ── INIT ─────────────────────────────────────────────
 async function initCurrency() {
   try {
     // Step 1 — detect country via IP
-    const geoRes     = await fetch('https://ipapi.co/json/');
-    const geoData    = await geoRes.json();
+    const geoRes      = await fetch('https://ipapi.co/json/');
+    const geoData      = await geoRes.json();
     const countryCode = geoData.country_code || 'NG';
 
     // Step 2 — get currency for country
-    const detected = COUNTRY_CURRENCY[countryCode] || { code: 'USD', symbol: '$', name: 'US Dollar' };
+    const detected = COUNTRY_CURRENCY[countryCode] || { code: 'NGN', symbol: '₦', name: 'Nigerian Naira' };
     currencyInfo   = detected;
 
-    // Step 3 — if same as base, rate = 1
+    // Step 3 — if same as base, rate = 1 (NGN visitor sees raw NGN price)
     if (detected.code === BASE_CURRENCY) {
       exchangeRate  = 1;
       currencyReady = true;
@@ -65,7 +65,7 @@ async function initCurrency() {
       return;
     }
 
-    // Step 4 — fetch live exchange rate from NGN to target
+    // Step 4 — fetch live exchange rate from NGN to target currency
     const rateRes  = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/pair/${BASE_CURRENCY}/${detected.code}`);
     const rateData = await rateRes.json();
 
@@ -89,6 +89,7 @@ async function initCurrency() {
 }
 
 // ── FORMAT PRICE ─────────────────────────────────────
+// amountInNGN is the raw database price (always NGN, the source of truth)
 function formatPrice(amountInNGN) {
   const converted = amountInNGN * exchangeRate;
   const formatted = converted >= 1000
@@ -98,14 +99,12 @@ function formatPrice(amountInNGN) {
 }
 
 // ── APPLY TO PAGE ─────────────────────────────────────
-// Converts any element with data-price-ngn attribute
 function applyToPage() {
   document.querySelectorAll('[data-price-ngn]').forEach(el => {
     const ngn = parseFloat(el.dataset.priceNgn);
     if (!isNaN(ngn)) el.textContent = formatPrice(ngn);
   });
 
-  // Show currency badge if it exists
   const badge = document.getElementById('currencyBadge');
   if (badge) {
     badge.textContent = currencyInfo.code;
