@@ -42,7 +42,11 @@ const authLimiter = rateLimit({
   max: 8,                    // 8 attempts per window per IP
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many attempts. Please try again in 15 minutes.' }
+  message: { error: 'Too many attempts. Please try again in 15 minutes.' },
+  handler: (req, res, next, options) => {
+    console.log(`🚫 RATE LIMIT HIT — IP: ${req.ip} — Path: ${req.originalUrl}`);
+    res.status(options.statusCode).json(options.message);
+  }
 });
 
 // Moderate — payment verification (legitimate retries happen, but cap abuse)
@@ -69,7 +73,10 @@ app.get('/', (req, res) => {
 });
 
 // Auth routes get the strict limiter (login, OTP send/verify, register, etc.)
-app.use('/api/auth', authLimiter, authRouter);
+app.use('/api/auth', (req, res, next) => {
+  console.log(`➡️  Auth route hit: ${req.method} ${req.originalUrl} from IP ${req.ip}`);
+  next();
+}, authLimiter, authRouter);
 
 // Orders route handles both regular order creation AND /verify-payment —
 // apply payment limiter to the whole router since payment-adjacent traffic
