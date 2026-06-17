@@ -33,11 +33,10 @@ app.use(cors({
 app.use(express.json());
 
 // ── RATE LIMITERS ──────────────────────────────────────
-// Render sits behind multiple internal proxy hops, so trusting only 1 hop
-// still picks up an internal 10.x.x.x address instead of the real client IP.
-// Trusting all hops (true) is safe here since Render fully controls its
-// own proxy chain — this is a managed environment, not arbitrary internet input.
-app.set('trust proxy', true);
+// Render sits behind exactly one reverse proxy hop. Trusting only that one hop
+// (not `true`, which trusts unlimited hops and lets clients spoof X-Forwarded-For
+// to bypass rate limiting) is the correct, secure setting here.
+app.set('trust proxy', 1);
 
 // Strict — login, OTP, password-related routes (most common brute-force target)
 const authLimiter = rateLimit({
