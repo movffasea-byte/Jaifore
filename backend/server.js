@@ -1,7 +1,8 @@
 require('dotenv').config();
-const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
+const express      = require('express');
+const cors         = require('cors');
+const path         = require('path');
+const rateLimit     = require('express-rate-limit');
 
 const { initDB }          = require('./database');
 const { router: authRouter } = require('./auth');
@@ -31,19 +32,57 @@ app.use(cors({
 
 app.use(express.json());
 
+// ── RATE LIMITERS ──────────────────────────────────────
+// Trust Render's proxy so req.ip reflects the real client IP, not the proxy IP
+app.set('trust proxy', 1);
+
+// Strict — login, OTP, password-related routes (most common brute-force target)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 8,                    // 8 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again in 15 minutes.' }
+});
+
+// Moderate — payment verification (legitimate retries happen, but cap abuse)
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many payment attempts. Please try again shortly.' }
+});
+
+// Relaxed — general API browsing (products, print-pricing, etc.)
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' }
+});
+
 // ── ROUTES ─────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.json({ message: "Jai'fore backend is live 🚀" });
 });
 
-app.use('/api/auth',         authRouter);
-app.use('/api/products',     require('./routes/products'));
-app.use('/api/orders',       require('./routes/orders'));
-app.use('/api/transactions', require('./routes/transactions'));
-app.use('/api/users',        require('./routes/users'));
-app.use('/api/print-pricing', require('./routes/print-pricing'));
-app.use('/images', express.static(path.join(__dirname, 'images')));
+// Auth routes get the strict limiter (login, OTP send/verify, register, etc.)
+app.use('/api/auth', authLimiter, authRouter);
 
+// Orders route handles both regular order creation AND /verify-payment —
+// apply payment limiter to the whole router since payment-adjacent traffic
+// is the sensitive part; general order reads are still capped, just more loosely
+app.use('/api/orders', paymentLimiter, require('./routes/orders'));
+
+// Everything else gets the general/relaxed limiter
+app.use('/api/products',      generalLimiter, require('./routes/products'));
+app.use('/api/transactions',  generalLimiter, require('./routes/transactions'));
+app.use('/api/users',         generalLimiter, require('./routes/users'));
+app.use('/api/print-pricing', generalLimiter, require('./routes/print-pricing'));
+
+app.use('/images', express.static(path.join(__dirname, 'images')));
 
 // ── 404 HANDLER ────────────────────────────────────────
 app.use((req, res) => {
