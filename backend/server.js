@@ -33,12 +33,12 @@ app.use(cors({
 app.use(express.json());
 
 // ── RATE LIMITERS ──────────────────────────────────────
-// Render's infrastructure adds 2 proxy hops before requests reach this app
-// (their edge load balancer + internal routing layer). Trusting exactly 2
-// hops correctly extracts the real client IP from X-Forwarded-For while
-// still rejecting spoofed values beyond that depth — unlike `true`, which
-// would trust unlimited hops and let clients fake their IP entirely.
-app.set('trust proxy', 2);
+// The chain in front of this app is: Cloudflare -> Render edge -> Render
+// internal routing -> this app. That's 3 hops contributing to
+// X-Forwarded-For before the real client IP. Trusting exactly 3 hops
+// extracts the genuine client IP while still rejecting spoofed values
+// beyond that depth.
+app.set('trust proxy', 3);
 
 // Strict — login, OTP, password-related routes (most common brute-force target)
 const authLimiter = rateLimit({
