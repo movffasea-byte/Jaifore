@@ -1,4 +1,15 @@
 require('dotenv').config();
+
+// ── SENTRY — must initialize before anything else ───────
+const Sentry = require('@sentry/node');
+
+Sentry.init({
+  dsn: 'https://749ed2ea232dfaeeed46e8b711acf4fc@o4511594226253824.ingest.us.sentry.io/4511594359226368',
+  environment: process.env.NODE_ENV || 'production',
+  tracesSampleRate: 1.0, // capture 100% of transactions for now; lower this later if volume grows
+  sendDefaultPii: false,  // don't auto-attach IP/cookies — we control what we send
+});
+
 const express      = require('express');
 const cors         = require('cors');
 const path         = require('path');
@@ -88,9 +99,22 @@ app.use('/api/print-pricing', generalLimiter, require('./routes/print-pricing'))
 
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
+// ── SENTRY ERROR HANDLER ───────────────────────────────
+// Must come AFTER all routes, BEFORE any custom error handler / 404.
+// This catches unhandled errors thrown in route handlers and reports them.
+Sentry.setupExpressErrorHandler(app);
+
 // ── 404 HANDLER ────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found.' });
+});
+
+// ── FINAL ERROR HANDLER ────────────────────────────────
+// Catches anything Sentry passed through, sends a clean response to the client.
+// Sentry has already captured the error by this point.
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message);
+  res.status(err.status || 500).json({ error: 'Something went wrong. Our team has been notified.' });
 });
 
 // ── START ──────────────────────────────────────────────
@@ -102,6 +126,7 @@ async function start() {
     });
   } catch (err) {
     console.error('❌ Failed to start server:', err.message);
+    Sentry.captureException(err);
     process.exit(1);
   }
 }

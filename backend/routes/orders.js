@@ -7,6 +7,7 @@ const router  = express.Router();
 const { pool } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
 const axios = require('axios');
+const Sentry = require('@sentry/node');
 
 const FLW_SECRET = process.env.FLUTTERWAVE_SECRET_KEY;
 
@@ -84,6 +85,17 @@ router.post('/verify-payment', authenticate, async (req, res) => {
 
   } catch (err) {
     console.error('Flutterwave verify error:', err.response?.data || err.message);
+    // Tag this specifically as a payment failure so it's easy to filter in Sentry
+    Sentry.withScope((scope) => {
+      scope.setTag('area', 'payment-verification');
+      scope.setContext('payment', {
+        tx_ref,
+        transaction_id,
+        user_id: req.user?.id,
+        attempted_total: total,
+      });
+      Sentry.captureException(err);
+    });
     res.status(500).json({ error: 'Payment verification error. Please contact support.' });
   }
 });
