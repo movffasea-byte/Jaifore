@@ -83,6 +83,11 @@ app.get('/', (req, res) => {
   res.json({ message: "Jai'fore backend is live 🚀" });
 });
 
+// ⚠️ TEMPORARY — Sentry verification route. Remove after confirming it works.
+app.get('/api/test-error', (req, res) => {
+  throw new Error('Sentry test error — this is intentional, ignore in production');
+});
+
 // Auth routes get the strict limiter (login, OTP send/verify, register, etc.)
 app.use('/api/auth', authLimiter, authRouter);
 
