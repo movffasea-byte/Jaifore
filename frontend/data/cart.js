@@ -12,20 +12,23 @@ function formatPrice(amount) {
 }
 
 // ── ADD TO CART ────────────────────────────────────────
+// Uses `id` consistently (matches product schema from the API / configurator),
+// not `_id` — that mismatch previously caused every cart match check to fail
+// silently, since product._id was always undefined.
 function addToCart(product, size, category) {
-  const existing = cart.find(i => i._id === product._id && i.size === size);
+  const existing = cart.find(i => i.id === product.id && i.size === size);
   if (existing) {
     existing.qty += 1;
   } else {
     cart.push({
-      _id:      product._id,
+      id:       product.id,
       name:     product.name,
       price:    product.price,
       category: category,
       size:     size || null,
       qty:      1,
-      snapshot: product.snapshot || null,
-      designs:  product.designs  || [],
+      snapshot: product.snapshot || product.image_url || null,
+      designs:  product.customDesigns || product.designs || [],
     });
   }
   saveCart();
@@ -35,7 +38,7 @@ function addToCart(product, size, category) {
 
 // ── REMOVE FROM CART ───────────────────────────────────
 function removeFromCart(id, size) {
-  cart = cart.filter(i => !(i._id === id && i.size === size));
+  cart = cart.filter(i => !(i.id === id && i.size === size));
   saveCart();
   updateCartCount();
 }

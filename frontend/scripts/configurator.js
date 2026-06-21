@@ -600,11 +600,19 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
   const printTotal   = parseFloat(selectedPrintSize.price) * allDesigns.length;
   const totalPrice   = parseFloat(product.price) + designsTotal + printTotal;
 
+  // Use the mockup currently shown (front view of the selected gender) as the
+  // cart/checkout thumbnail, so the customer sees their configured product,
+  // not a blank icon.
+  const gender          = currentGender || 'male';
+  const snapshotImage   = MOCKUPS[gender]?.front || product.image_url || '';
+
   const cartProduct = {
     ...product,
+    _id:           product.id,   // addToCart() in cart.js matches on _id — must align with product schema
     id:            product.id,
     price:         totalPrice,
     gender:        currentGender,
+    snapshot:      snapshotImage,
     customDesigns: allDesigns.map(d => ({
       src: d.src, name: d.name, price: d.price,
       viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
@@ -616,8 +624,8 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
   };
 
   addToCart(cartProduct, selectedSize, 'apparel');
-  showMsg('✓ Added to cart! Redirecting...');
-  setTimeout(() => window.location.href = 'services.html', 1200);
+  showMsg('✓ Added to cart! Redirecting to checkout...');
+  setTimeout(() => window.location.href = 'checkout.html', 1200);
 });
 
 // ── ZOOM ─────────────────────────────────────────────
