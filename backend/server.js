@@ -96,6 +96,7 @@ app.use('/api/products',      generalLimiter, require('./routes/products'));
 app.use('/api/transactions',  generalLimiter, require('./routes/transactions'));
 app.use('/api/users',         generalLimiter, require('./routes/users'));
 app.use('/api/print-pricing', generalLimiter, require('./routes/print-pricing'));
+app.use('/api/backup',        generalLimiter, require('./routes/backup'));
 
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
