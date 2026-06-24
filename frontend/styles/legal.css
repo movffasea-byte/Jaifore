@@ -1,0 +1,154 @@
+/* ================================
+   JAIFORE MEDIA — LEGAL PAGES CSS
+   styles/legal.css
+   ================================ */
+
+.legal-wrap {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 7rem 2rem 5rem;
+}
+
+.legal-badge {
+  display: inline-block;
+  background: #f0ecff;
+  color: #7b5ea7;
+  font-family: 'Karla', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-bottom: 1rem;
+}
+
+.legal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 900;
+  color: #1a1a2e;
+  line-height: 1.15;
+  margin-bottom: 0.5rem;
+}
+
+.legal-updated {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  color: #aaa;
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e8e3da;
+}
+
+.legal-section {
+  margin-bottom: 2.5rem;
+}
+
+.legal-section h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 0.8rem;
+}
+
+.legal-section p,
+.legal-section li {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.8;
+  color: #444;
+}
+
+.legal-section ul {
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.legal-section li {
+  margin-bottom: 0.4rem;
+}
+
+.legal-section a {
+  color: #7b5ea7;
+  text-decoration: none;
+}
+
+.legal-section a:hover {
+  text-decoration: underline;
+}
+
+/* Used on refund policy for important notices */
+.legal-highlight {
+  background: #f0ecff;
+  border-left: 3px solid #7b5ea7;
+  border-radius: 0 8px 8px 0;
+  padding: 1rem 1.5rem;
+  margin: 1rem 0;
+}
+
+.legal-highlight p {
+  color: #4a2d7a;
+  font-weight: 500;
+  margin: 0;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+
+.legal-contact {
+  background: #f5f0e8;
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  margin-top: 3rem;
+}
+
+.legal-contact p {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  color: #555;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.legal-contact a {
+  color: #7b5ea7;
+  text-decoration: none;
+}
+
+.legal-contact a:hover {
+  text-decoration: underline;
+}
+
+/* ── FOOTER LEGAL LINKS ──────────────────────────────── */
+.footer-legal {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.footer-legal a {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  color: #888;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-legal a:hover { color: #7b5ea7; }
+
+.footer-legal span {
+  color: #ccc;
+  font-size: 0.7rem;
+}
+
+/* ── RESPONSIVE ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  .legal-wrap {
+    padding: 5rem 1.2rem 3rem;
+  }
+}
