@@ -8,6 +8,7 @@ const { pool } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
 const axios = require('axios');
 const Sentry = require('@sentry/node');
+const { sendOrderConfirmation, sendAdminOrderAlert } = require('../mailer');
 
 const FLW_SECRET = process.env.FLUTTERWAVE_SECRET_KEY;
 
@@ -81,11 +82,32 @@ router.post('/verify-payment', authenticate, async (req, res) => {
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    const order = result.rows[0];
+
+    // 8. Send transactional emails (non-blocking — don't fail the order if email fails)
+    const customerName  = req.user.name  || 'Customer';
+    const customerEmail = req.user.email || '';
+
+    Promise.allSettled([
+      sendOrderConfirmation(customerEmail, customerName, order),
+      sendAdminOrderAlert(order, customerName, customerEmail),
+    ]).then(results => {
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          const label = i === 0 ? 'Order confirmation' : 'Admin order alert';
+          console.error(`[mailer] ${label} failed:`, r.reason?.message || r.reason);
+          Sentry.captureException(r.reason, {
+            tags: { area: 'transactional-email' },
+            extra: { orderId: order.id, email: i === 0 ? customerEmail : process.env.ADMIN_EMAIL },
+          });
+        }
+      });
+    });
+
+    res.status(201).json(order);
 
   } catch (err) {
     console.error('Flutterwave verify error:', err.response?.data || err.message);
-    // Tag this specifically as a payment failure so it's easy to filter in Sentry
     Sentry.withScope((scope) => {
       scope.setTag('area', 'payment-verification');
       scope.setContext('payment', {

@@ -52,7 +52,7 @@ function showMsg(id, text, type) {
 function redirectAfterLogin(user) {
   const returnTo = sessionStorage.getItem('jaifore_return');
   if (returnTo) { sessionStorage.removeItem('jaifore_return'); window.location.href = returnTo; }
-  else window.location.href = 'dashboard.html';
+  else window.location.href = 'services.html';
 }
 
 // LOGIN
