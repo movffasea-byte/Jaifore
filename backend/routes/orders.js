@@ -8,7 +8,7 @@ const { pool } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
 const axios = require('axios');
 const Sentry = require('@sentry/node');
-const { sendOrderConfirmation, sendAdminOrderAlert } = require('../mailer');
+const { sendOrderConfirmation, sendAdminOrderAlert, sendOrderStatusUpdate } = require('../mailer');
 
 const FLW_SECRET = process.env.FLUTTERWAVE_SECRET_KEY;
 
@@ -184,7 +184,29 @@ router.put('/:id/status', authenticate, requireAdmin, async (req, res) => {
       [status, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Order not found.' });
-    res.json(result.rows[0]);
+    const order = result.rows[0];
+
+    // Look up customer name/email for the notification (orders table doesn't store these)
+    const customer = await pool.query(
+      `SELECT name, email FROM users WHERE id = $1`,
+      [order.user_id]
+    );
+
+    if (customer.rows.length) {
+      const { name: customerName, email: customerEmail } = customer.rows[0];
+      sendOrderStatusUpdate(customerEmail, customerName, order, status)
+        .catch(e => {
+          console.error('Order status email error:', e.message);
+          Sentry.captureException(e, {
+            tags: { area: 'transactional-email' },
+            extra: { orderId: order.id, status, email: customerEmail },
+          });
+        });
+    } else {
+      console.warn(`Order ${order.id} status updated but no matching user (id ${order.user_id}) found for notification.`);
+    }
+
+    res.json(order);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

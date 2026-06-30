@@ -262,4 +262,125 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
   });
 }
 
-module.exports = { generateOTP, sendOTPEmail, sendAdminNotification, sendOrderConfirmation, sendAdminOrderAlert };
+/* ── 5. WELCOME EMAIL (post-verification) ── */
+async function sendWelcomeEmail(toEmail, name) {
+  await resend.emails.send({
+    from: "Jai'fore Studio <onboarding@resend.dev>",
+    to: toEmail,
+    subject: `Welcome to Jai'fore, ${name.split(' ')[0]}`,
+    html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+    <table width="480" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #d8d0c4;">
+
+      <!-- HEADER -->
+      <tr><td style="padding:32px 40px 24px;border-bottom:2px solid #111;">
+        <div style="font-family:Georgia,serif;font-size:24px;font-weight:900;color:#111;">Jai'fore</div>
+        <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#7b5ea7;margin-top:4px;">Global Creative Studio</div>
+      </td></tr>
+
+      <!-- HERO -->
+      <tr><td style="padding:36px 40px 28px;">
+        <div style="font-family:Georgia,serif;font-size:24px;font-weight:900;color:#111;margin-bottom:12px;">Welcome aboard, ${name.split(' ')[0]}.</div>
+        <p style="font-size:15px;color:#555;margin:0 0 16px;line-height:1.7;">
+          Your account is verified and ready. Jai'fore brings custom apparel, graphic design, and web development together under one studio — built for creators who want their ideas made real, wherever they are in the world.
+        </p>
+        <p style="font-size:15px;color:#555;margin:0;line-height:1.7;">
+          Here's where to start:
+        </p>
+      </td></tr>
+
+      <!-- FEATURE LIST -->
+      <tr><td style="padding:0 40px 32px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:14px 0;border-bottom:1px solid #e8e2d6;">
+            <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#7b5ea7;margin-bottom:4px;">Design</div>
+            <div style="font-size:14px;color:#333;">Use the configurator to design custom apparel — pick a garment, place your art, preview front and back.</div>
+          </td></tr>
+          <tr><td style="padding:14px 0;border-bottom:1px solid #e8e2d6;">
+            <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#7b5ea7;margin-bottom:4px;">Order</div>
+            <div style="font-size:14px;color:#333;">Checkout securely and track every order from your dashboard.</div>
+          </td></tr>
+          <tr><td style="padding:14px 0;">
+            <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#7b5ea7;margin-bottom:4px;">Collaborate</div>
+            <div style="font-size:14px;color:#333;">Need a full brand identity or a website? Reach out and our studio team will scope it with you.</div>
+          </td></tr>
+        </table>
+      </td></tr>
+
+      <!-- FOOTER -->
+      <tr><td style="padding:20px 40px;border-top:1px solid #d8d0c4;background:#f5f0e8;">
+        <p style="font-size:13px;color:#888;margin:0 0 8px;line-height:1.6;">
+          Questions any time — reply to this email or write to
+          <a href="mailto:jaifore@outlook.com" style="color:#4a2d7a;text-decoration:none;">jaifore@outlook.com</a>.
+        </p>
+        <p style="font-size:12px;color:#aaa;margin:0;">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</p>
+      </td></tr>
+
+    </table></td></tr></table></body></html>`
+  });
+}
+
+/* ── 6. ORDER STATUS UPDATE (customer) ── */
+const STATUS_CONFIG = {
+  processing: { label: 'Processing', color: '#4a2d7a', message: 'Your order has been received and is now being prepared.' },
+  shipped:    { label: 'Shipped',    color: '#1a7a4a', message: 'Your order is on its way.' },
+  delivered:  { label: 'Delivered',  color: '#1a7a4a', message: 'Your order has been delivered. We hope you love it.' },
+  cancelled:  { label: 'Cancelled',  color: '#a13a3a', message: 'Your order has been cancelled. If you have questions, just reply to this email.' },
+};
+
+async function sendOrderStatusUpdate(toEmail, name, order, newStatus) {
+  const orderId = String(order.id).padStart(5, '0');
+  const cfg = STATUS_CONFIG[newStatus] || { label: newStatus, color: '#4a2d7a', message: `Your order status has been updated to "${newStatus}".` };
+
+  await resend.emails.send({
+    from: "Jai'fore Studio <onboarding@resend.dev>",
+    to: toEmail,
+    subject: `Order #JF${orderId} — ${cfg.label}`,
+    html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+    <table width="480" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #d8d0c4;">
+
+      <!-- HEADER -->
+      <tr><td style="padding:32px 40px 24px;border-bottom:2px solid #111;">
+        <div style="font-family:Georgia,serif;font-size:24px;font-weight:900;color:#111;">Jai'fore</div>
+        <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#7b5ea7;margin-top:4px;">Global Creative Studio</div>
+      </td></tr>
+
+      <!-- STATUS BADGE -->
+      <tr><td style="padding:36px 40px 24px;">
+        <div style="display:inline-block;background:${cfg.color};padding:6px 16px;margin-bottom:16px;">
+          <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#fff;font-weight:700;">${cfg.label}</span>
+        </div>
+        <p style="font-size:15px;color:#555;margin:0 0 4px;line-height:1.6;">Hi ${name},</p>
+        <p style="font-size:15px;color:#555;margin:0;line-height:1.6;">${cfg.message}</p>
+      </td></tr>
+
+      <!-- ORDER META -->
+      <tr><td style="padding:0 40px 32px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0e8;border:1px solid #d8d0c4;">
+          <tr>
+            <td style="padding:16px 20px;border-right:1px solid #d8d0c4;">
+              <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:4px;">Order ID</div>
+              <div style="font-size:15px;font-weight:700;color:#111;">#JF${orderId}</div>
+            </td>
+            <td style="padding:16px 20px;">
+              <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:4px;">Updated</div>
+              <div style="font-size:15px;color:#111;">${new Date().toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric', timeZone:'Africa/Lagos' })}</div>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+
+      <!-- FOOTER -->
+      <tr><td style="padding:20px 40px;border-top:1px solid #d8d0c4;background:#f5f0e8;">
+        <p style="font-size:13px;color:#888;margin:0 0 8px;line-height:1.6;">
+          Track this order any time from your dashboard, or reply to this email with questions.
+        </p>
+        <p style="font-size:12px;color:#aaa;margin:0;">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</p>
+      </td></tr>
+
+    </table></td></tr></table></body></html>`
+  });
+}
+
+module.exports = { generateOTP, sendOTPEmail, sendAdminNotification, sendOrderConfirmation, sendAdminOrderAlert, sendWelcomeEmail, sendOrderStatusUpdate };
