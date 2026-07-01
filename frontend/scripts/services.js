@@ -3,7 +3,7 @@
    services.js (cart lives in cart.js)
    ================================ */
 
-const API = 'https://jai-fore-website.onrender.com';
+const API = 'https://jai-fore-production.up.railway.app';
 
 let selectedSize         = null;
 let currentModalProduct  = null;

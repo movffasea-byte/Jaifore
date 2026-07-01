@@ -3,7 +3,7 @@
    frontend/admin/admin.js
    ================================ */
 
-const API = 'https://jai-fore-website.onrender.com';
+const API = 'https://jai-fore-production.up.railway.app';
 
 // ── STATE ───────────────────────────────────────────
 let token       = localStorage.getItem('jaifore_admin_token');

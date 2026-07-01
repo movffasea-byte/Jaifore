@@ -3,7 +3,7 @@
    scripts/configurator.js
    ================================ */
 
-const API = 'https://jai-fore-website.onrender.com';
+const API = 'https://jai-fore-production.up.railway.app';
 
 // ── MOCKUPS ──────────────────────────────────────────
 const MOCKUPS = {

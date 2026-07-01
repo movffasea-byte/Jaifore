@@ -49,7 +49,7 @@ app.use(express.json());
 // X-Forwarded-For before the real client IP. Trusting exactly 3 hops
 // extracts the genuine client IP while still rejecting spoofed values
 // beyond that depth.
-app.set('trust proxy', 3);
+app.set('trust proxy', 1);
 
 // Strict — login, OTP, password-related routes (most common brute-force target)
 const authLimiter = rateLimit({

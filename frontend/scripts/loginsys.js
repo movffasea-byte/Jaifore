@@ -2,7 +2,7 @@
    JAIFORE — LOGINSYS.JS
    frontend/scripts/loginsys.js
    ================================ */
-const API = 'https://jai-fore-website.onrender.com';
+const API = 'https://jai-fore-production.up.railway.app';
 let pendingEmail = '';
 let otpTimer = null;
 

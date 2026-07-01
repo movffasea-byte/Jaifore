@@ -3,7 +3,7 @@
    scripts/category.js
    ================================ */
 
-const API = 'https://jai-fore-website.onrender.com';
+const API = 'https://jai-fore-production.up.railway.app';
 
 const CATEGORY_META = {
   apparel: {

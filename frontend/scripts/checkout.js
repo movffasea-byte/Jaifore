@@ -3,7 +3,7 @@
    scripts/checkout.js
    ================================ */
 
-const API = 'https://jai-fore-website.onrender.com';
+const API = 'https://jai-fore-production.up.railway.app';
 
 // ── AUTH GUARD ───────────────────────────────────────
 const token = localStorage.getItem('jaifore_token');
