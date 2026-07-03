@@ -166,7 +166,75 @@ async function loadOverview() {
       : 0;
     document.getElementById('statRevenue').textContent = `₦${revenue.toLocaleString()}`;
   } catch (err) { console.error('Overview error:', err); }
+
+  loadRevenueQuickTotals();
+  loadRevenueChart(currentRevenuePeriod);
 }
+
+// ── REVENUE DASHBOARD (item 11) ──────────────────────
+let revenueChart = null;
+let currentRevenuePeriod = 'daily';
+
+async function loadRevenueQuickTotals() {
+  try {
+    const res  = await fetch(`${API}/api/orders/revenue/quick-totals`, { headers: authHeaders() });
+    const data = await res.json();
+    document.getElementById('revToday').textContent = `₦${Number(data.today).toLocaleString()}`;
+    document.getElementById('revWeek').textContent   = `₦${Number(data.this_week).toLocaleString()}`;
+    document.getElementById('revMonth').textContent  = `₦${Number(data.this_month).toLocaleString()}`;
+  } catch (err) { console.error('Revenue quick totals error:', err); }
+}
+
+async function loadRevenueChart(period = 'daily') {
+  currentRevenuePeriod = period;
+  try {
+    const res  = await fetch(`${API}/api/orders/revenue/summary?period=${period}`, { headers: authHeaders() });
+    const data = await res.json();
+
+    const labels = data.series.map(pt => formatRevenueLabel(pt.date, period));
+    const values = data.series.map(pt => pt.revenue);
+
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    if (revenueChart) revenueChart.destroy();
+
+    revenueChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Revenue (₦)',
+          data: values,
+          backgroundColor: 'rgba(124, 58, 237, 0.6)',
+          borderColor: '#7c3aed',
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { callback: v => `₦${Number(v).toLocaleString()}` } }
+        }
+      }
+    });
+  } catch (err) { console.error('Revenue chart error:', err); }
+}
+
+function formatRevenueLabel(dateStr, period) {
+  const d = new Date(dateStr);
+  if (period === 'monthly') return d.toLocaleDateString('en-NG', { month: 'short', year: '2-digit' });
+  if (period === 'weekly')  return `Wk of ${d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}`;
+  return d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
+}
+
+document.querySelectorAll('.period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadRevenueChart(btn.dataset.period);
+  });
+});
 
 // ── PRODUCTS ─────────────────────────────────────────
 async function loadProducts() {
@@ -288,7 +356,7 @@ async function loadOrders() {
       tr.innerHTML = `
         <td>#${o.id}</td>
         <td>${o.customer_name || '—'}<br><small style="color:var(--ink-muted)">${o.customer_email || ''}</small></td>
-        <td>$${parseFloat(p.price).toFixed(2)}</td>
+        <td>₦${parseFloat(o.total).toLocaleString()}</td>
         <td><span class="badge badge-${o.status === 'completed' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending'}">${o.status}</span></td>
         <td>${new Date(o.created_at).toLocaleDateString()}</td>
         <td>
@@ -407,7 +475,7 @@ async function loadDayTransactions(dateStr, dayEl) {
       ordersEl.innerHTML = orders.map(o => `
         <div class="tx-item">
           <span class="tx-item-label">#${o.id} — ${o.customer_name || 'Guest'}</span>
-          <span class="tx-item-val">$${parseFloat(p.price).toFixed(2)}</span>
+          <span class="tx-item-val">₦${parseFloat(o.total).toLocaleString()}</span>
         </div>`).join('');
     }
 

@@ -160,6 +160,61 @@ router.get('/my', authenticate, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── GET revenue summary (admin only) — daily/weekly/monthly series for charting ─
+router.get('/revenue/summary', authenticate, requireAdmin, async (req, res) => {
+  const period = ['daily', 'weekly', 'monthly'].includes(req.query.period) ? req.query.period : 'daily';
+  const bucket = period === 'daily' ? 'day' : period === 'weekly' ? 'week' : 'month';
+  const days   = period === 'daily' ? 30 : period === 'weekly' ? 90 : 365; // lookback window
+
+  try {
+    const result = await pool.query(
+      `SELECT
+         date_trunc($1, created_at) AS period,
+         COUNT(*)::int AS order_count,
+         SUM(total)::float AS revenue
+       FROM orders
+       WHERE payment_status = 'paid'
+         AND created_at >= NOW() - $2::interval
+       GROUP BY period
+       ORDER BY period ASC`,
+      [bucket, `${days} days`]
+    );
+
+    res.json({
+      period,
+      series: result.rows.map(r => ({
+        date: r.period,
+        revenue: parseFloat(r.revenue),
+        orders: r.order_count,
+      })),
+    });
+  } catch (err) {
+    console.error('Revenue summary error:', err.message);
+    Sentry.captureException(err, { tags: { area: 'admin-revenue' } });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET revenue quick totals: today / this week / this month / all-time ─
+router.get('/revenue/quick-totals', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('day', NOW())), 0)::float   AS today,
+        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('week', NOW())), 0)::float   AS this_week,
+        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('month', NOW())), 0)::float  AS this_month,
+        COALESCE(SUM(total), 0)::float AS all_time
+      FROM orders
+      WHERE payment_status = 'paid'
+    `);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Revenue quick totals error:', err.message);
+    Sentry.captureException(err, { tags: { area: 'admin-revenue' } });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET single order (admin only) ────────────────────
 router.get('/:id', authenticate, requireAdmin, async (req, res) => {
   try {

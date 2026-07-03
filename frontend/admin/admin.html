@@ -159,6 +159,34 @@
             <div class="stat-value" id="statUsers">—</div>
           </div>
         </div>
+
+        <div class="revenue-section">
+          <div class="revenue-header">
+            <h3>Revenue</h3>
+            <div class="period-toggle">
+              <button class="period-btn active" data-period="daily">Daily</button>
+              <button class="period-btn" data-period="weekly">Weekly</button>
+              <button class="period-btn" data-period="monthly">Monthly</button>
+            </div>
+          </div>
+          <div class="revenue-quick-stats">
+            <div class="quick-stat">
+              <div class="quick-stat-label">Today</div>
+              <div class="quick-stat-value" id="revToday">—</div>
+            </div>
+            <div class="quick-stat">
+              <div class="quick-stat-label">This Week</div>
+              <div class="quick-stat-value" id="revWeek">—</div>
+            </div>
+            <div class="quick-stat">
+              <div class="quick-stat-label">This Month</div>
+              <div class="quick-stat-value" id="revMonth">—</div>
+            </div>
+          </div>
+          <div class="revenue-chart-wrap">
+            <canvas id="revenueChart" height="90"></canvas>
+          </div>
+        </div>
       </section>
 
       <!-- ── PRODUCTS TAB ── -->
@@ -300,6 +328,7 @@
     </main>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>
