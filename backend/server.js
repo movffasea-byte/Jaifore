@@ -26,6 +26,7 @@ app.use(cors({
   origin: (origin, callback) => {
     const allowed = [
       process.env.FRONTEND_URL,
+      'https://jai-fore-website.vercel.app',
       'https://movffasea-byte.github.io',
       'http://127.0.0.1:5501',
       'http://localhost:5501'
@@ -99,6 +100,12 @@ app.use('/api/print-pricing', generalLimiter, require('./routes/print-pricing'))
 app.use('/api/backup',        generalLimiter, require('./routes/backup'));
 
 app.use('/images', express.static(path.join(__dirname, 'images')));
+
+// Admin panel — served from this same deploy, same origin as the API.
+// One push to Jai-fore now updates the backend AND the admin panel together;
+// no separate repo, no CORS needed for this origin since it's no longer cross-origin.
+// Adjust the path below if frontend/ isn't a sibling of backend/ in your repo.
+app.use('/admin', express.static(path.join(__dirname, '../frontend/admin')));
 
 // ── SENTRY ERROR HANDLER ───────────────────────────────
 // Must come AFTER all routes, BEFORE any custom error handler / 404.
