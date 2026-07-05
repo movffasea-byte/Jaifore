@@ -9,6 +9,7 @@ const { authenticate, requireAdmin } = require('../middleware');
 const axios = require('axios');
 const Sentry = require('@sentry/node');
 const { sendOrderConfirmation, sendAdminOrderAlert, sendOrderStatusUpdate } = require('../mailer');
+const { cacheInvalidate } = require('../redis');
 
 const FLW_SECRET = process.env.FLUTTERWAVE_SECRET_KEY;
 
@@ -83,6 +84,36 @@ router.post('/verify-payment', authenticate, async (req, res) => {
     );
 
     const order = result.rows[0];
+
+    // 7b. Decrement stock for each purchased item (item 12 — inventory management).
+    // Only affects products with a real stock count set; NULL stock means
+    // "not tracked" (e.g. print-on-demand or service items) and is left alone.
+    try {
+      for (const item of items) {
+        const productId = item.id;
+        const qty = Number(item.qty) || 1;
+        if (!productId) {
+          console.warn('[stock] Skipped — item has no product_id/id:', item);
+          continue;
+        }
+        const stockResult = await pool.query(
+          `UPDATE products
+             SET stock = GREATEST(COALESCE(stock, 0) - $1, 0),
+                 in_stock = (GREATEST(COALESCE(stock, 0) - $1, 0) > 0)
+           WHERE id = $2 AND stock IS NOT NULL
+           RETURNING id`,
+          [qty, productId]
+        );
+        if (stockResult.rows.length) {
+          await cacheInvalidate(`products:single:${productId}`);
+        }
+      }
+      await cacheInvalidate('products:list:*');
+    } catch (stockErr) {
+      console.error('[stock] Decrement failed:', stockErr.message);
+      Sentry.captureException(stockErr, { tags: { area: 'inventory' }, extra: { orderId: order.id } });
+      // Non-blocking — an inventory bookkeeping issue must not fail the order
+    }
 
     // 8. Send transactional emails (non-blocking — don't fail the order if email fails)
     const customerName  = req.user.name  || 'Customer';

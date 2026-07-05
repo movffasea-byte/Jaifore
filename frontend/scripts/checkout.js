@@ -144,7 +144,7 @@ function launchFlutterwave(shipping, total, ref) {
     customizations: {
       title:       "Jai'fore Creative Studio",
       description: `Order of ${cart.length} item(s)`,
-      logo:        'https://jaifore-website.vercel.app/logo/rooted2.jpg',
+      logo:        'https://jai-fore.vercel.app/logo/rooted2.jpg',
     },
     callback: async (response) => {
       // response.status === 'successful' or 'completed'

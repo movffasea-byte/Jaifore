@@ -23,10 +23,10 @@ function formatItems(items) {
         ${item.name || 'Item'}${item.size ? ` <span style="color:#888;font-size:12px;">(${item.size})</span>` : ''}
       </td>
       <td style="padding:10px 0;border-bottom:1px solid #e8e2d6;font-size:14px;color:#333;text-align:center;">
-        ${item.quantity || 1}
+        ${item.qty || 1}
       </td>
       <td style="padding:10px 0;border-bottom:1px solid #e8e2d6;font-size:14px;color:#333;text-align:right;">
-        ${item.price ? formatCurrency(item.price * (item.quantity || 1)) : '—'}
+        ${item.price ? formatCurrency(item.price * (item.qty || 1)) : '—'}
       </td>
     </tr>
   `).join('');
@@ -199,7 +199,7 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
   const orderId  = String(order.id).padStart(5, '0');
 
   const itemSummary = Array.isArray(items)
-    ? items.map(i => `${i.quantity || 1}× ${i.name || 'Item'}${i.size ? ` (${i.size})` : ''}`).join('<br>')
+    ? items.map(i => `${i.qty || 1}× ${i.name || 'Item'}${i.size ? ` (${i.size})` : ''}`).join('<br>')
     : '—';
 
   await resend.emails.send({
