@@ -112,6 +112,24 @@
     </main>
   </div>
 
+  <!-- ORDER DETAIL MODAL -->
+  <div class="order-modal hidden" id="orderModal">
+    <div class="order-modal-backdrop" id="orderModalBackdrop"></div>
+    <div class="order-modal-box">
+      <button class="order-modal-close" id="orderModalClose">&times;</button>
+      <div class="order-modal-header">
+        <h3 id="orderModalId">Order #—</h3>
+        <span class="order-status" id="orderModalStatus"></span>
+      </div>
+      <div class="order-modal-date" id="orderModalDate"></div>
+      <div class="order-modal-items" id="orderModalItems"></div>
+      <div class="order-modal-total-row">
+        <span>Total</span>
+        <span id="orderModalTotal"></span>
+      </div>
+    </div>
+  </div>
+
   <footer class="footer">
   <div class="footer-inner">
     <img class="footer-brand" src="logo/rooted2.jpg"/>

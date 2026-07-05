@@ -78,6 +78,36 @@
   color: #888;
 }
 
+.checkout-item-qty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.qty-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid #e8e3da;
+  background: #faf8f5;
+  color: #111;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.qty-btn:hover { border-color: #7b5ea7; color: #7b5ea7; }
+
+.qty-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #111;
+  min-width: 1.2rem;
+  text-align: center;
+}
+
 .checkout-item-price {
   font-family: 'Syne', sans-serif;
   font-size: 0.9rem;

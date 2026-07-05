@@ -49,6 +49,20 @@ function formatPrice(amount) {
   return `$${Number(amount).toFixed(2)}`;
 }
 
+// ── PARSE ORDER ITEMS ────────────────────────────────
+// items comes back as a JSON string from the DB (same reason mailer.js
+// has to JSON.parse it) — Array.isArray() alone always failed here before,
+// silently showing "0 items" on every order regardless of what was ordered.
+function parseItems(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return []; }
+  }
+  return [];
+}
+
+let ordersData = [];
+
 // ── LOAD ORDERS ──────────────────────────────────────
 async function loadOrders() {
   const list = document.getElementById('ordersList');
@@ -57,6 +71,7 @@ async function loadOrders() {
   try {
     const res  = await fetch(`${API}/api/orders/my`, { headers: authHeaders() });
     const data = await res.json();
+    ordersData = data;
 
     if (!data.length) {
       list.innerHTML = `
@@ -70,9 +85,10 @@ async function loadOrders() {
 
     list.innerHTML = '';
     data.forEach(o => {
-      const items = Array.isArray(o.items) ? o.items : [];
+      const items = parseItems(o.items);
       const card  = document.createElement('div');
       card.className = 'order-card';
+      card.addEventListener('click', () => openOrderDetail(o.id));
       card.innerHTML = `
         <div>
           <div class="order-id">Order #${o.id}</div>
@@ -89,6 +105,48 @@ async function loadOrders() {
     list.innerHTML = `<div class="dash-empty"><div class="dash-empty-icon">⚠</div><p>Failed to load orders.</p></div>`;
   }
 }
+
+// ── ORDER DETAIL MODAL ────────────────────────────────
+function openOrderDetail(orderId) {
+  const order = ordersData.find(o => o.id === orderId);
+  if (!order) return;
+
+  const items = parseItems(order.items);
+
+  document.getElementById('orderModalId').textContent = `Order #${order.id}`;
+  const statusEl = document.getElementById('orderModalStatus');
+  statusEl.textContent = order.status;
+  statusEl.className   = `order-status status-${order.status}`;
+  document.getElementById('orderModalDate').textContent =
+    new Date(order.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const itemsEl = document.getElementById('orderModalItems');
+  itemsEl.innerHTML = items.length
+    ? items.map(item => `
+        <div class="order-modal-item">
+          <div class="order-modal-item-img">
+            ${item.snapshot ? `<img src="${item.snapshot}" alt="${item.name}"/>` : '🛍'}
+          </div>
+          <div class="order-modal-item-info">
+            <div class="order-modal-item-name">${item.name || 'Item'}</div>
+            <div class="order-modal-item-meta">
+              ${item.size ? `Size: ${item.size} · ` : ''}Qty: ${item.qty || 1}
+            </div>
+          </div>
+          <div class="order-modal-item-price">${formatPrice((item.price || 0) * (item.qty || 1))}</div>
+        </div>`).join('')
+    : `<p class="order-modal-empty">No item details available for this order.</p>`;
+
+  document.getElementById('orderModalTotal').textContent = formatPrice(order.total);
+  document.getElementById('orderModal').classList.remove('hidden');
+}
+
+function closeOrderDetail() {
+  document.getElementById('orderModal').classList.add('hidden');
+}
+
+document.getElementById('orderModalClose').addEventListener('click', closeOrderDetail);
+document.getElementById('orderModalBackdrop').addEventListener('click', closeOrderDetail);
 
 // ── LOAD SAVED DESIGNS ────────────────────────────────
 function loadDesigns() {

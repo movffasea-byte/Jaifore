@@ -23,6 +23,23 @@ function formatPrice(amount) {
   return `$${Number(amount).toFixed(2)}`;
 }
 
+// ── CHANGE QUANTITY ──────────────────────────────────
+// Matches by id + size, same pairing cart.js uses to tell line items apart.
+// Decreasing a quantity of 1 removes the item from the cart entirely.
+function changeQty(id, size, delta) {
+  const idx = cart.findIndex(i => Number(i.id) === Number(id) && (i.size || '') === (size || ''));
+  if (idx === -1) return;
+
+  cart[idx].qty += delta;
+
+  if (cart[idx].qty <= 0) {
+    cart.splice(idx, 1);
+  }
+
+  localStorage.setItem('jaifore_cart', JSON.stringify(cart));
+  renderItems();
+}
+
 // ── RENDER ITEMS ─────────────────────────────────────
 function renderItems() {
   const container    = document.getElementById('checkoutItems');
@@ -30,6 +47,9 @@ function renderItems() {
 
   if (!cart.length) {
     container.innerHTML = `<div class="checkout-empty">Your cart is empty. <a href="services.html">Go shopping →</a></div>`;
+    summaryLines.innerHTML = '';
+    document.getElementById('summarySubtotal').textContent = formatPrice(0);
+    document.getElementById('summaryTotal').textContent    = formatPrice(0);
     return;
   }
 
@@ -43,8 +63,13 @@ function renderItems() {
       <div class="checkout-item-info">
         <div class="checkout-item-name">${item.name}</div>
         <div class="checkout-item-meta">
-          ${item.size ? `Size: ${item.size} · ` : ''}Qty: ${item.qty}
+          ${item.size ? `Size: ${item.size}` : ''}
           ${item.designs?.length ? ` · ${item.designs.length} design(s)` : ''}
+        </div>
+        <div class="checkout-item-qty">
+          <button class="qty-btn" onclick="changeQty(${item.id}, '${item.size || ''}', -1)" aria-label="Decrease quantity">−</button>
+          <span class="qty-value">${item.qty}</span>
+          <button class="qty-btn" onclick="changeQty(${item.id}, '${item.size || ''}', 1)" aria-label="Increase quantity">+</button>
         </div>
       </div>
       <div class="checkout-item-price">${formatPrice(item.price * item.qty)}</div>
