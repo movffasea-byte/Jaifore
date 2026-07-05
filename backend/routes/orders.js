@@ -296,6 +296,75 @@ router.put('/:id/status', authenticate, requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── POST initiate refund (admin only) ─────────────────
+// Body: { amount, comments } — both optional. Omitting amount refunds the full total.
+// Two Flutterwave calls are needed because orders only ever stored payment_ref
+// (our own tx_ref), never Flutterwave's numeric transaction id that the refund
+// endpoint actually requires — so we resolve it fresh each time via tx_ref.
+router.post('/:id/refund', authenticate, requireAdmin, async (req, res) => {
+  const { amount, comments } = req.body;
+
+  try {
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found.' });
+    const order = orderResult.rows[0];
+
+    if (!order.payment_ref) {
+      return res.status(400).json({ error: 'This order has no payment reference on file — cannot process a refund.' });
+    }
+    if (order.payment_status === 'refunded') {
+      return res.status(409).json({ error: 'This order has already been refunded.' });
+    }
+
+    // 1. Resolve our tx_ref to Flutterwave's numeric transaction id
+    const lookupRes = await axios.get(
+      `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${encodeURIComponent(order.payment_ref)}`,
+      { headers: { Authorization: `Bearer ${FLW_SECRET}` } }
+    );
+
+    if (lookupRes.data.status !== 'success' || !lookupRes.data.data?.id) {
+      return res.status(502).json({ error: 'Could not locate this transaction with Flutterwave.' });
+    }
+    const flwTransactionId = lookupRes.data.data.id;
+
+    // 2. Initiate the refund against that transaction id
+    const refundBody = {};
+    if (amount) refundBody.amount = amount; // omit entirely for a full refund
+    if (comments) refundBody.comments = comments;
+
+    const refundRes = await axios.post(
+      `https://api.flutterwave.com/v3/transactions/${flwTransactionId}/refund`,
+      refundBody,
+      { headers: { Authorization: `Bearer ${FLW_SECRET}`, 'Content-Type': 'application/json' } }
+    );
+
+    if (refundRes.data.status !== 'success') {
+      return res.status(502).json({ error: refundRes.data.message || 'Refund could not be initiated.' });
+    }
+
+    // 3. Mark the order refunded on our side
+    const updated = await pool.query(
+      `UPDATE orders SET payment_status = 'refunded' WHERE id = $1 RETURNING *`,
+      [order.id]
+    );
+
+    res.json({
+      message: 'Refund initiated.',
+      refund: refundRes.data.data,
+      order: updated.rows[0],
+    });
+
+  } catch (err) {
+    console.error('Refund error:', err.response?.data || err.message);
+    Sentry.withScope((scope) => {
+      scope.setTag('area', 'refund');
+      scope.setContext('refund', { orderId: req.params.id });
+      Sentry.captureException(err);
+    });
+    res.status(500).json({ error: err.response?.data?.message || 'Refund failed. Please contact support or try again.' });
+  }
+});
+
 // ── POST create order directly (kept for manual/admin use) ─
 router.post('/', authenticate, async (req, res) => {
   const { items, total, shipping } = req.body;
