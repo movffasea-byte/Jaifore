@@ -126,6 +126,11 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
+// Overview stat cards double as shortcuts to their underlying tab
+document.querySelectorAll('.stat-card[data-tab]').forEach(card => {
+  card.addEventListener('click', () => switchTab(card.dataset.tab));
+});
+
 function switchTab(name) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
@@ -248,11 +253,19 @@ async function loadProducts() {
 
     data.forEach(p => {
       const tr = document.createElement('tr');
+      const stockDisplay = (p.stock === null || p.stock === undefined)
+        ? `<span class="stock-untracked">Untracked</span>`
+        : `<button class="stock-btn" onclick="adjustStock(${p.id}, -1)">−</button>
+           <span class="stock-count">${p.stock}</span>
+           <button class="stock-btn" onclick="adjustStock(${p.id}, 1)">+</button>`;
       tr.innerHTML = `
         <td>${p.name}</td>
         <td>${p.category || '—'}</td>
         <td>$${parseFloat(p.price).toFixed(2)}</td>
-        <td><span class="badge ${p.in_stock ? 'badge-success' : 'badge-failed'}">${p.in_stock ? 'In Stock' : 'Out'}</span></td>
+        <td>
+          <div class="stock-cell">${stockDisplay}</div>
+          <span class="badge ${p.in_stock ? 'badge-success' : 'badge-failed'}">${p.in_stock ? 'In Stock' : 'Out'}</span>
+        </td>
         <td>
           <button class="action-btn" onclick="openEditProduct(${p.id})">Edit</button>
           <button class="action-btn danger" onclick="deleteProduct(${p.id})">Delete</button>
@@ -260,6 +273,18 @@ async function loadProducts() {
       body.appendChild(tr);
     });
   } catch (err) { console.error('Products error:', err); }
+}
+
+// Quick stock +/- from the table (item 12) — skips the full edit form for routine adjustments
+async function adjustStock(id, delta) {
+  try {
+    const res = await fetch(`${API}/api/products/${id}/stock`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ delta })
+    });
+    if (res.ok) loadProducts();
+  } catch (err) { console.error('Stock adjust error:', err); }
 }
 
 // Open Add form
@@ -272,6 +297,7 @@ document.getElementById('openAddProduct').addEventListener('click', () => {
   document.getElementById('pImage').value    = '';
   document.getElementById('pDesc').value     = '';
   document.getElementById('pStock').value    = 'true';
+  document.getElementById('pStockCount').value = '';
   document.getElementById('productForm').classList.remove('hidden');
 });
 
@@ -289,6 +315,7 @@ async function openEditProduct(id) {
     document.getElementById('pBackImage').value = p.back_image || '';
     document.getElementById('pDesc').value     = p.description || '';
     document.getElementById('pStock').value    = p.in_stock ? 'true' : 'false';
+    document.getElementById('pStockCount').value = (p.stock === null || p.stock === undefined) ? '' : p.stock;
     document.getElementById('productForm').classList.remove('hidden');
     document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
   } catch (err) { console.error('Edit product error:', err); }
@@ -303,6 +330,7 @@ document.getElementById('cancelProductBtn').addEventListener('click', () => {
 // Save product
 document.getElementById('saveProductBtn').addEventListener('click', async () => {
   const msgEl = document.getElementById('productMsg');
+  const stockRaw = document.getElementById('pStockCount').value.trim();
   const body  = {
     name:        document.getElementById('pName').value.trim(),
     price:       document.getElementById('pPrice').value,
@@ -310,6 +338,7 @@ document.getElementById('saveProductBtn').addEventListener('click', async () => 
     image_url:   document.getElementById('pImage').value.trim(),
     description: document.getElementById('pDesc').value.trim(),
     in_stock:    document.getElementById('pStock').value === 'true',
+    stock:       stockRaw === '' ? null : parseInt(stockRaw, 10),
   };
 
   if (!body.name || !body.price) { msgEl.textContent = 'Name and price are required.'; msgEl.className = 'form-msg error'; return; }
@@ -365,10 +394,32 @@ async function loadOrders() {
             <option ${o.status === 'completed' ? 'selected' : ''}>completed</option>
             <option ${o.status === 'cancelled' ? 'selected' : ''}>cancelled</option>
           </select>
+          <button class="action-btn danger" onclick="refundOrder(${o.id}, ${o.total})"
+            ${(o.payment_status === 'refunded' || !o.payment_ref) ? 'disabled' : ''}>
+            ${o.payment_status === 'refunded' ? 'Refunded' : 'Refund'}
+          </button>
         </td>`;
       body.appendChild(tr);
     });
   } catch (err) { console.error('Orders error:', err); }
+}
+
+async function refundOrder(id, total) {
+  if (!confirm(`Refund order #${id} for ₦${Number(total).toLocaleString()}? This cannot be undone from here.`)) return;
+  try {
+    const res  = await fetch(`${API}/api/orders/${id}/refund`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({}) // full refund by default
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Refund failed.'); return; }
+    alert('Refund initiated successfully.');
+    loadOrders();
+  } catch (err) {
+    console.error('Refund error:', err);
+    alert('Network error — refund request failed.');
+  }
 }
 
 async function updateOrderStatus(id, status) {
