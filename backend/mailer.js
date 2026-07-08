@@ -383,4 +383,126 @@ async function sendOrderStatusUpdate(toEmail, name, order, newStatus) {
   });
 }
 
-module.exports = { generateOTP, sendOTPEmail, sendAdminNotification, sendOrderConfirmation, sendAdminOrderAlert, sendWelcomeEmail, sendOrderStatusUpdate };
+/* ── 7. REFUND NOTIFICATION (customer) ── */
+async function sendRefundNotification(toEmail, name, order, refundAmount) {
+  const orderId  = String(order.id).padStart(5, '0');
+  const currency = order.currency || 'NGN';
+  const amount   = refundAmount != null ? refundAmount : order.total;
+
+  await resend.emails.send({
+    from: "Jai'fore Studio <onboarding@resend.dev>",
+    to: toEmail,
+    subject: `Refund Issued — #JF${orderId}`,
+    html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+    <table width="480" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #d8d0c4;">
+
+      <!-- HEADER -->
+      <tr><td style="padding:32px 40px 24px;border-bottom:2px solid #111;">
+        <div style="font-family:Georgia,serif;font-size:24px;font-weight:900;color:#111;">Jai'fore</div>
+        <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#7b5ea7;margin-top:4px;">Global Creative Studio</div>
+      </td></tr>
+
+      <!-- STATUS BADGE -->
+      <tr><td style="padding:36px 40px 24px;">
+        <div style="display:inline-block;background:#a13a3a;padding:6px 16px;margin-bottom:16px;">
+          <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#fff;font-weight:700;">Refunded</span>
+        </div>
+        <p style="font-size:15px;color:#555;margin:0 0 4px;line-height:1.6;">Hi ${name},</p>
+        <p style="font-size:15px;color:#555;margin:0;line-height:1.6;">
+          A refund of <strong>${formatCurrency(amount, currency)}</strong> has been issued for your order. It should reflect on your original payment method within 5–10 business days, depending on your bank or card provider.
+        </p>
+      </td></tr>
+
+      <!-- ORDER META -->
+      <tr><td style="padding:0 40px 32px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0e8;border:1px solid #d8d0c4;">
+          <tr>
+            <td style="padding:16px 20px;border-right:1px solid #d8d0c4;">
+              <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:4px;">Order ID</div>
+              <div style="font-size:15px;font-weight:700;color:#111;">#JF${orderId}</div>
+            </td>
+            <td style="padding:16px 20px;border-right:1px solid #d8d0c4;">
+              <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:4px;">Refund Amount</div>
+              <div style="font-size:15px;font-weight:700;color:#a13a3a;">${formatCurrency(amount, currency)}</div>
+            </td>
+            <td style="padding:16px 20px;">
+              <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:4px;">Date</div>
+              <div style="font-size:15px;color:#111;">${new Date().toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric', timeZone:'Africa/Lagos' })}</div>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+
+      <!-- FOOTER -->
+      <tr><td style="padding:20px 40px;border-top:1px solid #d8d0c4;background:#f5f0e8;">
+        <p style="font-size:13px;color:#888;margin:0 0 8px;line-height:1.6;">
+          If you don't see this reflected after 10 business days, or have any questions, reply to this email or contact us at
+          <a href="mailto:jaifore@outlook.com" style="color:#4a2d7a;text-decoration:none;">jaifore@outlook.com</a>.
+        </p>
+        <p style="font-size:12px;color:#aaa;margin:0;">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</p>
+      </td></tr>
+
+    </table></td></tr></table></body></html>`
+  });
+}
+
+/* ── 8. ADMIN REFUND ALERT (admin) ── */
+async function sendAdminRefundAlert(order, customerName, customerEmail, refundAmount) {
+  const orderId  = String(order.id).padStart(5, '0');
+  const currency = order.currency || 'NGN';
+  const amount   = refundAmount != null ? refundAmount : order.total;
+
+  await resend.emails.send({
+    from: 'Jaifore Media <onboarding@resend.dev>',
+    to: process.env.ADMIN_EMAIL,
+    subject: `Refund Processed — #JF${orderId} — ${formatCurrency(amount, currency)}`,
+    html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0a0a0f;font-family:'Helvetica Neue',Arial,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+    <table width="520" cellpadding="0" cellspacing="0" style="background:#16161f;border:1px solid rgba(237,233,224,0.07);">
+
+      <!-- HEADER -->
+      <tr><td style="padding:28px 36px 20px;border-bottom:1px solid rgba(237,233,224,0.07);">
+        <div style="font-family:Georgia,serif;font-size:20px;font-weight:900;color:#ede9e0;">Jai'fore Admin</div>
+        <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#e08a8a;margin-top:4px;">Refund Alert</div>
+      </td></tr>
+
+      <!-- HERO -->
+      <tr><td style="padding:28px 36px 20px;">
+        <div style="font-family:Georgia,serif;font-size:28px;font-weight:900;color:#e08a8a;">−${formatCurrency(amount, currency)}</div>
+        <div style="font-size:13px;color:#555;margin-top:4px;">Order #JF${orderId} · ${new Date().toLocaleString('en-NG', { timeZone:'Africa/Lagos' })} WAT</div>
+      </td></tr>
+
+      <!-- DETAILS -->
+      <tr><td style="padding:0 36px 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+
+          <tr><td style="padding:12px 0;border-bottom:1px solid rgba(237,233,224,0.07);">
+            <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Customer</span>
+            <div style="font-size:15px;color:#ede9e0;font-weight:600;margin-top:4px;">${customerName}</div>
+            <div style="font-size:13px;color:#777;margin-top:2px;">${customerEmail}</div>
+          </td></tr>
+
+          <tr><td style="padding:12px 0;border-bottom:1px solid rgba(237,233,224,0.07);">
+            <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Original Total</span>
+            <div style="font-size:15px;color:#ede9e0;margin-top:4px;">${formatCurrency(order.total, currency)}</div>
+          </td></tr>
+
+          <tr><td style="padding:12px 0;">
+            <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Payment Ref</span>
+            <div style="font-size:15px;color:#ede9e0;margin-top:4px;">${order.payment_ref || '—'}</div>
+          </td></tr>
+
+        </table>
+      </td></tr>
+
+      <!-- FOOTER -->
+      <tr><td style="padding:16px 36px;border-top:1px solid rgba(237,233,224,0.07);">
+        <p style="font-size:12px;color:#444;margin:0;">Jai'fore Admin Panel · Refund initiated from the Orders tab.</p>
+      </td></tr>
+
+    </table></td></tr></table></body></html>`
+  });
+}
+
+module.exports = { generateOTP, sendOTPEmail, sendAdminNotification, sendOrderConfirmation, sendAdminOrderAlert, sendWelcomeEmail, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert };

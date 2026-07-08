@@ -8,7 +8,7 @@ const { pool } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
 const axios = require('axios');
 const Sentry = require('@sentry/node');
-const { sendOrderConfirmation, sendAdminOrderAlert, sendOrderStatusUpdate } = require('../mailer');
+const { sendOrderConfirmation, sendAdminOrderAlert, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert } = require('../mailer');
 const { cacheInvalidate } = require('../redis');
 
 const FLW_SECRET = process.env.FLUTTERWAVE_SECRET_KEY;
@@ -347,11 +347,53 @@ router.post('/:id/refund', authenticate, requireAdmin, async (req, res) => {
       `UPDATE orders SET payment_status = 'refunded' WHERE id = $1 RETURNING *`,
       [order.id]
     );
+    const refundedOrder = updated.rows[0];
+
+    // 4. Send refund notifications to both customer and admin (item 13b — non-blocking,
+    // same pattern as verify-payment: a failed email must never undo or block the refund
+    // that Flutterwave already processed).
+    const refundAmount = amount || order.total;
+
+    const customer = await pool.query(
+      `SELECT name, email FROM users WHERE id = $1`,
+      [order.user_id]
+    );
+
+    if (customer.rows.length) {
+      const { name: customerName, email: customerEmail } = customer.rows[0];
+
+      Promise.allSettled([
+        sendRefundNotification(customerEmail, customerName, refundedOrder, refundAmount),
+        sendAdminRefundAlert(refundedOrder, customerName, customerEmail, refundAmount),
+      ]).then(results => {
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') {
+            const label = i === 0 ? 'Refund notification' : 'Admin refund alert';
+            console.error(`[mailer] ${label} failed:`, r.reason?.message || r.reason);
+            Sentry.captureException(r.reason, {
+              tags: { area: 'transactional-email' },
+              extra: { orderId: order.id, email: i === 0 ? customerEmail : process.env.ADMIN_EMAIL },
+            });
+          }
+        });
+      });
+    } else {
+      console.warn(`Order ${order.id} refunded but no matching user (id ${order.user_id}) found — customer notification skipped.`);
+      // Still alert the admin even without customer details, since the admin's own copy doesn't need them
+      sendAdminRefundAlert(refundedOrder, 'Unknown customer', '—', refundAmount)
+        .catch(e => {
+          console.error('[mailer] Admin refund alert failed:', e.message);
+          Sentry.captureException(e, {
+            tags: { area: 'transactional-email' },
+            extra: { orderId: order.id, email: process.env.ADMIN_EMAIL },
+          });
+        });
+    }
 
     res.json({
       message: 'Refund initiated.',
       refund: refundRes.data.data,
-      order: updated.rows[0],
+      order: refundedOrder,
     });
 
   } catch (err) {
