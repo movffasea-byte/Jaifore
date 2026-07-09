@@ -8,8 +8,16 @@ const { pool } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
 const axios = require('axios');
 const Sentry = require('@sentry/node');
-const { sendOrderConfirmation, sendAdminOrderAlert, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert } = require('../mailer');
+const { sendOrderConfirmation, sendAdminOrderAlert, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert, sendLowStockAlert } = require('../mailer');
 const { cacheInvalidate } = require('../redis');
+
+// item 14 — low stock alert threshold, kept in sync with products.js
+const LOW_STOCK_THRESHOLD = 5;
+function checkLowStockTransition(oldStock, newStock) {
+  if (oldStock === null || oldStock === undefined) return false;
+  if (newStock === null || newStock === undefined) return false;
+  return oldStock > LOW_STOCK_THRESHOLD && newStock <= LOW_STOCK_THRESHOLD;
+}
 
 const FLW_SECRET = process.env.FLUTTERWAVE_SECRET_KEY;
 
@@ -96,16 +104,34 @@ router.post('/verify-payment', authenticate, async (req, res) => {
           console.warn('[stock] Skipped — item has no product_id/id:', item);
           continue;
         }
+
+        // Read current stock first so we can detect a low-stock transition
+        // after the update below (item 14) — the UPDATE alone only gives us
+        // the "after" value, and the transition check needs "before" too.
+        const beforeResult = await pool.query('SELECT stock FROM products WHERE id = $1', [productId]);
+        const oldStock = beforeResult.rows.length ? beforeResult.rows[0].stock : null;
+
         const stockResult = await pool.query(
           `UPDATE products
              SET stock = GREATEST(COALESCE(stock, 0) - $1, 0),
                  in_stock = (GREATEST(COALESCE(stock, 0) - $1, 0) > 0)
            WHERE id = $2 AND stock IS NOT NULL
-           RETURNING id`,
+           RETURNING *`,
           [qty, productId]
         );
         if (stockResult.rows.length) {
           await cacheInvalidate(`products:single:${productId}`);
+
+          const updatedProduct = stockResult.rows[0];
+          if (checkLowStockTransition(oldStock, updatedProduct.stock)) {
+            sendLowStockAlert(updatedProduct).catch(e => {
+              console.error('[mailer] Low stock alert failed:', e.message);
+              Sentry.captureException(e, {
+                tags: { area: 'transactional-email' },
+                extra: { productId: updatedProduct.id, email: process.env.ADMIN_EMAIL },
+              });
+            });
+          }
         }
       }
       await cacheInvalidate('products:list:*');

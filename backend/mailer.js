@@ -505,4 +505,48 @@ async function sendAdminRefundAlert(order, customerName, customerEmail, refundAm
   });
 }
 
-module.exports = { generateOTP, sendOTPEmail, sendAdminNotification, sendOrderConfirmation, sendAdminOrderAlert, sendWelcomeEmail, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert };
+/* ── 9. LOW STOCK ALERT (admin) — item 14 ── */
+async function sendLowStockAlert(product) {
+  const stockLabel = (product.stock === 0) ? 'OUT OF STOCK' : `${product.stock} remaining`;
+  const badgeColor = (product.stock === 0) ? '#a13a3a' : '#c98a2e';
+
+  await resend.emails.send({
+    from: 'Jaifore Media <onboarding@resend.dev>',
+    to: process.env.ADMIN_EMAIL,
+    subject: `Low Stock — ${product.name} (${stockLabel})`,
+    html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0a0a0f;font-family:'Helvetica Neue',Arial,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+    <table width="480" cellpadding="0" cellspacing="0" style="background:#16161f;border:1px solid rgba(237,233,224,0.07);">
+
+      <!-- HEADER -->
+      <tr><td style="padding:28px 36px 20px;border-bottom:1px solid rgba(237,233,224,0.07);">
+        <div style="font-family:Georgia,serif;font-size:20px;font-weight:900;color:#ede9e0;">Jai'fore Admin</div>
+        <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#e0a84a;margin-top:4px;">Low Stock Alert</div>
+      </td></tr>
+
+      <!-- HERO -->
+      <tr><td style="padding:28px 36px 20px;">
+        <div style="display:inline-block;background:${badgeColor};padding:6px 16px;margin-bottom:16px;">
+          <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#fff;font-weight:700;">${stockLabel}</span>
+        </div>
+        <div style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#ede9e0;">${product.name}</div>
+        <div style="font-size:13px;color:#555;margin-top:4px;">Product ID #${product.id} · ${new Date().toLocaleString('en-NG', { timeZone:'Africa/Lagos' })} WAT</div>
+      </td></tr>
+
+      <!-- DETAILS -->
+      <tr><td style="padding:0 36px 24px;">
+        <p style="font-size:14px;color:#888;margin:0;line-height:1.6;">
+          This product has dropped to or below the low-stock threshold (5 units). Consider restocking soon, or update its stock count from the Products tab.
+        </p>
+      </td></tr>
+
+      <!-- FOOTER -->
+      <tr><td style="padding:16px 36px;border-top:1px solid rgba(237,233,224,0.07);">
+        <p style="font-size:12px;color:#444;margin:0;">Jai'fore Admin Panel · Manage this product from the Products tab.</p>
+      </td></tr>
+
+    </table></td></tr></table></body></html>`
+  });
+}
+
+module.exports = { generateOTP, sendOTPEmail, sendAdminNotification, sendOrderConfirmation, sendAdminOrderAlert, sendWelcomeEmail, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert, sendLowStockAlert };

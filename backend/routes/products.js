@@ -7,8 +7,31 @@ const router  = express.Router();
 const { pool } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
 const { cacheGet, cacheSet, cacheInvalidate } = require('../redis');
+const Sentry = require('@sentry/node');
+const { sendLowStockAlert } = require('../mailer');
 
 const CACHE_TTL = 300; // 5 minutes — product catalog changes rarely, read often
+const LOW_STOCK_THRESHOLD = 5; // item 14 — anything at or below this triggers an alert
+
+// Fires the low-stock email exactly once per transition — only when stock
+// crosses from "above threshold" to "at or below threshold". This prevents
+// a flood of emails while a product sits at a low number and sells one at a time
+// (e.g. 4 -> 3 -> 2 -> 1 would otherwise fire three more alerts after the first).
+function checkLowStockTransition(oldStock, newStock) {
+  if (oldStock === null || oldStock === undefined) return false; // untracked product, never alert
+  if (newStock === null || newStock === undefined) return false;
+  return oldStock > LOW_STOCK_THRESHOLD && newStock <= LOW_STOCK_THRESHOLD;
+}
+
+function fireLowStockAlert(product) {
+  sendLowStockAlert(product).catch(e => {
+    console.error('[mailer] Low stock alert failed:', e.message);
+    Sentry.captureException(e, {
+      tags: { area: 'transactional-email' },
+      extra: { productId: product.id, email: process.env.ADMIN_EMAIL },
+    });
+  });
+}
 
 // GET all products (public) — supports ?category=&limit=
 router.get('/', async (req, res) => {
@@ -45,6 +68,21 @@ router.get('/', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET low-stock products only (admin only) — item 14, backs the Overview
+// banner and Products tab badge without requiring the full list every time.
+// Deliberately excludes untracked (NULL stock) products, same convention as
+// the rest of the inventory system (item 12).
+router.get('/alerts/low-stock', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, stock FROM products
+       WHERE stock IS NOT NULL AND stock <= $1
+       ORDER BY stock ASC`,
+      [LOW_STOCK_THRESHOLD]
+    );
+    res.json({ threshold: LOW_STOCK_THRESHOLD, products: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // GET single product (public)
 router.get('/:id', async (req, res) => {
@@ -79,6 +117,13 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     // Single-product cache keys are unaffected since this ID didn't exist yet.
     await cacheInvalidate('products:list:*');
 
+    // A brand-new product created already at/below the threshold counts as a
+    // transition too (it went from "didn't exist" to "low") — worth flagging
+    // immediately rather than waiting for the first sale to notice.
+    if (checkLowStockTransition(LOW_STOCK_THRESHOLD + 1, stockValue)) {
+      fireLowStockAlert(result.rows[0]);
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -87,6 +132,10 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   const { name, description, price, category, image_url, back_image, in_stock, stock } = req.body;
   try {
+    // Fetch the pre-update stock so we can detect a low-stock transition below
+    const before = await pool.query('SELECT stock FROM products WHERE id = $1', [req.params.id]);
+    const oldStock = before.rows.length ? before.rows[0].stock : null;
+
     const stockValue = (stock === undefined || stock === null || stock === '') ? null : parseInt(stock, 10);
     // If a real stock count is provided, it governs in_stock automatically.
     // Leaving stock blank keeps this product "untracked" and respects whatever
@@ -104,6 +153,10 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     // since this update could change which category/filter it shows under.
     await cacheInvalidate(`products:single:${req.params.id}`);
     await cacheInvalidate('products:list:*');
+
+    if (checkLowStockTransition(oldStock, stockValue)) {
+      fireLowStockAlert(result.rows[0]);
+    }
 
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -131,6 +184,10 @@ router.patch('/:id/stock', authenticate, requireAdmin, async (req, res) => {
 
     await cacheInvalidate(`products:single:${req.params.id}`);
     await cacheInvalidate('products:list:*');
+
+    if (checkLowStockTransition(currentStock, newStock)) {
+      fireLowStockAlert(result.rows[0]);
+    }
 
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
