@@ -170,10 +170,36 @@ async function loadOverview() {
       ? transactions.filter(t => t.status === 'success').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
       : 0;
     document.getElementById('statRevenue').textContent = `₦${revenue.toLocaleString()}`;
+
+    // item 14 — low stock banner. Same threshold and "untracked = skip" rule as the backend.
+    // Guarded inside renderLowStockBanner itself in case the HTML banner element isn't present yet.
+    renderLowStockBanner(Array.isArray(products) ? products : []);
   } catch (err) { console.error('Overview error:', err); }
 
   loadRevenueQuickTotals();
   loadRevenueChart(currentRevenuePeriod);
+}
+
+const LOW_STOCK_THRESHOLD = 5; // kept in sync with backend/routes/products.js
+
+function renderLowStockBanner(products) {
+  const banner = document.getElementById('lowStockBanner');
+  if (!banner) return; // guard — does nothing if the HTML banner element isn't present
+
+  const lowStockItems = products.filter(p => p.stock !== null && p.stock !== undefined && p.stock <= LOW_STOCK_THRESHOLD);
+
+  if (!lowStockItems.length) {
+    banner.classList.add('hidden');
+    return;
+  }
+
+  banner.classList.remove('hidden');
+  const names = lowStockItems.map(p => `${p.name} (${p.stock})`).join(', ');
+  banner.innerHTML = `
+    <span class="low-stock-icon">⚠</span>
+    <span><strong>${lowStockItems.length}</strong> product${lowStockItems.length > 1 ? 's' : ''} low on stock: ${names}</span>
+    <button class="low-stock-goto" onclick="switchTab('products')">View →</button>
+  `;
 }
 
 // ── REVENUE DASHBOARD (item 11) ──────────────────────
@@ -253,11 +279,13 @@ async function loadProducts() {
 
     data.forEach(p => {
       const tr = document.createElement('tr');
+      const isLowStock = (p.stock !== null && p.stock !== undefined && p.stock <= LOW_STOCK_THRESHOLD);
       const stockDisplay = (p.stock === null || p.stock === undefined)
         ? `<span class="stock-untracked">Untracked</span>`
         : `<button class="stock-btn" onclick="adjustStock(${p.id}, -1)">−</button>
            <span class="stock-count">${p.stock}</span>
-           <button class="stock-btn" onclick="adjustStock(${p.id}, 1)">+</button>`;
+           <button class="stock-btn" onclick="adjustStock(${p.id}, 1)">+</button>
+           ${isLowStock ? `<span class="badge badge-lowstock">Low</span>` : ''}`;
       tr.innerHTML = `
         <td>${p.name}</td>
         <td>${p.category || '—'}</td>
