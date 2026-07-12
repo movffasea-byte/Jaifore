@@ -243,6 +243,7 @@ body {
   height: 48px;
   border-radius: 50px;
   object-fit: cover;
+  object-position: center 35%;
 }
 
 .sidebar-nav {
@@ -332,6 +333,16 @@ body {
   font-size: 2rem;
   font-weight: 800;
   color: var(--ink);
+}
+
+.stat-card[data-tab] {
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.stat-card[data-tab]:hover {
+  border-color: var(--purple);
+  transform: translateY(-2px);
 }
 
 /* ── TABLE ─────────────────────────────────────────── */
@@ -520,52 +531,6 @@ body {
 .cal-day.selected { background: var(--purple); color: #fff; border-color: var(--purple); }
 .cal-day.selected::after { background: #fff; }
 
-
-/* ── LOW STOCK ALERT (item 14) ────────────────────── */
-.low-stock-banner {
-  background: #2a1f0f;
-  border: 1px solid #c98a2e44;
-  border-radius: 12px;
-  padding: 1rem 1.4rem;
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  font-size: 0.88rem;
-  color: #e0a84a;
-}
-
-.low-stock-icon {
-  font-size: 1.1rem;
-  flex-shrink: 0;
-}
-
-.low-stock-goto {
-  background: transparent;
-  border: 1px solid #c98a2e44;
-  color: #e0a84a;
-  border-radius: 6px;
-  font-size: 0.78rem;
-  padding: 0.35rem 0.8rem;
-  cursor: pointer;
-  margin-left: auto;
-  white-space: nowrap;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.low-stock-goto:hover {
-  border-color: #e0a84a;
-  background: #c98a2e11;
-}
-
-.badge-lowstock {
-  background: #2a1f0f;
-  color: #e0a84a;
-  border: 1px solid #c98a2e44;
-  margin-left: 0.4rem;
-}
-
-
-
 /* ── TX DETAIL ─────────────────────────────────────── */
 .tx-detail {
   background: var(--surface);
@@ -741,4 +706,40 @@ body {
 
 @media (max-width: 640px) {
   .revenue-quick-stats { grid-template-columns: 1fr; }
+}
+
+/* ── STOCK ADJUSTER (item 12) ──────────────────────── */
+.stock-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+}
+
+.stock-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  line-height: 1;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.stock-btn:hover { border-color: var(--purple); color: var(--purple-lt); }
+
+.stock-count {
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.stock-untracked {
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+  font-style: italic;
 }
