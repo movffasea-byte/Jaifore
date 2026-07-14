@@ -743,3 +743,46 @@ body {
   font-size: 0.78rem;
   font-style: italic;
 }
+
+/* ── LOW STOCK ALERT (item 14) ────────────────────── */
+.low-stock-banner {
+  background: #2a1f0f;
+  border: 1px solid #c98a2e44;
+  border-radius: 12px;
+  padding: 1rem 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.88rem;
+  color: #e0a84a;
+}
+
+.low-stock-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.low-stock-goto {
+  background: transparent;
+  border: 1px solid #c98a2e44;
+  color: #e0a84a;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+  margin-left: auto;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.low-stock-goto:hover {
+  border-color: #e0a84a;
+  background: #c98a2e11;
+}
+
+.badge-lowstock {
+  background: #2a1f0f;
+  color: #e0a84a;
+  border: 1px solid #c98a2e44;
+  margin-left: 0.4rem;
+}
