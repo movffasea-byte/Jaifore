@@ -93,6 +93,12 @@ router.post('/verify-payment', authenticate, async (req, res) => {
 
     const order = result.rows[0];
 
+    // item 15 — seed the timeline with this order's starting status
+    await pool.query(
+      `INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)`,
+      [order.id, order.status]
+    );
+
     // 7b. Decrement stock for each purchased item (item 12 — inventory management).
     // Only affects products with a real stock count set; NULL stock means
     // "not tracked" (e.g. print-on-demand or service items) and is left alone.
@@ -286,6 +292,25 @@ router.get('/:id', authenticate, requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── GET order status timeline (owning customer, or admin) — item 15 ──
+router.get('/:id/timeline', authenticate, async (req, res) => {
+  try {
+    const order = await pool.query('SELECT id, user_id FROM orders WHERE id = $1', [req.params.id]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found.' });
+
+    // A customer can only ever see their own order's timeline
+    if (order.rows[0].user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to view this order.' });
+    }
+
+    const history = await pool.query(
+      `SELECT status, created_at FROM order_status_history WHERE order_id = $1 ORDER BY created_at ASC`,
+      [req.params.id]
+    );
+    res.json(history.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── PUT update order status (admin only) ─────────────
 router.put('/:id/status', authenticate, requireAdmin, async (req, res) => {
   const { status } = req.body;
@@ -297,6 +322,12 @@ router.put('/:id/status', authenticate, requireAdmin, async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Order not found.' });
     const order = result.rows[0];
+
+    // item 15 — record this transition so the customer-facing timeline has it
+    await pool.query(
+      `INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)`,
+      [order.id, status]
+    );
 
     // Look up customer name/email for the notification (orders table doesn't store these)
     const customer = await pool.query(
@@ -442,7 +473,15 @@ router.post('/', authenticate, async (req, res) => {
       `INSERT INTO orders (user_id, items, total, shipping) VALUES ($1, $2, $3, $4) RETURNING *`,
       [req.user.id, JSON.stringify(items), total, JSON.stringify(shipping || {})]
     );
-    res.status(201).json(result.rows[0]);
+    const order = result.rows[0];
+
+    // item 15 — seed the timeline with this order's starting status
+    await pool.query(
+      `INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)`,
+      [order.id, order.status]
+    );
+
+    res.status(201).json(order);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

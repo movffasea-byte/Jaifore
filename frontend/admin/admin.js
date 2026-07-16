@@ -364,6 +364,7 @@ document.getElementById('saveProductBtn').addEventListener('click', async () => 
     price:       document.getElementById('pPrice').value,
     category:    document.getElementById('pCategory').value.trim(),
     image_url:   document.getElementById('pImage').value.trim(),
+    back_image:  document.getElementById('pBackImage').value.trim(),
     description: document.getElementById('pDesc').value.trim(),
     in_stock:    document.getElementById('pStock').value === 'true',
     stock:       stockRaw === '' ? null : parseInt(stockRaw, 10),
@@ -414,13 +415,14 @@ async function loadOrders() {
         <td>#${o.id}</td>
         <td>${o.customer_name || '—'}<br><small style="color:var(--ink-muted)">${o.customer_email || ''}</small></td>
         <td>₦${parseFloat(o.total).toLocaleString()}</td>
-        <td><span class="badge badge-${o.status === 'completed' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending'}">${o.status}</span></td>
+        <td><span class="badge badge-${o.status === 'delivered' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending'}">${o.status}</span></td>
         <td>${new Date(o.created_at).toLocaleDateString()}</td>
         <td>
           <select class="status-select" onchange="updateOrderStatus(${o.id}, this.value)">
-            <option ${o.status === 'pending'   ? 'selected' : ''}>pending</option>
-            <option ${o.status === 'completed' ? 'selected' : ''}>completed</option>
-            <option ${o.status === 'cancelled' ? 'selected' : ''}>cancelled</option>
+            <option ${o.status === 'processing' ? 'selected' : ''}>processing</option>
+            <option ${o.status === 'shipped'    ? 'selected' : ''}>shipped</option>
+            <option ${o.status === 'delivered'  ? 'selected' : ''}>delivered</option>
+            <option ${o.status === 'cancelled'  ? 'selected' : ''}>cancelled</option>
           </select>
           <button class="action-btn danger" onclick="refundOrder(${o.id}, ${o.total})"
             ${(o.payment_status === 'refunded' || !o.payment_ref) ? 'disabled' : ''}>
@@ -594,8 +596,9 @@ async function loadUsers() {
       body.appendChild(tr);
     });
   } catch (err) { console.error('Users error:', err); }
+}
 
-  // ── PRINT PRICING ─────────────────────────────────────
+// ── PRINT PRICING ─────────────────────────────────────
 async function loadPrintPricing() {
   try {
     const res  = await fetch(`${API}/api/print-pricing`, { headers: authHeaders() });
@@ -637,6 +640,4 @@ async function savePrintPrice(id) {
       setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
     }
   } catch (err) { console.error('Save price error:', err); }
-}
-
 }
