@@ -106,6 +106,86 @@ async function loadOrders() {
   }
 }
 
+// ── STATUS TIMELINE (item 15) ─────────────────────────
+// Canonical stages an order actually progresses through. Cancelled is
+// handled separately below since it's a terminal state reachable from
+// any point, not a fourth rung on the same ladder.
+const TIMELINE_STAGES = ['processing', 'shipped', 'delivered'];
+const TIMELINE_LABELS = { processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' };
+
+function formatTimelineDate(iso) {
+  return new Date(iso).toLocaleDateString('en-NG', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit'
+  });
+}
+
+// Builds the timeline HTML from the raw history rows the API returns.
+// history is an array of { status, created_at }, oldest first.
+function renderTimelineHTML(history) {
+  if (!history.length) {
+    return `<p class="timeline-empty">No status history available yet.</p>`;
+  }
+
+  // First time each status was reached, if at all
+  const reached = {};
+  history.forEach(h => {
+    if (!(h.status in reached)) reached[h.status] = h.created_at;
+  });
+
+  const isCancelled = 'cancelled' in reached;
+
+  // For a cancelled order, only show stages actually reached before
+  // cancellation — showing "Delivered: Pending" on a cancelled order
+  // would be misleading, since it's not pending, it's just not happening.
+  const stagesToShow = TIMELINE_STAGES.filter(stage => !isCancelled || reached[stage]);
+
+  const rows = stagesToShow.map((stage, i) => {
+    const timestamp = reached[stage];
+    const isDone = Boolean(timestamp);
+    const isLast = i === stagesToShow.length - 1 && !isCancelled;
+    return `
+      <div class="timeline-step ${isDone ? 'completed' : 'upcoming'}">
+        <div class="timeline-marker-col">
+          <div class="timeline-marker"></div>
+          ${!isLast ? '<div class="timeline-line"></div>' : ''}
+        </div>
+        <div class="timeline-content">
+          <div class="timeline-label">${TIMELINE_LABELS[stage]}</div>
+          <div class="timeline-date">${isDone ? formatTimelineDate(timestamp) : 'Pending'}</div>
+        </div>
+      </div>`;
+  });
+
+  if (isCancelled) {
+    rows.push(`
+      <div class="timeline-step cancelled">
+        <div class="timeline-marker-col">
+          <div class="timeline-marker"></div>
+        </div>
+        <div class="timeline-content">
+          <div class="timeline-label">Cancelled</div>
+          <div class="timeline-date">${formatTimelineDate(reached.cancelled)}</div>
+        </div>
+      </div>`);
+  }
+
+  return rows.join('');
+}
+
+async function loadOrderTimeline(orderId) {
+  const el = document.getElementById('orderModalTimeline');
+  el.innerHTML = `<p class="timeline-loading">Loading order history...</p>`;
+
+  try {
+    const res = await fetch(`${API}/api/orders/${orderId}/timeline`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed to load timeline');
+    const history = await res.json();
+    el.innerHTML = renderTimelineHTML(history);
+  } catch {
+    el.innerHTML = `<p class="timeline-empty">Unable to load order history.</p>`;
+  }
+}
+
 // ── ORDER DETAIL MODAL ────────────────────────────────
 function openOrderDetail(orderId) {
   const order = ordersData.find(o => o.id === orderId);
@@ -139,6 +219,11 @@ function openOrderDetail(orderId) {
 
   document.getElementById('orderModalTotal').textContent = formatPrice(order.total);
   document.getElementById('orderModal').classList.remove('hidden');
+
+  // item 15 — fetch and render the status timeline separately from the
+  // fields above, so the modal opens instantly and only this section
+  // shows a brief loading state while it resolves.
+  loadOrderTimeline(orderId);
 }
 
 function closeOrderDetail() {

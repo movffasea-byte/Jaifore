@@ -191,9 +191,15 @@
   letter-spacing: 0.04em;
 }
 
-.status-pending   { background: #fff8e1; color: #f59e0b; border: 1px solid #f59e0b44; }
-.status-completed { background: #e8f5e9; color: #38a169; border: 1px solid #38a16944; }
-.status-cancelled { background: #fdecea; color: #e53e3e; border: 1px solid #e53e3e44; }
+/* item 15 — updated to the processing/shipped/delivered/cancelled vocabulary.
+   processing and delivered reuse the old pending/completed colors exactly
+   (same meaning: in progress vs. fully done); shipped gets its own color
+   since "in transit" is a meaningfully distinct, more reassuring state for
+   a customer to see than "still processing". */
+.status-processing { background: #fff8e1; color: #f59e0b; border: 1px solid #f59e0b44; }
+.status-shipped     { background: #ebf4fb; color: #3182ce; border: 1px solid #3182ce44; }
+.status-delivered   { background: #e8f5e9; color: #38a169; border: 1px solid #38a16944; }
+.status-cancelled   { background: #fdecea; color: #e53e3e; border: 1px solid #e53e3e44; }
 
 .order-items {
   font-size: 0.78rem;
@@ -459,6 +465,80 @@
   margin-bottom: 1.2rem;
   padding-bottom: 1.2rem;
   border-bottom: 1px solid #e8e3da;
+}
+
+/* ── ORDER STATUS TIMELINE (item 15) ──────────────────
+   Vertical progress tracker: each step is a marker + connecting line
+   in a fixed-width left column, with label/date content to the right.
+   flex:1 on the line lets it naturally fill whatever height the
+   content column ends up being, instead of guessing a fixed height. */
+.order-modal-timeline {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.2rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid #e8e3da;
+}
+
+.timeline-step {
+  display: flex;
+  gap: 0.9rem;
+}
+
+.timeline-marker-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.timeline-marker {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e8e3da;
+  border: 2px solid #e8e3da;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.timeline-line {
+  width: 2px;
+  flex: 1;
+  background: #e8e3da;
+  margin: 4px 0;
+}
+
+.timeline-step.completed .timeline-marker { background: #7b5ea7; border-color: #7b5ea7; }
+.timeline-step.completed .timeline-line   { background: #7b5ea7; }
+.timeline-step.cancelled .timeline-marker { background: #e53e3e; border-color: #e53e3e; }
+
+.timeline-content { flex: 1; padding-bottom: 1.1rem; }
+.timeline-step:last-child .timeline-content { padding-bottom: 0; }
+
+.timeline-label {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.timeline-step.upcoming .timeline-label  { color: #aaa; }
+.timeline-step.cancelled .timeline-label { color: #e53e3e; }
+
+.timeline-date {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.15rem;
+}
+
+.timeline-step.upcoming .timeline-date { color: #bbb; }
+
+.timeline-loading, .timeline-empty {
+  font-size: 0.82rem;
+  color: #aaa;
+  font-style: italic;
+  padding: 0.3rem 0;
 }
 
 .order-modal-items {

@@ -93,11 +93,19 @@ router.post('/verify-payment', authenticate, async (req, res) => {
 
     const order = result.rows[0];
 
-    // item 15 — seed the timeline with this order's starting status
-    await pool.query(
-      `INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)`,
-      [order.id, order.status]
-    );
+    // item 15 — seed the timeline with this order's starting status.
+    // Non-blocking, same reasoning as the stock decrement just below: the
+    // payment is already verified and the order already exists — a
+    // history-logging hiccup must never be reported back as a failed payment.
+    try {
+      await pool.query(
+        `INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)`,
+        [order.id, order.status]
+      );
+    } catch (historyErr) {
+      console.error('[timeline] Failed to seed history:', historyErr.message);
+      Sentry.captureException(historyErr, { tags: { area: 'order-timeline' }, extra: { orderId: order.id } });
+    }
 
     // 7b. Decrement stock for each purchased item (item 12 — inventory management).
     // Only affects products with a real stock count set; NULL stock means
@@ -323,11 +331,18 @@ router.put('/:id/status', authenticate, requireAdmin, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Order not found.' });
     const order = result.rows[0];
 
-    // item 15 — record this transition so the customer-facing timeline has it
-    await pool.query(
-      `INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)`,
-      [order.id, status]
-    );
+    // item 15 — record this transition (non-blocking — the status update
+    // itself already succeeded; a logging failure must never be reported
+    // back to the admin as the whole status change having failed)
+    try {
+      await pool.query(
+        `INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)`,
+        [order.id, status]
+      );
+    } catch (historyErr) {
+      console.error('[timeline] Failed to log transition:', historyErr.message);
+      Sentry.captureException(historyErr, { tags: { area: 'order-timeline' }, extra: { orderId: order.id, status } });
+    }
 
     // Look up customer name/email for the notification (orders table doesn't store these)
     const customer = await pool.query(
@@ -475,11 +490,16 @@ router.post('/', authenticate, async (req, res) => {
     );
     const order = result.rows[0];
 
-    // item 15 — seed the timeline with this order's starting status
-    await pool.query(
-      `INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)`,
-      [order.id, order.status]
-    );
+    // item 15 — seed the timeline with this order's starting status (non-blocking)
+    try {
+      await pool.query(
+        `INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)`,
+        [order.id, order.status]
+      );
+    } catch (historyErr) {
+      console.error('[timeline] Failed to seed history:', historyErr.message);
+      Sentry.captureException(historyErr, { tags: { area: 'order-timeline' }, extra: { orderId: order.id } });
+    }
 
     res.status(201).json(order);
   } catch (err) { res.status(500).json({ error: err.message }); }
