@@ -454,7 +454,7 @@ img {
 .modal-price { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; color: var(--purple); }
 .modal-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.7; }
 
-.modal-sizes label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 0.5rem; }
+.modal-sizes label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
 .modal-size-opts { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .size-opt { background: none; border: 1px solid var(--border); color: var(--ink); font-family: var(--font-body); font-size: 0.75rem; font-weight: 500; padding: 0.35rem 0.7rem; border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition), background var(--transition); }
 .size-opt:hover, .size-opt.selected { border-color: var(--purple); background: var(--purple-dim); color: var(--purple); }
@@ -467,6 +467,101 @@ img {
 
 .modal-link { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--purple); text-decoration: none; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; transition: color var(--transition); }
 .modal-link:hover { color: var(--ink); }
+
+/* ================================
+   SIZE GUIDE MODAL (item 16)
+   Shared between services.html and configurator.html — both load this
+   stylesheet, so it only needs to exist here once.
+   ================================ */
+.size-guide-link {
+  background: none; border: none;
+  color: var(--purple);
+  font-family: var(--font-body);
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  text-decoration: underline;
+  cursor: pointer; padding: 0;
+}
+.size-guide-link:hover { color: var(--ink); }
+
+.size-guide-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 400; opacity: 0; pointer-events: none;
+  transition: opacity var(--transition);
+}
+.size-guide-overlay.open { opacity: 1; pointer-events: all; }
+
+.size-guide-modal {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%,-48%) scale(0.96);
+  width: 90%; max-width: 520px; max-height: 80vh;
+  background: var(--bg); border: 2px solid var(--ink);
+  border-radius: var(--radius); z-index: 401;
+  overflow-y: auto; opacity: 0; pointer-events: none;
+  transition: opacity var(--transition), transform var(--transition);
+  padding: 2rem;
+}
+.size-guide-modal.open { opacity: 1; pointer-events: all; transform: translate(-50%,-50%) scale(1); }
+
+.size-guide-close {
+  position: absolute; top: 1rem; right: 1rem;
+  background: none; border: none; color: var(--muted);
+  font-size: 1rem; cursor: pointer; transition: color var(--transition);
+}
+.size-guide-close:hover { color: var(--ink); }
+
+.size-guide-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem; font-weight: 700;
+  margin-bottom: 1.2rem;
+}
+
+.size-guide-tabs {
+  display: flex; gap: 0.4rem; flex-wrap: wrap;
+  margin-bottom: 1.2rem;
+}
+
+.size-guide-tab {
+  background: none; border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--font-body);
+  font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 0.4rem 0.8rem; border-radius: var(--radius);
+  cursor: pointer; transition: all var(--transition);
+}
+.size-guide-tab:hover  { border-color: var(--purple); color: var(--purple); }
+.size-guide-tab.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+
+.size-guide-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.size-guide-table th, .size-guide-table td {
+  padding: 0.6rem 0.7rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.size-guide-table th {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.sg-size-cell { font-weight: 700; text-align: left; }
+
+.size-guide-note {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 1rem;
+  line-height: 1.5;
+}
+
+.size-guide-empty {
+  font-size: 0.82rem;
+  color: var(--muted2);
+  font-style: italic;
+  padding: 1rem 0;
+}
 
 /* ================================
    FOOTER

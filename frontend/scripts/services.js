@@ -179,7 +179,7 @@ function openModal(product, category) {
 
   const sizesHTML = isApparel && product.sizes?.length
     ? `<div class="modal-sizes">
-        <label>Select Size</label>
+        <label>Select Size <button class="size-guide-link" onclick="openSizeGuide()">Size Guide</button></label>
         <div class="modal-size-opts">
           ${product.sizes.map(s => `<button class="size-opt" data-size="${s}">${s}</button>`).join('')}
         </div>
