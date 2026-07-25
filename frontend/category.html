@@ -42,8 +42,17 @@
 
   <!-- FILTERS -->
   <div class="cat-toolbar">
+    <div class="cat-search-wrap">
+      <svg class="cat-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="cat-search-input" id="searchInput" placeholder="Search products..." aria-label="Search products"/>
+    </div>
     <div class="cat-count" id="catCount">Loading...</div>
     <div class="cat-filters">
+      <select class="filter-select" id="categorySelect">
+        <option value="apparel">Apparel &amp; Merchandise</option>
+        <option value="design">Graphic Design</option>
+        <option value="webdev">Web Development</option>
+      </select>
       <select class="filter-select" id="sortSelect">
         <option value="newest">Newest First</option>
         <option value="price-asc">Price: Low to High</option>
@@ -76,7 +85,7 @@
 
     <div class="cat-empty hidden" id="catEmpty">
       <div class="empty-icon">◎</div>
-      <p>No products found in this category yet.</p>
+      <p id="catEmptyMsg">No products found in this category yet.</p>
       <a href="services.html" class="load-more-btn" style="display:inline-flex;text-decoration:none">← Back to Services</a>
     </div>
   </main>

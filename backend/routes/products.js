@@ -33,14 +33,17 @@ function fireLowStockAlert(product) {
   });
 }
 
-// GET all products (public) — supports ?category=&limit=
+// GET all products (public) — supports ?category=&search=&limit=
+// item 17: `search` matches against name OR description, case-insensitive,
+// and composes with the existing category filter (both can be present at once).
 router.get('/', async (req, res) => {
   try {
-    const { category, limit } = req.query;
+    const { category, search, limit } = req.query;
 
-    // Build a cache key that's specific to this exact query combination,
-    // so different category/limit filters don't collide with each other.
-    const cacheKey = `products:list:${category || 'all'}:${limit || 'nolimit'}`;
+    // Cache key folds in every query dimension so different combinations
+    // (e.g. same category, different search term) never collide with each other
+    // or serve stale results from a different filter combo.
+    const cacheKey = `products:list:${category || 'all'}:${search || 'nosearch'}:${limit || 'nolimit'}`;
 
     const cached = await cacheGet(cacheKey);
     if (cached) {
@@ -48,11 +51,23 @@ router.get('/', async (req, res) => {
     }
 
     let query  = 'SELECT * FROM products';
+    const conditions = [];
     const params = [];
 
     if (category) {
       params.push(category);
-      query += ` WHERE LOWER(category) = LOWER($1)`;
+      conditions.push(`LOWER(category) = LOWER($${params.length})`);
+    }
+
+    if (search) {
+      // One placeholder reused for both name and description via a single
+      // pushed param — keeps $N numbering simple regardless of param order.
+      params.push(`%${search}%`);
+      conditions.push(`(name ILIKE $${params.length} OR description ILIKE $${params.length})`);
+    }
+
+    if (conditions.length) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
 
     query += ' ORDER BY created_at DESC';

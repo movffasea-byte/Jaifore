@@ -32,8 +32,22 @@ const PLACEHOLDERS = {
   webdev:  ['🌐','💻','🖥️','⚙️','🚀','📡','🔮']
 };
 
+// ── FORMAT PRICE ───────────────────────────────────────
+// Pre-existing bug fix: this file called formatPrice() in openModal() without
+// ever defining or importing it (category.html loads currency.js directly,
+// not services.js, so the global services.js version was never in scope).
+// Mirrors the same pattern services.js already uses.
+function formatPrice(amount) {
+  if (window.JaiforeCurrency?.isReady()) {
+    return window.JaiforeCurrency.format(amount);
+  }
+  return `$${Number(amount).toLocaleString()}`;
+}
+
 // ── STATE ───────────────────────────────────────────
-let allProducts      = [];
+// item 17: products are now cached per-category in memory, so switching the
+// category dropdown back and forth doesn't refetch a category we already have.
+const productsByCategory = {}; // { apparel: [...], design: [...], webdev: [...] }
 let filteredProducts = [];
 let displayedCount   = 0;
 const PAGE_SIZE      = 12;
@@ -44,30 +58,54 @@ let currentProduct   = null;
 // ── INIT ────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
 currentCategory = params.get('cat') || 'apparel';
-const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
+if (!CATEGORY_META[currentCategory]) currentCategory = 'apparel';
 
-document.getElementById('catTag').textContent   = meta.tag;
-document.getElementById('catTitle').textContent = meta.title;
-document.getElementById('catDesc').textContent  = meta.desc;
-document.title = `Jai'fore — ${meta.title}`;
+// ── UPDATE HERO + DROPDOWN FOR ACTIVE CATEGORY ──────
+// Keeps the page's title/tag/description in sync with whichever category is
+// active, since the dropdown can now change this without a page navigation.
+function updateHeroForCategory(cat) {
+  const meta = CATEGORY_META[cat] || CATEGORY_META.apparel;
+  document.getElementById('catTag').textContent   = meta.tag;
+  document.getElementById('catTitle').textContent = meta.title;
+  document.getElementById('catDesc').textContent  = meta.desc;
+  document.getElementById('catEmptyMsg').textContent = `No products found in ${meta.title.toLowerCase()} yet.`;
+  document.title = `Jai'fore — ${meta.title}`;
+}
 
-// ── FETCH ALL ───────────────────────────────────────
-async function fetchAll() {
+updateHeroForCategory(currentCategory);
+document.getElementById('categorySelect').value = currentCategory;
+
+// ── FETCH ONE CATEGORY (with in-memory cache) ───────
+async function fetchCategory(cat) {
+  if (productsByCategory[cat]) return productsByCategory[cat];
+
+  const meta = CATEGORY_META[cat] || CATEGORY_META.apparel;
   try {
-    const cat = encodeURIComponent(meta.dbCat);
-    const res = await fetch(`${API}/api/products?category=${cat}`);
+    const dbCat = encodeURIComponent(meta.dbCat);
+    const res = await fetch(`${API}/api/products?category=${dbCat}`);
     if (!res.ok) throw new Error();
     const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch { return []; }
+    productsByCategory[cat] = Array.isArray(data) ? data : [];
+  } catch {
+    productsByCategory[cat] = [];
+  }
+  return productsByCategory[cat];
 }
 
 // ── FILTER & SORT ───────────────────────────────────
 function applyFilters() {
+  const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
   const sort  = document.getElementById('sortSelect').value;
   const stock = document.getElementById('stockSelect').value;
 
-  let result = [...allProducts];
+  let result = [...(productsByCategory[currentCategory] || [])];
+
+  if (searchTerm) {
+    result = result.filter(p =>
+      (p.name || '').toLowerCase().includes(searchTerm) ||
+      (p.description || '').toLowerCase().includes(searchTerm)
+    );
+  }
 
   if (stock === 'instock') result = result.filter(p => p.in_stock);
 
@@ -92,6 +130,7 @@ function loadNextPage() {
     document.getElementById('loadMoreWrap').classList.add('hidden');
     return;
   }
+  document.getElementById('catEmpty').classList.add('hidden');
 
   slice.forEach((p, i) => grid.appendChild(renderCard(p, displayedCount + i)));
   displayedCount += slice.length;
@@ -106,6 +145,7 @@ function loadNextPage() {
 
 // ── RENDER CARD ─────────────────────────────────────
 function renderCard(product, index) {
+  const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
   const card = document.createElement('div');
   card.className = 'product-card';
   card.style.animationDelay = `${(index % PAGE_SIZE) * 0.05}s`;
@@ -180,6 +220,7 @@ function renderCard(product, index) {
 
 // ── MODAL ───────────────────────────────────────────
 function openModal(product) {
+  const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
   currentProduct = product;
   selectedSize   = null;
 
@@ -259,15 +300,47 @@ document.getElementById('modal-overlay').addEventListener('click', closeModal);
 // ── LOAD MORE ────────────────────────────────────────
 document.getElementById('loadMoreBtn').addEventListener('click', loadNextPage);
 
-// ── FILTER EVENTS ────────────────────────────────────
+// ── CATEGORY SWITCH (item 17) ───────────────────────
+// Filters within the page — no navigation — using the in-memory per-category
+// cache. Fetches from the API only the first time a given category is picked.
+document.getElementById('categorySelect').addEventListener('change', async (e) => {
+  const newCat = e.target.value;
+  if (!CATEGORY_META[newCat]) return;
+
+  currentCategory = newCat;
+  updateHeroForCategory(newCat);
+
+  // Show skeletons only if this category hasn't been fetched before —
+  // switching back to an already-cached category should feel instant.
+  if (!productsByCategory[newCat]) {
+    document.getElementById('cat-grid').innerHTML =
+      Array(6).fill('<div class="skeleton-card"></div>').join('');
+    document.getElementById('loadMoreWrap').classList.add('hidden');
+    document.getElementById('catEmpty').classList.add('hidden');
+    document.getElementById('catCount').textContent = 'Loading...';
+  }
+
+  await fetchCategory(newCat);
+  applyFilters();
+});
+
+// ── SEARCH (item 17, live/debounced) ────────────────
+let searchDebounceTimer = null;
+document.getElementById('searchInput').addEventListener('input', () => {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(applyFilters, 300);
+});
+
+// ── OTHER FILTER EVENTS ──────────────────────────────
 document.getElementById('sortSelect').addEventListener('change', applyFilters);
 document.getElementById('stockSelect').addEventListener('change', applyFilters);
 
 // ── START ────────────────────────────────────────────
 (async () => {
-  allProducts = await fetchAll();
+  document.getElementById('catCount').textContent = 'Loading...';
+  await fetchCategory(currentCategory);
 
-  if (!allProducts.length) {
+  if (!(productsByCategory[currentCategory] || []).length) {
     document.getElementById('cat-grid').innerHTML = '';
     document.getElementById('catEmpty').classList.remove('hidden');
     document.getElementById('loadMoreWrap').classList.add('hidden');
