@@ -11,24 +11,65 @@ function formatPrice(amount) {
   return `$${Number(amount).toFixed(2)}`;
 }
 
+// ── CONFIG SIGNATURE (item 18) ──────────────────────────
+// Plain products (no customDesigns) have no signature — they match purely on
+// id + size, exactly as before. Configured items get a signature built from
+// WHICH designs are used (by name, sorted so order doesn't matter) plus
+// gender and print size — deliberately excluding x/y position and w/h, since
+// dragging/resizing the same designs should still count as the same cart line.
+function configSignature(item) {
+  const designs = item.designs || [];
+  if (!designs.length) return null; // not a custom item — no signature needed
+
+  const designKey = designs
+    .map(d => d.name || d.src || '')
+    .slice()
+    .sort()
+    .join('|');
+
+  const printSizeKey = item.printSize?.id ?? item.printSize?.size_label ?? '';
+
+  return `${designKey}::${item.gender || ''}::${printSizeKey}`;
+}
+
 // ── ADD TO CART ────────────────────────────────────────
 // Uses `id` consistently (matches product schema from the API / configurator),
 // not `_id` — that mismatch previously caused every cart match check to fail
 // silently, since product._id was always undefined.
+//
+// item 18: matching now also checks configSignature() when the incoming item
+// is a custom configured product. Two configured shirts with the same id and
+// size but DIFFERENT designs on them no longer silently merge into one line —
+// they only merge if the design set (+ gender + print size) also matches.
+// Plain (non-custom) products are completely unaffected: configSignature()
+// returns null for them, so the extra check is skipped exactly as before.
 function addToCart(product, size, category) {
-  const existing = cart.find(i => i.id === product.id && i.size === size);
+  const incomingSig = configSignature({
+    designs:   product.customDesigns || product.designs || [],
+    gender:    product.gender,
+    printSize: product.printSize
+  });
+
+  const existing = cart.find(i => {
+    if (i.id !== product.id || i.size !== size) return false;
+    if (incomingSig === null) return configSignature(i) === null; // both plain
+    return configSignature(i) === incomingSig;
+  });
+
   if (existing) {
     existing.qty += 1;
   } else {
     cart.push({
-      id:       product.id,
-      name:     product.name,
-      price:    product.price,
-      category: category,
-      size:     size || null,
-      qty:      1,
-      snapshot: product.snapshot || product.image_url || null,
-      designs:  product.customDesigns || product.designs || [],
+      id:        product.id,
+      name:      product.name,
+      price:     product.price,
+      category:  category,
+      size:      size || null,
+      qty:       1,
+      snapshot:  product.snapshot || product.image_url || null,
+      designs:   product.customDesigns || product.designs || [],
+      gender:    product.gender || null,
+      printSize: product.printSize || null,
     });
   }
   saveCart();

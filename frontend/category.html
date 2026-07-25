@@ -3,10 +3,112 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Jai'fore — Category</title>
+  <title>Jai'fore — Design Studio</title>
   <link rel="stylesheet" href="styles/services.css"/>
-  <link rel="stylesheet" href="styles/category.css"/>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Karla:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="styles/configurator.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Karla:wght@300;400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+
+  <style>
+    /* ── GENDER MODAL ─────────────────────────────── */
+    #genderModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    #genderModal.visible  { opacity: 1; }
+    #genderModal.fade-out { opacity: 0; }
+
+    .gender-modal-box {
+      background: #fff;
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      width: min(380px, 90vw);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+      transform: translateY(0);
+    }
+    .gender-modal-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 0.4rem;
+    }
+    .gender-modal-sub {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+    .gender-modal-options {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .gender-opt {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1.2rem 2rem;
+      border: 2px solid #e8e8e8;
+      border-radius: 14px;
+      background: #fafafa;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: 'Karla', sans-serif;
+    }
+    .gender-opt:hover {
+      border-color: #7b5ea7;
+      background: #f3eeff;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(123,94,167,0.15);
+    }
+    .gender-icon  { font-size: 2rem; }
+    .gender-label { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; }
+
+    /* ── GENDER TOGGLE (in studio) ───────────────── */
+    .gender-toggle {
+      display: flex;
+      gap: 0.4rem;
+      background: #f0f0f0;
+      border-radius: 10px;
+      padding: 3px;
+    }
+    .gender-btn {
+      padding: 0.3rem 0.9rem;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      font-family: 'Karla', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    .gender-btn.active {
+      background: #7b5ea7;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(123,94,167,0.3);
+    }
+    .gender-btn:hover:not(.active) { background: #e0e0e0; color: #333; }
+
+    /* ── TOGGLE ROW ──────────────────────────────── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+  </style>
 </head>
 <body>
 
@@ -30,72 +132,122 @@
     </div>
   </nav>
 
-  <!-- HERO -->
-  <section class="cat-page-hero">
-    <div class="cat-page-hero-inner">
-      <a href="services.html" class="back-link">← Back to Services</a>
-      <div class="hero-tag" id="catTag">Category</div>
-      <h1 class="hero-title" id="catTitle">Products</h1>
-      <p class="hero-sub" id="catDesc"></p>
-    </div>
-  </section>
+  <!-- STUDIO -->
+  <main class="studio">
 
-  <!-- FILTERS -->
-  <div class="cat-toolbar">
-    <div class="cat-search-wrap">
-      <svg class="cat-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" class="cat-search-input" id="searchInput" placeholder="Search products..." aria-label="Search products"/>
-    </div>
-    <div class="cat-count" id="catCount">Loading...</div>
-    <div class="cat-filters">
-      <select class="filter-select" id="categorySelect">
-        <option value="apparel">Apparel &amp; Merchandise</option>
-        <option value="design">Graphic Design</option>
-        <option value="webdev">Web Development</option>
-      </select>
-      <select class="filter-select" id="sortSelect">
-        <option value="newest">Newest First</option>
-        <option value="price-asc">Price: Low to High</option>
-        <option value="price-desc">Price: High to Low</option>
-      </select>
-      <select class="filter-select" id="stockSelect">
-        <option value="all">All Items</option>
-        <option value="instock">In Stock Only</option>
-      </select>
-    </div>
-  </div>
+    <!-- LEFT: CANVAS -->
+    <div class="studio-canvas-wrap">
 
-  <!-- PRODUCTS GRID -->
-  <main class="cat-main">
-    <div class="products-grid" id="cat-grid">
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
+      <div class="toggle-row">
+        <div class="view-toggle">
+          <button class="view-btn active" data-view="front">Front</button>
+          <button class="view-btn" data-view="back">Back</button>
+        </div>
+        <div class="gender-toggle">
+          <button class="gender-btn active" data-gender="male">👨 Male</button>
+          <button class="gender-btn" data-gender="female">👩 Female</button>
+        </div>
+      </div>
+
+      <div class="studio-product-name" id="studioProductName">Loading...</div>
+
+      <!-- id="canvasOuter" added so JS can target it for scroll on zoom -->
+      <div class="canvas-outer" id="canvasOuter">
+        <div class="canvas-container" id="canvasContainer">
+          <img class="merch-mockup" id="merchMockup" src="" alt="Merch"/>
+          <div class="zone" id="printZone"><span>Print Area</span></div>
+        </div>
+      </div>
+
+      <div class="zoom-controls">
+        <button class="zoom-btn" id="zoomOutBtn">−</button>
+        <span class="zoom-label" id="zoomLabel">100%</span>
+        <button class="zoom-btn" id="zoomInBtn">+</button>
+        <button class="zoom-btn" id="zoomResetBtn" title="Reset zoom" style="font-size:0.7rem;width:auto;padding:0 8px;">Reset</button>
+      </div>
+
+      <div class="canvas-actions">
+        <button class="ca-btn" id="undoBtn" disabled>↩ Undo</button>
+        <button class="ca-btn" id="redoBtn" disabled>↪ Redo</button>
+        <button class="ca-btn" id="clearBtn">✕ Clear All</button>
+        <button class="ca-btn danger" id="removeBtn">🗑 Remove Selected</button>
+      </div>
+
     </div>
 
-    <div class="load-more-wrap" id="loadMoreWrap">
-      <button class="load-more-btn" id="loadMoreBtn">
-        <span>Load More</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    <!-- RIGHT: PANEL -->
+    <div class="studio-panel">
+
+      <div class="panel-section">
+        <div class="panel-label">Selected Merch</div>
+        <div class="panel-merch-info">
+          <div class="panel-merch-name" id="panelMerchName">—</div>
+          <div class="panel-merch-price" id="panelMerchPrice">—</div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Designs Applied <span class="design-count" id="designCount">0 / 5</span></div>
+        <div class="design-slots" id="designSlots"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Jaifore Graphic Designs</div>
+        <div class="graphic-grid" id="graphicGrid">
+          <div class="gd-skeleton"></div>
+          <div class="gd-skeleton"></div>
+          <div class="gd-skeleton"></div>
+          <div class="gd-skeleton"></div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Upload Your Own Design</div>
+        <label class="upload-zone" id="uploadZone">
+          <input type="file" id="uploadInput" accept="image/*" hidden/>
+          <div class="upload-icon">↑</div>
+          <div class="upload-text">Click to upload<br/><span>PNG, JPG, SVG — max 5MB</span></div>
+        </label>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Print Size <span style="color:#aaa;font-weight:400;text-transform:none;letter-spacing:0">(price per design)</span></div>
+        <div class="print-size-row" id="printSizeRow"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Garment Size <button class="size-guide-link" onclick="openSizeGuide()" style="text-transform:none;letter-spacing:0;font-size:0.72rem">Size Guide</button></div>
+        <div class="size-row">
+          <button class="sz-btn" data-size="XS">XS</button>
+          <button class="sz-btn" data-size="S">S</button>
+          <button class="sz-btn" data-size="M">M</button>
+          <button class="sz-btn" data-size="L">L</button>
+          <button class="sz-btn" data-size="XL">XL</button>
+          <button class="sz-btn" data-size="XXL">XXL</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Design Notes <span style="color:#aaa;font-weight:400">(optional)</span></div>
+        <textarea class="design-notes" id="designNotes" placeholder="Any special instructions for the print team..." rows="3"></textarea>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Quantity <span style="color:#aaa;font-weight:400;text-transform:none;letter-spacing:0">(identical shirts, same design)</span></div>
+        <div class="quantity-row">
+          <button class="qty-btn" id="qtyMinusBtn" type="button" aria-label="Decrease quantity">−</button>
+          <input type="number" class="quantity-input" id="quantityInput" value="1" min="1" inputmode="numeric" aria-label="Quantity"/>
+          <button class="qty-btn" id="qtyPlusBtn" type="button" aria-label="Increase quantity">+</button>
+        </div>
+      </div>
+
+      <button class="add-to-cart-btn" id="addToCartBtn">
+        Add to Cart — <span id="cartBtnPrice">$0.00</span>
       </button>
-    </div>
+      <p class="studio-msg" id="studioMsg"></p>
 
-    <div class="cat-empty hidden" id="catEmpty">
-      <div class="empty-icon">◎</div>
-      <p id="catEmptyMsg">No products found in this category yet.</p>
-      <a href="services.html" class="load-more-btn" style="display:inline-flex;text-decoration:none">← Back to Services</a>
     </div>
   </main>
-
-  <!-- PRODUCT MODAL -->
-  <div class="modal-overlay" id="modal-overlay"></div>
-  <div class="product-modal" id="product-modal">
-    <button class="modal-close" id="modal-close">✕</button>
-    <div class="modal-inner" id="modal-inner"></div>
-  </div>
 
 <footer class="footer">
   <div class="footer-inner">
@@ -111,10 +263,12 @@
   </div>
 </footer>
 
+
   <script src="scripts/currency.js"></script>
   <script src="scripts/header.js"></script>
   <script src="data/cart.js"></script>
-  <script src="scripts/category.js"></script>
+  <script src="scripts/configurator.js"></script>
+  <script src="scripts/size-guide.js"></script>
   <script src="scripts/cookie-consent.js"></script>
 </body>
 </html>

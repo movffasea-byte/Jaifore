@@ -39,6 +39,12 @@ let cheapestPrice     = 1;
 let uploadFee         = 0.50;
 const MAX_DESIGNS     = 5;
 
+// item 18 — quantity for the whole configured garment. All designs + print
+// fees scale together as N identical physical shirts (product decision:
+// "whole bundle x qty" — each unit is a fully printed, separate shirt).
+let quantity          = 1;
+const MIN_QUANTITY    = 1;
+
 // ── ZOOM ─────────────────────────────────────────────
 let zoomLevel   = 1;
 const ZOOM_STEP = 0.25;
@@ -104,6 +110,7 @@ async function init() {
   loadGraphicDesigns();
   updateSlots();
   updateUndoRedoBtns();
+  updateQuantityUI();
 }
 
 // ── GENDER MODAL ─────────────────────────────────────
@@ -400,6 +407,9 @@ function makeResizable(el, design) {
 }
 
 // ── UPDATE TOTAL ─────────────────────────────────────
+// item 18: the whole bundle (merch + designs + print fees) now scales by
+// quantity — "5 separate shirts, each fully printed" per product decision,
+// not just the garment price scaling while print/design fees stay flat.
 function updateTotal() {
   const merchPrice   = parseFloat(product?.price || 0);
   const allDesigns   = Object.values(designsByView).flat();
@@ -407,13 +417,46 @@ function updateTotal() {
   const printTotal   = selectedPrintSize
     ? parseFloat(selectedPrintSize.price) * allDesigns.length
     : 0;
-  const total = merchPrice + designsTotal + printTotal;
+  const unitTotal = merchPrice + designsTotal + printTotal;
+  const total     = unitTotal * quantity;
 
   const formatted = window.JaiforeCurrency?.isReady()
     ? window.JaiforeCurrency.format(total)
     : `$${total.toFixed(2)}`;
   document.getElementById('cartBtnPrice').textContent = formatted;
 }
+
+// ── QUANTITY (item 18) ───────────────────────────────
+// Stepper (-/+) with an editable number input in between, per product
+// decision. No upper cap requested — only enforces a floor of MIN_QUANTITY
+// (can't go to 0 or negative). Typing a non-numeric or sub-minimum value
+// snaps back to the minimum rather than silently accepting bad input.
+function updateQuantityUI() {
+  const input = document.getElementById('quantityInput');
+  if (input) input.value = quantity;
+
+  const minusBtn = document.getElementById('qtyMinusBtn');
+  if (minusBtn) minusBtn.disabled = quantity <= MIN_QUANTITY;
+}
+
+function setQuantity(newQty) {
+  const parsed = parseInt(newQty, 10);
+  quantity = (isNaN(parsed) || parsed < MIN_QUANTITY) ? MIN_QUANTITY : parsed;
+  updateQuantityUI();
+  updateTotal();
+}
+
+document.getElementById('qtyMinusBtn')?.addEventListener('click', () => {
+  setQuantity(quantity - 1);
+});
+
+document.getElementById('qtyPlusBtn')?.addEventListener('click', () => {
+  setQuantity(quantity + 1);
+});
+
+document.getElementById('quantityInput')?.addEventListener('change', (e) => {
+  setQuantity(e.target.value);
+});
 
 // ── SLOTS ─────────────────────────────────────────────
 function updateSlots() {
@@ -589,6 +632,12 @@ document.querySelectorAll('.sz-btn').forEach(btn => {
 });
 
 // ── ADD TO CART ───────────────────────────────────────
+// item 18: quantity is fulfilled by calling addToCart() N times (Option A —
+// no changes needed to cart.js's accumulation model). cart.js's existing
+// `existing.qty += 1` logic naturally accumulates to the right count, and the
+// item 18 config-signature fix in cart.js ensures these N calls always merge
+// into ONE line (same designs/gender/printSize) rather than creating N
+// separate lines or accidentally merging into an unrelated configuration.
 document.getElementById('addToCartBtn').addEventListener('click', () => {
   if (!selectedSize) { showMsg('Please select a garment size first.'); return; }
 
@@ -598,7 +647,7 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
 
   const designsTotal = allDesigns.reduce((sum, d) => sum + (d.price || 0), 0);
   const printTotal   = parseFloat(selectedPrintSize.price) * allDesigns.length;
-  const totalPrice   = parseFloat(product.price) + designsTotal + printTotal;
+  const unitPrice    = parseFloat(product.price) + designsTotal + printTotal;
 
   // Use the mockup currently shown (front view of the selected gender) as the
   // cart/checkout thumbnail, so the customer sees their configured product,
@@ -610,7 +659,7 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
     ...product,
     _id:           product.id,   // addToCart() in cart.js matches on _id — must align with product schema
     id:            product.id,
-    price:         totalPrice,
+    price:         unitPrice,    // per-unit price — addToCart() is called `quantity` times below, cart.js accumulates qty
     gender:        currentGender,
     snapshot:      snapshotImage,
     customDesigns: allDesigns.map(d => ({
@@ -623,8 +672,11 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
     isCustom:     true
   };
 
-  addToCart(cartProduct, selectedSize, 'apparel');
-  showMsg('✓ Added to cart! Redirecting to checkout...');
+  for (let i = 0; i < quantity; i++) {
+    addToCart(cartProduct, selectedSize, 'apparel');
+  }
+
+  showMsg(`✓ Added ${quantity} to cart! Redirecting to checkout...`);
   setTimeout(() => window.location.href = 'checkout.html', 1200);
 });
 

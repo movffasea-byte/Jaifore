@@ -523,6 +523,60 @@
 .sz-btn:hover    { border-color: #7b5ea7; color: #7b5ea7; }
 .sz-btn.selected { background: #7b5ea7; border-color: #7b5ea7; color: #fff; }
 
+/* ── QUANTITY (item 18) ────────────────────────────── */
+.quantity-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.qty-btn {
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid #d8d0c4;
+  border-radius: 8px;
+  background: #faf8f5;
+  color: #555;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.qty-btn:hover:not(:disabled) { border-color: #7b5ea7; color: #7b5ea7; }
+.qty-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.quantity-input {
+  width: 56px;
+  height: 34px;
+  text-align: center;
+  background: #faf8f5;
+  border: 1.5px solid #d8d0c4;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111;
+  outline: none;
+  transition: border-color 0.2s;
+  /* Hide native spinner arrows — the qty-btn pair replaces them */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.quantity-input::-webkit-outer-spin-button,
+.quantity-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.quantity-input:focus { border-color: #7b5ea7; }
+
 /* ── NOTES ─────────────────────────────────────────── */
 .design-notes {
   width: 100%;
