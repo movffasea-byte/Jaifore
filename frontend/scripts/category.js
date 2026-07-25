@@ -33,10 +33,10 @@ const PLACEHOLDERS = {
 };
 
 // ── FORMAT PRICE ───────────────────────────────────────
-// Pre-existing bug fix: this file called formatPrice() in openModal() without
-// ever defining or importing it (category.html loads currency.js directly,
-// not services.js, so the global services.js version was never in scope).
-// Mirrors the same pattern services.js already uses.
+// Pre-existing bug fix (item 17): this file called formatPrice() in
+// openModal() without ever defining or importing it (category.html loads
+// currency.js directly, not services.js, so the global services.js version
+// was never in scope). Mirrors the same pattern services.js already uses.
 function formatPrice(amount) {
   if (window.JaiforeCurrency?.isReady()) {
     return window.JaiforeCurrency.format(amount);
@@ -54,6 +54,72 @@ const PAGE_SIZE      = 12;
 let currentCategory  = 'apparel';
 let selectedSize     = null;
 let currentProduct   = null;
+
+// item 18b — quantity for STANDALONE design products (not the configurator,
+// which has its own separate quantity from the first half of item 18). Keyed
+// by product id so the count is shared/synced between a product's card and
+// its modal, and independent per product on the page. Only meaningful for
+// the 'design' category — apparel goes through the configurator instead,
+// webdev is a one-off enquiry, so quantity doesn't apply to either.
+const designQuantities = {}; // { [productId]: qty }
+const MIN_QUANTITY = 1;
+
+function getDesignQty(productId) {
+  return designQuantities[productId] || MIN_QUANTITY;
+}
+
+function setDesignQty(productId, newQty) {
+  const parsed = parseInt(newQty, 10);
+  const qty = (isNaN(parsed) || parsed < MIN_QUANTITY) ? MIN_QUANTITY : parsed;
+  designQuantities[productId] = qty;
+
+  // Sync every stepper for this product currently on screen — card AND
+  // modal (if open) — so they never show different numbers for the same item.
+  document.querySelectorAll(`.qty-input[data-product-id="${productId}"]`).forEach(input => {
+    input.value = qty;
+  });
+  document.querySelectorAll(`.qty-minus-btn[data-product-id="${productId}"]`).forEach(btn => {
+    btn.disabled = qty <= MIN_QUANTITY;
+  });
+  return qty;
+}
+
+// Builds the stepper markup shared by card + modal. Returns an empty string
+// for non-design categories, so apparel/webdev cards are completely unaffected.
+function renderQtyStepper(productId, category) {
+  if (category !== 'design') return '';
+  const qty = getDesignQty(productId);
+  return `
+    <div class="qty-stepper" onclick="event.stopPropagation()">
+      <button class="qty-minus-btn" type="button" data-product-id="${productId}" ${qty <= MIN_QUANTITY ? 'disabled' : ''}>−</button>
+      <input type="number" class="qty-input" data-product-id="${productId}" value="${qty}" min="${MIN_QUANTITY}" inputmode="numeric" aria-label="Quantity"/>
+      <button class="qty-plus-btn" type="button" data-product-id="${productId}">+</button>
+    </div>
+  `;
+}
+
+// Delegated listeners — cards/modal content get re-created on every render
+// and filter pass, so binding once on a stable ancestor avoids re-attaching
+// listeners (and losing them) every time the DOM is rebuilt.
+document.addEventListener('click', (e) => {
+  const minusBtn = e.target.closest('.qty-minus-btn');
+  if (minusBtn) {
+    const id = minusBtn.dataset.productId;
+    setDesignQty(id, getDesignQty(id) - 1);
+    return;
+  }
+  const plusBtn = e.target.closest('.qty-plus-btn');
+  if (plusBtn) {
+    const id = plusBtn.dataset.productId;
+    setDesignQty(id, getDesignQty(id) + 1);
+  }
+});
+
+document.addEventListener('change', (e) => {
+  if (e.target.classList.contains('qty-input')) {
+    setDesignQty(e.target.dataset.productId, e.target.value);
+  }
+});
 
 // ── INIT ────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
@@ -152,6 +218,7 @@ function renderCard(product, index) {
 
   const isWebdev  = currentCategory === 'webdev';
   const isApparel = currentCategory === 'apparel';
+  const isDesign  = currentCategory === 'design';
   const placeholder = PLACEHOLDERS[currentCategory]?.[index % 7] || '📦';
 
   const imgHTML = product.image_url
@@ -171,14 +238,23 @@ function renderCard(product, index) {
     ? `<span class="card-badge out-of-stock">Out of Stock</span>`
     : `<span class="card-badge">${meta.tag}</span>`;
 
+  // item 18b: design products get a qty stepper next to Order Now.
+  const qtyStepperHTML = renderQtyStepper(product.id, currentCategory);
+
   const footerHTML = isApparel
     ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
        <div style="display:flex;gap:0.4rem">
          <button class="configure-btn" data-id="${product.id}">🎨 Design</button>
          <button class="card-action" data-id="${product.id}" ${!product.in_stock ? 'disabled' : ''}>Add to Cart</button>
        </div>`
-    : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
-       <button class="card-action" data-id="${product.id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
+    : isDesign
+      ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
+         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+           ${qtyStepperHTML}
+           <button class="card-action" data-id="${product.id}">Order Now</button>
+         </div>`
+      : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
+         <button class="card-action" data-id="${product.id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
 
   card.innerHTML = `
     <div class="card-img">
@@ -196,7 +272,8 @@ function renderCard(product, index) {
 
   card.addEventListener('click', (e) => {
     if (!e.target.classList.contains('card-action') &&
-        !e.target.classList.contains('configure-btn')) {
+        !e.target.classList.contains('configure-btn') &&
+        !e.target.closest('.qty-stepper')) {
       openModal(product);
     }
   });
@@ -205,6 +282,14 @@ function renderCard(product, index) {
     e.stopPropagation();
     if (isWebdev || (isApparel && product.sizes?.length)) {
       openModal(product);
+    } else if (isDesign) {
+      // item 18b: loop addToCart() qty times, same accumulation pattern as
+      // the configurator half — no cart.js changes needed, existing.qty += 1
+      // naturally accumulates to the right count across repeated calls.
+      const qty = getDesignQty(product.id);
+      for (let i = 0; i < qty; i++) {
+        addToCart(product, null, currentCategory);
+      }
     } else {
       addToCart(product, null, currentCategory);
     }
@@ -226,6 +311,7 @@ function openModal(product) {
 
   const isWebdev  = currentCategory === 'webdev';
   const isApparel = currentCategory === 'apparel';
+  const isDesign  = currentCategory === 'design';
   const placeholder = PLACEHOLDERS[currentCategory]?.[0] || '📦';
 
   const imgHTML = product.image_url
@@ -239,6 +325,16 @@ function openModal(product) {
           ${product.sizes.map(s => `<button class="size-opt" data-size="${s}">${s}</button>`).join('')}
         </div>
        </div>` : '';
+
+  // item 18b: same stepper component as the card, synced via shared
+  // designQuantities state — opening the modal shows whatever qty was
+  // already set on the card, not reset back to 1.
+  const qtyStepperModalHTML = isDesign
+    ? `<div class="modal-qty-row">
+         <label>Quantity</label>
+         ${renderQtyStepper(product.id, currentCategory)}
+       </div>`
+    : '';
 
   const actionHTML = isWebdev
     ? `<a href="mailto:hello@jaifore.com?subject=Enquiry: ${encodeURIComponent(product.name)}" class="modal-link">✉ Enquire About This Site →</a>
@@ -257,6 +353,7 @@ function openModal(product) {
         <div class="modal-price">${formatPrice(product.price)}</div>
         <div class="modal-desc">${product.description}</div>
         ${sizesHTML}
+        ${qtyStepperModalHTML}
         ${actionHTML}
       </div>
     </div>
@@ -279,7 +376,14 @@ function openModal(product) {
         setTimeout(() => { addBtn.textContent = 'Add to Cart'; addBtn.style.background = ''; }, 1500);
         return;
       }
-      addToCart(product, selectedSize, currentCategory);
+      if (isDesign) {
+        const qty = getDesignQty(product.id);
+        for (let i = 0; i < qty; i++) {
+          addToCart(product, selectedSize, currentCategory);
+        }
+      } else {
+        addToCart(product, selectedSize, currentCategory);
+      }
       closeModal();
       openCart();
     });

@@ -564,6 +564,95 @@ img {
 }
 
 /* ================================
+   JAIFORE — DESIGN PRODUCT QUANTITY STEPPER (item 18b)
+   Paste into services.css. Uses the same CSS custom properties
+   (--border, --purple-light, --font-body, --radius, --transition) that
+   every other rule in this file already relies on, rather than hardcoded
+   hex values — keeps this in sync automatically if the palette changes.
+   ================================ */
+
+.qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.qty-minus-btn,
+.qty-plus-btn {
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--transition), color var(--transition);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.qty-minus-btn:hover:not(:disabled),
+.qty-plus-btn:hover:not(:disabled) { border-color: var(--purple); color: var(--purple); }
+.qty-minus-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.qty-input {
+  width: 40px;
+  height: 26px;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+  outline: none;
+  transition: border-color var(--transition);
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.qty-input:focus { border-color: var(--purple); }
+
+/* Modal variant — same stepper, slightly larger, with its own label row */
+.modal-qty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.6rem 0;
+}
+
+.modal-qty-row label {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.modal-qty-row .qty-stepper .qty-minus-btn,
+.modal-qty-row .qty-stepper .qty-plus-btn {
+  width: 30px;
+  height: 30px;
+}
+
+.modal-qty-row .qty-stepper .qty-input {
+  width: 46px;
+  height: 30px;
+}
+
+/* ================================
    FOOTER
    ================================ */
 .footer { border-top: 2px solid var(--ink); padding: 2rem 3rem; }

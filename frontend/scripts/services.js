@@ -8,6 +8,66 @@ const API = 'https://jai-fore-production.up.railway.app';
 let selectedSize         = null;
 let currentModalProduct  = null;
 
+// item 18b — quantity for STANDALONE design products, shared with the same
+// pattern used in category.js. Kept as a separate object per file since
+// services.js and category.js are two different pages/scripts that never
+// run together, so there's no risk of them stepping on each other.
+const designQuantities = {};
+const MIN_QUANTITY = 1;
+
+function getDesignQty(productId) {
+  return designQuantities[productId] || MIN_QUANTITY;
+}
+
+function setDesignQty(productId, newQty) {
+  const parsed = parseInt(newQty, 10);
+  const qty = (isNaN(parsed) || parsed < MIN_QUANTITY) ? MIN_QUANTITY : parsed;
+  designQuantities[productId] = qty;
+
+  document.querySelectorAll(`.qty-input[data-product-id="${productId}"]`).forEach(input => {
+    input.value = qty;
+  });
+  document.querySelectorAll(`.qty-minus-btn[data-product-id="${productId}"]`).forEach(btn => {
+    btn.disabled = qty <= MIN_QUANTITY;
+  });
+  return qty;
+}
+
+function renderQtyStepper(productId, category) {
+  if (category !== 'design') return '';
+  const qty = getDesignQty(productId);
+  return `
+    <div class="qty-stepper" onclick="event.stopPropagation()">
+      <button class="qty-minus-btn" type="button" data-product-id="${productId}" ${qty <= MIN_QUANTITY ? 'disabled' : ''}>−</button>
+      <input type="number" class="qty-input" data-product-id="${productId}" value="${qty}" min="${MIN_QUANTITY}" inputmode="numeric" aria-label="Quantity"/>
+      <button class="qty-plus-btn" type="button" data-product-id="${productId}">+</button>
+    </div>
+  `;
+}
+
+// Delegated listeners — same reasoning as category.js: loadCategory()
+// rebuilds each grid's innerHTML on load, so binding on document (rather
+// than per-card) survives any future re-render without re-attaching.
+document.addEventListener('click', (e) => {
+  const minusBtn = e.target.closest('.qty-minus-btn');
+  if (minusBtn) {
+    const id = minusBtn.dataset.productId;
+    setDesignQty(id, getDesignQty(id) - 1);
+    return;
+  }
+  const plusBtn = e.target.closest('.qty-plus-btn');
+  if (plusBtn) {
+    const id = plusBtn.dataset.productId;
+    setDesignQty(id, getDesignQty(id) + 1);
+  }
+});
+
+document.addEventListener('change', (e) => {
+  if (e.target.classList.contains('qty-input')) {
+    setDesignQty(e.target.dataset.productId, e.target.value);
+  }
+});
+
 // ── PLACEHOLDERS ───────────────────────────────────────
 const PLACEHOLDERS = {
   apparel: ['👕','👖','🩳','🧥','🎒','☕','📱'],
@@ -93,6 +153,9 @@ function renderCard(product, index, category) {
   const domainHTML = isWebdev && product.domain
     ? `<div class="site-domain">↗ ${product.domain}</div>` : '';
 
+  // item 18b: design products get a qty stepper alongside Order Now.
+  const qtyStepperHTML = renderQtyStepper(product.id, category);
+
   // Apparel gets two buttons — Add to Cart + Design It
   const footerHTML = isApparel
     ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
@@ -100,8 +163,14 @@ function renderCard(product, index, category) {
          <button class="configure-btn" data-id="${product.id}">🎨 Design</button>
          <button class="card-action"   data-id="${product.id}">Add to Cart</button>
        </div>`
-    : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
-       <button class="card-action" data-id="${product.id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
+    : isDesign
+      ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
+         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+           ${qtyStepperHTML}
+           <button class="card-action" data-id="${product.id}">Order Now</button>
+         </div>`
+      : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
+         <button class="card-action" data-id="${product.id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
 
   card.innerHTML = `
     <div class="card-img">
@@ -120,7 +189,8 @@ function renderCard(product, index, category) {
   // Card click → modal
   card.addEventListener('click', (e) => {
     if (!e.target.classList.contains('card-action') &&
-        !e.target.classList.contains('configure-btn')) {
+        !e.target.classList.contains('configure-btn') &&
+        !e.target.closest('.qty-stepper')) {
       openModal(product, category);
     }
   });
@@ -130,6 +200,13 @@ function renderCard(product, index, category) {
     e.stopPropagation();
     if (isWebdev || (isApparel && product.sizes?.length)) {
       openModal(product, category);
+    } else if (isDesign) {
+      // item 18b: loop addToCart() qty times — same accumulation pattern
+      // as the configurator, no cart.js changes needed for this to work.
+      const qty = getDesignQty(product.id);
+      for (let i = 0; i < qty; i++) {
+        addToCart(product, null, category);
+      }
     } else {
       addToCart(product, null, category);
     }
@@ -171,6 +248,7 @@ function openModal(product, category) {
 
   const isWebdev  = category === 'webdev';
   const isApparel = category === 'apparel';
+  const isDesign  = category === 'design';
   const placeholder = getPlaceholder(category, 0);
 
   const imgHTML = product.image_url
@@ -184,6 +262,15 @@ function openModal(product, category) {
           ${product.sizes.map(s => `<button class="size-opt" data-size="${s}">${s}</button>`).join('')}
         </div>
        </div>` : '';
+
+  // item 18b: same stepper as the card, synced via shared designQuantities —
+  // opening the modal reflects whatever quantity was already set on the card.
+  const qtyStepperModalHTML = isDesign
+    ? `<div class="modal-qty-row">
+         <label>Quantity</label>
+         ${renderQtyStepper(product.id, category)}
+       </div>`
+    : '';
 
   const actionHTML = isWebdev
     ? `<a href="mailto:hello@jaifore.com?subject=Enquiry: ${encodeURIComponent(product.name)}" class="modal-link">✉ Enquire About This Site →</a>
@@ -206,6 +293,7 @@ function openModal(product, category) {
         <div class="modal-price">${formatPrice(product.price)}</div>
         <div class="modal-desc">${product.description}</div>
         ${sizesHTML}
+        ${qtyStepperModalHTML}
         ${actionHTML}
       </div>
     </div>
@@ -230,7 +318,14 @@ function openModal(product, category) {
         setTimeout(() => { addBtn.textContent = 'Add to Cart'; addBtn.style.background = ''; }, 1500);
         return;
       }
-      addToCart(product, selectedSize, category);
+      if (isDesign) {
+        const qty = getDesignQty(product.id);
+        for (let i = 0; i < qty; i++) {
+          addToCart(product, selectedSize, category);
+        }
+      } else {
+        addToCart(product, selectedSize, category);
+      }
       closeModal();
       openCart();
     });
