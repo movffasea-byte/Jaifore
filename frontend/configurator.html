@@ -14,6 +14,7 @@
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.65);
+      -webkit-backdrop-filter: blur(6px);
       backdrop-filter: blur(6px);
       display: flex;
       align-items: center;
@@ -163,7 +164,7 @@
         <button class="zoom-btn" id="zoomOutBtn">−</button>
         <span class="zoom-label" id="zoomLabel">100%</span>
         <button class="zoom-btn" id="zoomInBtn">+</button>
-        <button class="zoom-btn" id="zoomResetBtn" title="Reset zoom" style="font-size:0.7rem;width:auto;padding:0 8px;">Reset</button>
+        <button class="zoom-btn zoom-btn--reset" id="zoomResetBtn" title="Reset zoom">Reset</button>
       </div>
 
       <div class="canvas-actions">
@@ -211,12 +212,12 @@
       </div>
 
       <div class="panel-section">
-        <div class="panel-label">Print Size <span style="color:#aaa;font-weight:400;text-transform:none;letter-spacing:0">(price per design)</span></div>
+        <div class="panel-label">Print Size <span class="panel-label-note">(price per design)</span></div>
         <div class="print-size-row" id="printSizeRow"></div>
       </div>
 
       <div class="panel-section">
-        <div class="panel-label">Garment Size <button class="size-guide-link" onclick="openSizeGuide()" style="text-transform:none;letter-spacing:0;font-size:0.72rem">Size Guide</button></div>
+        <div class="panel-label">Garment Size <button class="size-guide-link size-guide-link--inline" onclick="openSizeGuide()">Size Guide</button></div>
         <div class="size-row">
           <button class="sz-btn" data-size="XS">XS</button>
           <button class="sz-btn" data-size="S">S</button>
@@ -228,8 +229,17 @@
       </div>
 
       <div class="panel-section">
-        <div class="panel-label">Design Notes <span style="color:#aaa;font-weight:400">(optional)</span></div>
+        <div class="panel-label">Design Notes <span class="panel-label-note">(optional)</span></div>
         <textarea class="design-notes" id="designNotes" placeholder="Any special instructions for the print team..." rows="3"></textarea>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Quantity <span class="panel-label-note">(identical shirts, same design)</span></div>
+        <div class="quantity-row">
+          <button class="qty-btn" id="qtyMinusBtn" type="button" aria-label="Decrease quantity">−</button>
+          <input type="number" class="quantity-input" id="quantityInput" value="1" min="1" inputmode="numeric" aria-label="Quantity"/>
+          <button class="qty-btn" id="qtyPlusBtn" type="button" aria-label="Increase quantity">+</button>
+        </div>
       </div>
 
       <button class="add-to-cart-btn" id="addToCartBtn">
@@ -242,7 +252,7 @@
 
 <footer class="footer">
   <div class="footer-inner">
-    <img class="footer-brand" src="logo/rooted2.jpg"/>
+    <img class="footer-brand" src="logo/rooted2.jpg" alt="Jai'fore"/>
     <div class="footer-copy">© 2026 Jai'fore Media. Worldwide. By Design.</div>
     <div class="footer-legal">
       <a href="privacy-policy.html">Privacy Policy</a>

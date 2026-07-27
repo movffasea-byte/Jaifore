@@ -92,6 +92,13 @@
 
 .zoom-btn:hover { background: #7b5ea7; color: #fff; }
 
+/* Reset button variant — was inline-styled (font-size, width, padding) */
+.zoom-btn--reset {
+  font-size: 0.7rem;
+  width: auto;
+  padding: 0 8px;
+}
+
 .zoom-label {
   font-family: 'DM Sans', sans-serif;
   font-size: 0.75rem;
@@ -275,6 +282,23 @@
   padding: 2px 8px;
   font-size: 0.7rem;
   font-weight: 700;
+}
+
+/* Muted inline note inside a panel-label, e.g. "(optional)", "(price per
+   design)" — was previously inline-styled per instance. */
+.panel-label-note {
+  color: #aaa;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* size-guide-link when it appears inline inside a panel-label (as opposed
+   to its standalone use elsewhere) — was previously inline-styled. */
+.size-guide-link--inline {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.72rem;
 }
 
 /* ── MERCH INFO ────────────────────────────────────── */
