@@ -51,6 +51,103 @@ const ZOOM_STEP = 0.25;
 const ZOOM_MIN  = 0.5;
 const ZOOM_MAX  = 3;
 
+// item 20 — draft persistence, so an in-progress design survives navigating
+// away and back within a 45-minute window. Single GLOBAL draft (not
+// per-product) — product decision. Stored in localStorage since this is
+// pre-cart state, nothing to send to a backend for.
+const DRAFT_KEY          = 'jaifore_configurator_draft';
+const DRAFT_EXPIRY_MS    = 45 * 60 * 1000; // 45 minutes
+
+function saveDraft() {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      productId:      productId,
+      currentGender:  currentGender,
+      currentView:    currentView,
+      designsByView:  serializeDesignsByView(),
+      lastActivity:   Date.now(),
+    }));
+  } catch (e) {
+    console.error('[draft] Failed to save:', e.message);
+  }
+}
+
+// Design objects normally hold a live DOM element reference (`el`), which
+// can't survive JSON serialization — strip it out for storage, the same way
+// saveToUndo()'s snapshots already do for the undo/redo stack.
+function serializeDesignsByView() {
+  const out = {};
+  for (const key of Object.keys(designsByView)) {
+    out[key] = designsByView[key].map(d => ({
+      id: d.id, src: d.src, name: d.name, price: d.price,
+      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
+    }));
+  }
+  return out;
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    if (!draft.lastActivity || (Date.now() - draft.lastActivity) > DRAFT_EXPIRY_MS) {
+      clearDraft(); // stale — clean it up rather than leave dead data sitting around
+      return null;
+    }
+    return draft;
+  } catch (e) {
+    console.error('[draft] Failed to load:', e.message);
+    return null;
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch (e) {
+    console.error('[draft] Failed to clear:', e.message);
+  }
+}
+
+// Rebuilds designsByView + DOM layers from a saved draft's plain data,
+// mirroring restoreSnapshot()'s approach for the undo/redo stack (same
+// reasoning: designs need real DOM elements + drag/resize handlers wired
+// back up, not just the plain data restored).
+function restoreDraftDesigns(draftDesignsByView, draftGender) {
+  const container = document.getElementById('canvasContainer');
+  for (const key of Object.keys(draftDesignsByView)) {
+    const list = draftDesignsByView[key];
+    designsByView[key] = [];
+    list.forEach(d => {
+      const el = document.createElement('div');
+      el.className     = 'design-layer';
+      el.style.cssText = `left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;`;
+      el.innerHTML = `
+        <img src="${d.src}" alt="${d.name}" draggable="false"/>
+        <div class="resize-handle"></div>
+      `;
+      const design = { ...d, el };
+
+      // Only the currently-active gender/view combo should be visible on
+      // load — everything else stays in memory but hidden, same convention
+      // setView()/restoreSnapshot() already use elsewhere in this file.
+      if (key !== `${draftGender || 'male'}_${currentView}`) {
+        el.style.display = 'none';
+      }
+
+      designsByView[key].push(design);
+      makeDraggable(el, design);
+      makeResizable(el, design);
+      el.addEventListener('pointerdown', (e) => {
+        if (e.target.classList.contains('resize-handle')) return;
+        selectDesign(design);
+      });
+      container.appendChild(el);
+    });
+  }
+}
+
 // ── HELPERS ─────────────────────────────────────────
 function viewKey() {
   return `${currentGender || 'male'}_${currentView}`;
@@ -99,7 +196,42 @@ async function init() {
     MOCKUPS.female.front = product.front_female || product.image_url || '';
     MOCKUPS.female.back  = product.back_female  || product.image_url || '';
 
-    showGenderModal();
+    // item 20 — check for an existing draft BEFORE showing the gender modal,
+    // since the prompt (if needed) must appear on load, ahead of anything else.
+    const draft = loadDraft();
+
+    if (draft && String(draft.productId) === String(productId)) {
+      // Same product as the draft — restore directly, no prompt needed at all.
+      // ORDER MATTERS: currentGender/currentView must be set from the draft
+      // BEFORE selectGender() runs below. selectGender() calls setView(),
+      // which only hides/shows designs when viewKey() changes between calls
+      // (prevKey !== nextKey) — since these two globals already match the
+      // draft's values by the time selectGender() re-sets them to the same
+      // thing, prevKey === nextKey, so the just-restored designs correctly
+      // stay visible instead of being hidden by that visibility-toggle logic.
+      currentGender = draft.currentGender;
+      currentView   = draft.currentView;
+      restoreDraftDesigns(draft.designsByView, draft.currentGender);
+      selectGender(draft.currentGender); // sets active toggle state + calls setView()
+    } else if (draft) {
+      // Draft belongs to a DIFFERENT product — ask before doing anything else.
+      showDraftPromptModal(
+        draft,
+        () => {
+          // Continue: redirect to the draft's own product. That reload will
+          // hit the "same product" branch above and restore cleanly.
+          window.location.href = `configurator.html?product=${draft.productId}`;
+        },
+        () => {
+          // Start fresh: discard the old draft, proceed normally for THIS product.
+          clearDraft();
+          showGenderModal();
+        }
+      );
+    } else {
+      // No draft at all — completely normal flow.
+      showGenderModal();
+    }
 
   } catch (err) {
     console.error('Init error:', err);
@@ -111,6 +243,49 @@ async function init() {
   updateSlots();
   updateUndoRedoBtns();
   updateQuantityUI();
+}
+
+// ── DRAFT CONTINUE/RESTART MODAL (item 20) ───────────
+// Shown on page load ONLY when a fresh (non-expired) draft exists for a
+// DIFFERENT product than the one currently being opened. Fires before the
+// gender modal or any product setup, per product decision ("on page load").
+function showDraftPromptModal(draft, onContinue, onStartFresh) {
+  const existing = document.getElementById('draftPromptModal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'draftPromptModal';
+  overlay.innerHTML = `
+    <div class="gender-modal-box">
+      <div class="gender-modal-title">Continue your last design?</div>
+      <div class="gender-modal-sub">You have an unfinished design on another product. Pick up where you left off, or start fresh here.</div>
+      <div class="gender-modal-options">
+        <button class="gender-opt" data-choice="continue">
+          <span class="gender-icon">↩</span>
+          <span class="gender-label">Continue Draft</span>
+        </button>
+        <button class="gender-opt" data-choice="fresh">
+          <span class="gender-icon">✕</span>
+          <span class="gender-label">Start Fresh</span>
+        </button>
+      </div>
+    </div>
+  `;
+
+  overlay.querySelectorAll('.gender-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const choice = btn.dataset.choice;
+      overlay.classList.add('fade-out');
+      setTimeout(() => {
+        overlay.remove();
+        if (choice === 'continue') onContinue(draft);
+        else onStartFresh();
+      }, 300);
+    });
+  });
+
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('visible'));
 }
 
 // ── GENDER MODAL ─────────────────────────────────────
@@ -345,6 +520,7 @@ function addDesign(src, name, price = 0) {
   updateTotal();
   updatePrintZoneVisibility();
   updateUndoRedoBtns();
+  saveDraft();
   showMsg('');
 }
 
@@ -498,6 +674,7 @@ function removeDesignById(id) {
   updateTotal();
   updatePrintZoneVisibility();
   updateUndoRedoBtns();
+  saveDraft();
 }
 
 document.getElementById('removeBtn').addEventListener('click', () => {
@@ -514,6 +691,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   updateTotal();
   updatePrintZoneVisibility();
   updateUndoRedoBtns();
+  saveDraft();
 });
 
 // ── UNDO / REDO ───────────────────────────────────────
@@ -584,6 +762,7 @@ document.getElementById('undoBtn').addEventListener('click', () => {
   const { key, snapshot } = undoStack.pop();
   restoreSnapshot(key, snapshot);
   updateSlots(); updateTotal(); updatePrintZoneVisibility(); updateUndoRedoBtns();
+  saveDraft();
   showMsg('');
 });
 
@@ -601,6 +780,7 @@ document.getElementById('redoBtn').addEventListener('click', () => {
   const { key, snapshot } = redoStack.pop();
   restoreSnapshot(key, snapshot);
   updateSlots(); updateTotal(); updatePrintZoneVisibility(); updateUndoRedoBtns();
+  saveDraft();
   showMsg('');
 });
 
@@ -675,6 +855,11 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
   for (let i = 0; i < quantity; i++) {
     addToCart(cartProduct, selectedSize, 'apparel');
   }
+
+  // item 20 — once added to cart, this design is no longer "in progress";
+  // clear the draft so it doesn't linger and incorrectly prompt to
+  // "continue" a design that's already been purchased.
+  clearDraft();
 
   showMsg(`✓ Added ${quantity} to cart! Redirecting to checkout...`);
   setTimeout(() => window.location.href = 'checkout.html', 1200);
