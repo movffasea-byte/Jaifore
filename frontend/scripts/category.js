@@ -121,6 +121,107 @@ document.addEventListener('change', (e) => {
   }
 });
 
+// ── WISHLIST HEART (item 19) ────────────────────────
+// Applies to apparel + design cards; webdev is enquiry-only (no cart line),
+// same reasoning the qty stepper above already skips it there. Configured
+// designs get their own Save for Later button inside the configurator
+// itself — this only covers the base-product path.
+function renderWishlistHeart(productId, category) {
+  if (category === 'webdev') return '';
+  return `<button class="wishlist-heart-btn" type="button" data-product-id="${productId}" onclick="event.stopPropagation()" aria-label="Save for later">♡</button>`;
+}
+
+// Tracks which product ids are already wishlisted, so a page refresh (or a
+// re-render from a filter/search pass) shows the filled heart correctly
+// instead of resetting to empty.
+let wishlistedProductIds = new Set();
+
+async function loadWishlistedIds() {
+  const token = localStorage.getItem('jaifore_token');
+  if (!token) return; // not logged in — hearts just stay empty, no error state needed
+  try {
+    const res = await fetch(`${API}/api/wishlist`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) return;
+    const items = await res.json();
+    // Only plain (non-configured) entries are relevant to a card heart — a
+    // configured design's product_id would otherwise incorrectly light up
+    // the heart on every plain listing of that same base product.
+    wishlistedProductIds = new Set(
+      items.filter(i => !i.config_signature).map(i => String(i.product_id))
+    );
+  } catch { /* silent — hearts default to empty state, nothing breaks */ }
+}
+
+// Applies the "already saved" visual state to any hearts currently on
+// screen. Called after loadWishlistedIds() resolves AND after every
+// re-render (loadNextPage rebuilds cards from scratch), since a freshly
+// created button element never carries the .saved class itself.
+function syncWishlistHearts() {
+  document.querySelectorAll('.wishlist-heart-btn').forEach(btn => {
+    const saved = wishlistedProductIds.has(String(btn.dataset.productId));
+    btn.classList.toggle('saved', saved);
+    btn.textContent = saved ? '♥' : '♡';
+  });
+}
+
+// Single delegated listener — same reasoning as the qty-stepper listeners
+// above: cards are rebuilt wholesale on every filter/sort/category-switch
+// pass, so binding once on document survives re-renders.
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.wishlist-heart-btn');
+  if (!btn) return;
+
+  const token = localStorage.getItem('jaifore_token');
+  if (!token) { window.location.href = 'loginsys.html'; return; }
+
+  const productId = btn.dataset.productId;
+  const product = (productsByCategory[currentCategory] || []).find(p => String(p.id) === String(productId));
+  if (!product) return;
+
+  const alreadySaved = wishlistedProductIds.has(String(productId));
+  btn.disabled = true;
+
+  try {
+    if (alreadySaved) {
+      // Heart already filled — clicking again removes it. Needs the
+      // wishlist_items.id (not product_id) for the DELETE route, so this
+      // re-fetches the list to find the matching row id.
+      const listRes = await fetch(`${API}/api/wishlist`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const items = await listRes.json();
+      const match = items.find(i => !i.config_signature && String(i.product_id) === String(productId));
+      if (match) {
+        await fetch(`${API}/api/wishlist/${match.id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
+      wishlistedProductIds.delete(String(productId));
+    } else {
+      await fetch(`${API}/api/wishlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          snapshot: product.image_url || null
+        })
+      });
+      wishlistedProductIds.add(String(productId));
+    }
+    syncWishlistHearts();
+  } catch {
+    // Silent failure — heart just doesn't toggle; low-stakes action with
+    // no status line on this page to report into.
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ── INIT ────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
 currentCategory = params.get('cat') || 'apparel';
@@ -200,6 +301,7 @@ function loadNextPage() {
 
   slice.forEach((p, i) => grid.appendChild(renderCard(p, displayedCount + i)));
   displayedCount += slice.length;
+  syncWishlistHearts(); // item 19 — every new batch of cards needs hearts synced
 
   const loadMoreWrap = document.getElementById('loadMoreWrap');
   if (displayedCount >= filteredProducts.length) {
@@ -240,16 +342,20 @@ function renderCard(product, index) {
 
   // item 18b: design products get a qty stepper next to Order Now.
   const qtyStepperHTML = renderQtyStepper(product.id, currentCategory);
+  // item 19: apparel + design cards get a wishlist heart; webdev does not.
+  const wishlistHeartHTML = renderWishlistHeart(product.id, currentCategory);
 
   const footerHTML = isApparel
     ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
        <div style="display:flex;gap:0.4rem">
+         ${wishlistHeartHTML}
          <button class="configure-btn" data-id="${product.id}">🎨 Design</button>
          <button class="card-action" data-id="${product.id}" ${!product.in_stock ? 'disabled' : ''}>Add to Cart</button>
        </div>`
     : isDesign
       ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+           ${wishlistHeartHTML}
            ${qtyStepperHTML}
            <button class="card-action" data-id="${product.id}">Order Now</button>
          </div>`
@@ -336,6 +442,11 @@ function openModal(product) {
        </div>`
     : '';
 
+  // item 19 — wishlist heart in the modal, apparel + design only.
+  const modalWishlistHeartHTML = !isWebdev
+    ? `<button class="modal-wishlist-heart-btn wishlist-heart-btn" type="button" data-product-id="${product.id}" aria-label="Save for later">♡</button>`
+    : '';
+
   const actionHTML = isWebdev
     ? `<a href="mailto:hello@jaifore.com?subject=Enquiry: ${encodeURIComponent(product.name)}" class="modal-link">✉ Enquire About This Site →</a>
        ${product.siteUrl ? `<a href="${product.siteUrl}" target="_blank" class="modal-link">🌐 Visit Live Site →</a>` : ''}`
@@ -354,6 +465,7 @@ function openModal(product) {
         <div class="modal-desc">${product.description}</div>
         ${sizesHTML}
         ${qtyStepperModalHTML}
+        ${modalWishlistHeartHTML}
         ${actionHTML}
       </div>
     </div>
@@ -391,6 +503,8 @@ function openModal(product) {
 
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('product-modal').classList.add('open');
+
+  syncWishlistHearts(); // item 19 — the modal's own heart needs its saved state applied too
 }
 
 function closeModal() {
@@ -442,7 +556,7 @@ document.getElementById('stockSelect').addEventListener('change', applyFilters);
 // ── START ────────────────────────────────────────────
 (async () => {
   document.getElementById('catCount').textContent = 'Loading...';
-  await fetchCategory(currentCategory);
+  await Promise.all([fetchCategory(currentCategory), loadWishlistedIds()]);
 
   if (!(productsByCategory[currentCategory] || []).length) {
     document.getElementById('cat-grid').innerHTML = '';

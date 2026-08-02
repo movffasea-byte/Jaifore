@@ -196,41 +196,56 @@ async function init() {
     MOCKUPS.female.front = product.front_female || product.image_url || '';
     MOCKUPS.female.back  = product.back_female  || product.image_url || '';
 
-    // item 20 — check for an existing draft BEFORE showing the gender modal,
-    // since the prompt (if needed) must appear on load, ahead of anything else.
-    const draft = loadDraft();
+    // item 19 — a wishlist resume takes priority over the item 20 draft
+    // flow entirely: arriving here via ?wishlist=<id> is an explicit,
+    // deliberate action (clicking Move to Cart on the wishlist page), so
+    // there's nothing to prompt about the way there is with an incidental
+    // leftover draft. Falls through to the normal draft/gender-modal flow
+    // if no wishlist param is present, or if the fetch fails for any reason.
+    const wishlistId = params.get('wishlist');
+    let resumedFromWishlist = false;
 
-    if (draft && String(draft.productId) === String(productId)) {
-      // Same product as the draft — restore directly, no prompt needed at all.
-      // ORDER MATTERS: currentGender/currentView must be set from the draft
-      // BEFORE selectGender() runs below. selectGender() calls setView(),
-      // which only hides/shows designs when viewKey() changes between calls
-      // (prevKey !== nextKey) — since these two globals already match the
-      // draft's values by the time selectGender() re-sets them to the same
-      // thing, prevKey === nextKey, so the just-restored designs correctly
-      // stay visible instead of being hidden by that visibility-toggle logic.
-      currentGender = draft.currentGender;
-      currentView   = draft.currentView;
-      restoreDraftDesigns(draft.designsByView, draft.currentGender);
-      selectGender(draft.currentGender); // sets active toggle state + calls setView()
-    } else if (draft) {
-      // Draft belongs to a DIFFERENT product — ask before doing anything else.
-      showDraftPromptModal(
-        draft,
-        () => {
-          // Continue: redirect to the draft's own product. That reload will
-          // hit the "same product" branch above and restore cleanly.
-          window.location.href = `configurator.html?product=${draft.productId}`;
-        },
-        () => {
-          // Start fresh: discard the old draft, proceed normally for THIS product.
-          clearDraft();
-          showGenderModal();
-        }
-      );
-    } else {
-      // No draft at all — completely normal flow.
-      showGenderModal();
+    if (wishlistId) {
+      resumedFromWishlist = await tryResumeFromWishlist(wishlistId);
+    }
+
+    if (!resumedFromWishlist) {
+      // item 20 — check for an existing draft BEFORE showing the gender modal,
+      // since the prompt (if needed) must appear on load, ahead of anything else.
+      const draft = loadDraft();
+
+      if (draft && String(draft.productId) === String(productId)) {
+        // Same product as the draft — restore directly, no prompt needed at all.
+        // ORDER MATTERS: currentGender/currentView must be set from the draft
+        // BEFORE selectGender() runs below. selectGender() calls setView(),
+        // which only hides/shows designs when viewKey() changes between calls
+        // (prevKey !== nextKey) — since these two globals already match the
+        // draft's values by the time selectGender() re-sets them to the same
+        // thing, prevKey === nextKey, so the just-restored designs correctly
+        // stay visible instead of being hidden by that visibility-toggle logic.
+        currentGender = draft.currentGender;
+        currentView   = draft.currentView;
+        restoreDraftDesigns(draft.designsByView, draft.currentGender);
+        selectGender(draft.currentGender); // sets active toggle state + calls setView()
+      } else if (draft) {
+        // Draft belongs to a DIFFERENT product — ask before doing anything else.
+        showDraftPromptModal(
+          draft,
+          () => {
+            // Continue: redirect to the draft's own product. That reload will
+            // hit the "same product" branch above and restore cleanly.
+            window.location.href = `configurator.html?product=${draft.productId}`;
+          },
+          () => {
+            // Start fresh: discard the old draft, proceed normally for THIS product.
+            clearDraft();
+            showGenderModal();
+          }
+        );
+      } else {
+        // No draft at all — completely normal flow.
+        showGenderModal();
+      }
     }
 
   } catch (err) {
@@ -243,6 +258,74 @@ async function init() {
   updateSlots();
   updateUndoRedoBtns();
   updateQuantityUI();
+}
+
+// ── RESUME FROM WISHLIST (item 19) ────────────────────
+// Rehydrates a saved wishlist item back into the configurator. Reuses
+// restoreDraftDesigns() (built for item 20's draft system) since the shape
+// needed is identical: a designsByView-keyed object of plain design data
+// that needs real DOM elements + drag/resize handlers wired back up. Also
+// restores selectedSize / selectedPrintSize / notes / gender, none of
+// which the draft system needed to touch (a draft is pre-cart, so it never
+// captured print size or garment size — only in-progress canvas state).
+async function tryResumeFromWishlist(wishlistId) {
+  const token = localStorage.getItem('jaifore_token');
+  if (!token) return false; // not logged in — nothing to resume, fall through normally
+
+  try {
+    const res = await fetch(`${API}/api/wishlist`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) return false;
+
+    const items = await res.json();
+    const item  = items.find(i => String(i.id) === String(wishlistId));
+    if (!item || !item.config_signature) return false; // plain products have nothing to rehydrate
+
+    const data = item.snapshot_data;
+    if (!data.customDesigns?.length) return false;
+
+    currentGender = data.gender || 'male';
+    currentView   = 'front';
+
+    // Rebuild a designsByView-shaped object from the flat customDesigns
+    // list, keyed the same way addDesign()/restoreDraftDesigns() expect —
+    // each design already carries its own viewKey from when it was saved.
+    const rebuilt = { male_front: [], male_back: [], female_front: [], female_back: [] };
+    data.customDesigns.forEach(d => {
+      const key = d.viewKey || `${currentGender}_front`;
+      if (!rebuilt[key]) rebuilt[key] = [];
+      rebuilt[key].push({ ...d, id: d.id || Date.now() + Math.random() });
+    });
+
+    restoreDraftDesigns(rebuilt, currentGender);
+    selectGender(currentGender);
+
+    // Restore the panel selections a draft never needed to carry.
+    if (data.selectedSize) {
+      selectedSize = data.selectedSize;
+      document.querySelectorAll('.sz-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.size === data.selectedSize);
+      });
+    }
+    if (data.printSize) {
+      selectedPrintSize = data.printSize;
+      // printPricing/renderPrintSizes() has already run by this point in
+      // init(), so the buttons exist to match against.
+      document.querySelectorAll('.print-size-btn').forEach(b => {
+        b.classList.toggle('selected', String(b.dataset.id) === String(data.printSize.id));
+      });
+    }
+    if (data.notes) {
+      document.getElementById('designNotes').value = data.notes;
+    }
+
+    showMsg('Picked up your saved design — review and add to cart when ready.');
+    return true;
+  } catch (e) {
+    console.error('[wishlist] resume failed:', e.message);
+    return false;
+  }
 }
 
 // ── DRAFT CONTINUE/RESTART MODAL (item 20) ───────────
@@ -863,6 +946,71 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
 
   showMsg(`✓ Added ${quantity} to cart! Redirecting to checkout...`);
   setTimeout(() => window.location.href = 'checkout.html', 1200);
+});
+
+// ── SAVE FOR LATER (item 19) ──────────────────────────
+// Deliberately mirrors addToCartBtn's own validation (size / at least one
+// design / print size required) rather than allowing a half-configured
+// design to be wishlisted — a saved design should be just as "complete" as
+// one that was actually added to cart, since Move to Cart later re-opens
+// the configurator expecting a fully valid state to redisplay.
+document.getElementById('saveForLaterBtn')?.addEventListener('click', async () => {
+  const token = localStorage.getItem('jaifore_token');
+  if (!token) {
+    // Same redirect convention cart.js's goToCheckout() already uses for
+    // an unauthenticated user, so Save for Later doesn't silently fail.
+    sessionStorage.setItem('jaifore_return', window.location.href);
+    window.location.href = 'loginsys.html';
+    return;
+  }
+
+  if (!selectedSize) { showMsg('Please select a garment size first.'); return; }
+
+  const allDesigns = Object.values(designsByView).flat();
+  if (!allDesigns.length) { showMsg('Add at least one design to your merch.'); return; }
+  if (!selectedPrintSize) { showMsg('Please select a print size.'); return; }
+
+  const designsTotal = allDesigns.reduce((sum, d) => sum + (d.price || 0), 0);
+  const printTotal   = parseFloat(selectedPrintSize.price) * allDesigns.length;
+  const unitPrice     = parseFloat(product.price) + designsTotal + printTotal;
+
+  const gender        = currentGender || 'male';
+  const snapshotImage = MOCKUPS[gender]?.front || product.image_url || '';
+
+  const payload = {
+    productId:     product.id,
+    name:          product.name,
+    price:         unitPrice,
+    snapshot:      snapshotImage,
+    gender:        currentGender,
+    printSize:     selectedPrintSize,
+    customDesigns: allDesigns.map(d => ({
+      src: d.src, name: d.name, price: d.price,
+      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
+    })),
+    selectedSize:  selectedSize,
+    notes:         document.getElementById('designNotes').value.trim(),
+  };
+
+  const btn = document.getElementById('saveForLaterBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/api/wishlist`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body:    JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Save failed');
+
+    btn.classList.add('saved');
+    btn.textContent = '♥ Saved';
+    showMsg('Saved to your wishlist.');
+  } catch {
+    showMsg('Could not save — please try again.');
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // ── ZOOM ─────────────────────────────────────────────

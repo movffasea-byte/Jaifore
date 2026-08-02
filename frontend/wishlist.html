@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jai'fore — My Wishlist</title>
+  <link rel="stylesheet" href="styles/services.css"/>
+  <link rel="stylesheet" href="styles/dashboard.css"/>
+  <link rel="stylesheet" href="styles/wishlist.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <div class="noise"></div>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <a href="index.html" class="nav-logo">
+      <img src="logo/rooted2.jpg" alt="Jai'fore"/>
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="services.html">Services</a>
+    </div>
+    <div class="nav-right">
+      <div id="nav-actions"></div>
+      <button class="cart-btn" id="cart-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        <span class="cart-count" id="cart-count">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Reuses the exact .dash-wrap / .dash-sidebar shell from dashboard.html
+       so this page sits visually consistent with the rest of the account
+       area, even though it's a separate page rather than an in-page tab. -->
+  <div class="dash-wrap">
+
+    <aside class="dash-sidebar">
+      <div class="dash-profile">
+        <div class="dash-avatar" id="dashAvatar">—</div>
+        <div class="dash-profile-info">
+          <div class="dash-name" id="dashName">—</div>
+          <div class="dash-email" id="dashEmail">—</div>
+        </div>
+      </div>
+
+      <nav class="dash-nav">
+        <a class="dash-nav-item" href="dashboard.html">
+          <span>◎</span> Order History
+        </a>
+        <a class="dash-nav-item" href="dashboard.html">
+          <span>🎨</span> Saved Designs
+        </a>
+        <a class="dash-nav-item dash-nav-link active" href="wishlist.html">
+          <span>♡</span> Wishlist
+        </a>
+        <a class="dash-nav-item" href="dashboard.html">
+          <span>◉</span> Profile Settings
+        </a>
+      </nav>
+
+      <button class="dash-logout-btn" id="dashLogout">⏻ Logout</button>
+    </aside>
+
+    <main class="dash-main">
+      <section class="dash-tab active" id="tab-wishlist">
+        <div class="dash-section-header">
+          <h2>Wishlist</h2>
+          <p>Items and saved designs you've set aside for later.</p>
+        </div>
+        <div class="wishlist-grid" id="wishlistList"></div>
+      </section>
+    </main>
+
+  </div>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <img class="footer-brand" src="logo/rooted2.jpg" alt="Jai'fore"/>
+      <div class="footer-copy">© 2026 Jai'fore Media. Worldwide. By Design.</div>
+      <div class="footer-legal">
+        <a href="privacy-policy.html">Privacy Policy</a>
+        <span>·</span>
+        <a href="terms-of-service.html">Terms of Service</a>
+        <span>·</span>
+        <a href="refund-policy.html">Returns & Refunds</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="scripts/currency.js"></script>
+  <script src="scripts/header.js"></script>
+  <script src="data/cart.js"></script>
+  <script src="scripts/wishlist.js"></script>
+  <script src="scripts/cookie-consent.js"></script>
+</body>
+</html>

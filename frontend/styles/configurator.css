@@ -646,6 +646,54 @@
   color: #7b5ea7;
 }
 
+/* ── CTA ROW (item 19) ─────────────────────────────────
+   Wraps Add to Cart + Save for Later side by side. Replaces the standalone
+   margin/width the button used to carry on its own — moved here so the two
+   buttons share the row instead of each re-declaring layout independently. */
+.cta-row {
+  display: flex;
+  gap: 0.6rem;
+  margin: 1.2rem 1.5rem;
+}
+ 
+.cta-row .add-to-cart-btn {
+  margin: 0;       /* was 1.2rem 1.5rem — now owned by .cta-row's margin */
+  width: auto;     /* was calc(100% - 3rem) — now flexes within the row */
+  flex: 1;
+}
+ 
+.save-for-later-btn {
+  background: #fff;
+  border: 1.5px solid #d8d0c4;
+  border-radius: 10px;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #7b5ea7;
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+ 
+.save-for-later-btn:hover {
+  border-color: #7b5ea7;
+  background: #f0ecff;
+  transform: translateY(-1px);
+}
+ 
+.save-for-later-btn.saved {
+  background: #7b5ea7;
+  border-color: #7b5ea7;
+  color: #fff;
+}
+ 
+@media (max-width: 768px) {
+  .cta-row { flex-direction: column; }
+  .save-for-later-btn { width: 100%; }
+}
+
 /* ── RESPONSIVE ────────────────────────────────────── */
 @media (max-width: 768px) {
   .studio {

@@ -1,0 +1,130 @@
+/* ================================
+   JAIFORE — WISHLIST CSS
+   styles/wishlist.css
+
+   Deliberately kept separate from dashboard.css rather than appended to
+   it, even though this page borrows dashboard.css's shell (.dash-wrap,
+   .dash-sidebar, etc.) — wishlist-specific card styling belongs in its
+   own file so dashboard.css's own designs-grid/.design-card rules (used
+   by the existing Saved Designs tab) aren't touched by anything below.
+   ================================ */
+
+.wishlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.wl-card {
+  background: #fff;
+  border: 1px solid #e8e3da;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+}
+
+.wl-card:hover { border-color: #7b5ea7; transform: translateY(-2px); }
+
+.wl-card-img {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #f5f0e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.wl-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Small badge on configured items so it's visually clear at a glance which
+   saved items are "just a product" vs. "a design you built". */
+.wl-card-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(123, 94, 167, 0.92);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wl-card-info {
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.wl-card-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.wl-card-meta {
+  font-size: 0.72rem;
+  color: #888;
+}
+
+.wl-card-price {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #7b5ea7;
+  margin-top: 0.2rem;
+}
+
+.wl-card-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.wl-action-btn {
+  flex: 1;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.5rem 0;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  border: 1px solid #e8e3da;
+  background: transparent;
+  color: #555;
+}
+
+.wl-action-btn.primary {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+}
+
+.wl-action-btn.primary:hover { 
+background: #7b5ea7; 
+border-color: #7b5ea7; 
+}
+
+.wl-action-btn:not(.primary):hover { 
+  border-color: #c0392b; 
+  color: #c0392b; 
+}
+
+.wl-card-loading-actions .wl-action-btn { 
+  opacity: 0.5; 
+  cursor: not-allowed; 
+}
