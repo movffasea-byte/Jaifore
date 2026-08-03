@@ -148,6 +148,23 @@ function restoreDraftDesigns(draftDesignsByView, draftGender) {
   }
 }
 
+// ── RECENTLY VIEWED (item 20) ────────────────────────
+// Same implementation as services.js/category.js — see those files for the
+// fuller reasoning on why this is engagement-only, not render-based.
+// configurator.js has exactly one call site for this: right after init()
+// confirms a real product loaded, since simply landing on this page with a
+// valid ?product= param already IS the engagement (there's no separate
+// "card" to click first, unlike the grid pages).
+function recordProductView(productId) {
+  const token = localStorage.getItem('jaifore_token');
+  if (!token) return;
+  fetch(`${API}/api/recently-viewed`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body:    JSON.stringify({ productId })
+  }).catch(() => { /* silent — fire-and-forget instrumentation */ });
+}
+
 // ── HELPERS ─────────────────────────────────────────
 function viewKey() {
   return `${currentGender || 'male'}_${currentView}`;
@@ -175,6 +192,12 @@ async function init() {
 
     product      = await productRes.json();
     printPricing = await pricingRes.json();
+
+    // item 20 — recording the view here, right after the product is
+    // confirmed to have actually loaded (not at the top of init(), before
+    // we know productId resolved to something real). Matches services.js/
+    // category.js's rule: engagement, not mere page-existence.
+    recordProductView(product.id);
 
     document.getElementById('studioProductName').textContent = product.name;
     document.getElementById('panelMerchName').textContent    = product.name;

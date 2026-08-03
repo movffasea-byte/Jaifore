@@ -99,6 +99,12 @@ app.use('/api/users',         generalLimiter, require('./routes/users'));
 app.use('/api/print-pricing', generalLimiter, require('./routes/print-pricing'));
 app.use('/api/backup',        generalLimiter, require('./routes/backup'));
 
+// item 19 — wishlist / save for later
+app.use('/api/wishlist', generalLimiter, require('./routes/wishlist'));
+
+// item 20 — recently viewed products
+app.use('/api/recently-viewed', generalLimiter, require('./routes/recently-viewed'));
+
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
 // Admin panel — served from this same deploy, same origin as the API.

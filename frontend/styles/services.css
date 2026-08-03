@@ -11,7 +11,7 @@
   --ink:          #111111;
   --ink-soft:     #222222;
   --purple:       #4a2d7a;
-  --purple-light: #7b5ea7;
+  --purple-light: #453c53;
   --purple-dim:   rgba(74,45,122,0.08);
   --purple-glow:  rgba(74,45,122,0.2);
   --muted:        #888888;
@@ -653,6 +653,174 @@ img {
 }
 
 /* ================================
+   WISHLIST HEART (item 19)
+   Shared between category.js and services.js card/modal renders.
+   ================================ */
+.wishlist-heart-btn {
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--muted);
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition);
+  line-height: 1;
+}
+
+.wishlist-heart-btn:hover:not(:disabled) {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.wishlist-heart-btn.saved {
+  background: rgba(176, 48, 48, 0.08);
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.wishlist-heart-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Modal placement — its own row above the primary action buttons */
+.modal-wishlist-heart-btn {
+  align-self: flex-start;
+  margin-bottom: 0.2rem;
+}
+
+/* ================================
+   RECENTLY VIEWED SECTION (item 20)
+   New homepage section on services.html only — sits above the three
+   category sections, styled to match .category-section's rhythm without
+   its numbered label (this isn't "category 04", it's the user's own
+   browsing history) or the 2px border-bottom .cat-header uses (a lighter
+   divider fits better for a section that's here-today-gone-tomorrow
+   depending on whether the user has any view history at all).
+   ================================ */
+#recently-viewed-section {
+  padding: 3rem 0 2rem;
+}
+
+#recently-viewed-section.hidden {
+  display: none;
+}
+
+#recently-viewed-section .cat-header {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+}
+
+#recently-viewed-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.2rem;
+}
+
+.recently-viewed-card {
+  cursor: pointer;
+}
+
+/* Smaller than the full .product-card — this strip is meant to feel like
+   a quick-glance row, not compete visually with the main category grids
+   below it. Reuses .card-img/.card-body's existing look at a reduced size
+   rather than declaring an entirely separate visual language. */
+.recently-viewed-card .card-body {
+  padding: 0.85rem;
+}
+
+.recently-viewed-card .card-name {
+  font-size: 0.85rem;
+  white-space: normal;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recently-viewed-card .card-price {
+  font-size: 0.95rem;
+}
+
+/* ================================
+   MODAL RELATED ITEMS (item 20)
+   Appended as a sibling of .modal-grid inside .modal-inner (not nested
+   inside the grid itself), so it spans the full modal width below both
+   the image and details columns.
+   ================================ */
+.modal-related-section {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.modal-related-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.modal-related-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.8rem;
+}
+
+.modal-related-card {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color var(--transition), transform var(--transition);
+}
+
+.modal-related-card:hover {
+  border-color: var(--ink);
+  transform: translateY(-2px);
+}
+
+.modal-related-img {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--bg-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  overflow: hidden;
+}
+
+.modal-related-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.modal-related-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0.5rem 0.6rem 0.1rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-related-price {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--purple);
+  padding: 0 0.6rem 0.6rem;
+}
+
+/* ================================
    FOOTER
    ================================ */
 .footer { border-top: 2px solid var(--ink); padding: 2rem 3rem; }
@@ -682,6 +850,7 @@ img {
 @media (max-width: 1024px) {
   .products-grid { grid-template-columns: repeat(2,1fr); }
   .modal-grid { grid-template-columns: 1fr; }
+  #recently-viewed-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 768px) {
   .nav { padding: 1rem 1.5rem; }
@@ -694,4 +863,6 @@ img {
   .cart-sidebar { width: 100%; }
   .footer { padding: 1.5rem; }
   .footer-inner { flex-direction: column; gap: 0.5rem; text-align: center; }
+  #recently-viewed-grid,
+  .modal-related-row { grid-template-columns: repeat(2, 1fr); }
 }

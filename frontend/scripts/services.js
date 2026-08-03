@@ -82,7 +82,8 @@ let wishlistedProductIds = new Set();
 // services.js previously had no reason to keep fetched products around
 // after rendering; the wishlist heart's click handler needs to look a
 // product back up by id (to read its name/price/image for the POST body),
-// so loadCategory() below now stashes its result here.
+// so loadCategory() below now stashes its result here. Item 20's related-
+// items row also reuses this cache first before falling back to a fetch.
 const loadedProducts = {}; // { apparel: [...], design: [...], webdev: [...] }
 
 async function loadWishlistedIds() {
@@ -160,6 +161,139 @@ document.addEventListener('click', async (e) => {
   }
 });
 
+// ── RECENTLY VIEWED (item 20) ───────────────────────
+// Records a view on ENGAGEMENT only — opening the modal, or (for apparel)
+// going straight to the configurator — not on every card that merely
+// renders into a grid. A card existing in a scrollable grid isn't the
+// same as a person actually looking at it; recording on render would
+// fire a dozen network calls for a single scroll past a category.
+// Server-backed + logged-in only per product decision: silently does
+// nothing for a logged-out visitor, same convention as the wishlist heart.
+function recordProductView(productId) {
+  const token = localStorage.getItem('jaifore_token');
+  if (!token) return; // not logged in — nothing to record, no error state needed
+
+  // Fire-and-forget: this is instrumentation, not a user-facing action.
+  // Nothing in the response is read, and a failure here should never
+  // interrupt the actual navigation/modal-open the user is doing.
+  fetch(`${API}/api/recently-viewed`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body:    JSON.stringify({ productId })
+  }).catch(() => { /* silent — see reasoning above */ });
+}
+
+// Maps a DB category string (as returned by the recently-viewed/products
+// API) back to this file's short category keys ('apparel'/'design'/
+// 'webdev'), since openModal() and renderCard() both key off the short
+// form throughout this file.
+function dbCategoryToKey(dbCat) {
+  if (dbCat === 'Apparels & Merchandise' || dbCat === 'apparel') return 'apparel';
+  if (dbCat === 'Graphic Design' || dbCat === 'design') return 'design';
+  if (dbCat === 'Web Development' || dbCat === 'webdev') return 'webdev';
+  return 'apparel';
+}
+
+// ── RECENTLY VIEWED STRIP (item 20 display) ─────────
+// New homepage section per product decision. Rendered once on load,
+// independent of the three category grids below — this is the user's OWN
+// browsing history, not tied to whichever category section it sits near.
+async function loadRecentlyViewed() {
+  const section = document.getElementById('recently-viewed-section');
+  const grid    = document.getElementById('recently-viewed-grid');
+  if (!section || !grid) return; // section only exists on services.html
+
+  const token = localStorage.getItem('jaifore_token');
+  if (!token) { section.classList.add('hidden'); return; } // nothing to show a logged-out visitor
+
+  try {
+    const res = await fetch(`${API}/api/recently-viewed`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error();
+    const items = await res.json();
+
+    if (!items.length) { section.classList.add('hidden'); return; } // nothing viewed yet — don't show an empty section
+
+    section.classList.remove('hidden');
+    grid.innerHTML = '';
+    items.forEach((item, i) => {
+      const card = document.createElement('div');
+      card.className = 'product-card recently-viewed-card';
+      card.style.animationDelay = `${i * 0.05}s`;
+      card.innerHTML = `
+        <div class="card-img">
+          ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" loading="lazy"/>` : `<div class="card-img-placeholder">📦</div>`}
+        </div>
+        <div class="card-body">
+          <div class="card-name">${item.name}</div>
+          <div class="card-price"><span class="currency">₦</span>${Number(item.price).toLocaleString('en-NG')}</div>
+        </div>
+      `;
+      // Reopens the EXACT product's own modal directly, per product
+      // decision — not a redirect to its category page. The recently-viewed
+      // API already returns full product fields (name/price/image_url/
+      // category/in_stock via its JOIN), which is everything openModal()
+      // and renderCard() need — no extra fetch required to reopen it.
+      card.addEventListener('click', () => {
+        const category = dbCategoryToKey(item.category);
+        const product = {
+          id: item.product_id, name: item.name, price: item.price,
+          image_url: item.image_url, in_stock: item.in_stock
+        };
+        openModal(product, category);
+      });
+      grid.appendChild(card);
+    });
+  } catch {
+    section.classList.add('hidden'); // fail quiet — this is a nice-to-have section, not core page content
+  }
+}
+
+// ── RELATED ITEMS (item 20 addition) ────────────────
+// Shown at the end of every product modal: 3–4 OTHER items from the same
+// category, per product decision. "Same category" always excludes the
+// currently-open product itself — showing a product as "related to itself"
+// would read as a bug, not a recommendation.
+async function fetchRelatedItems(category, excludeProductId) {
+  // Reuse whatever's already loaded for this category first — avoids a
+  // second network call in the common case (a visitor who's already seen
+  // this category's teaser row on the page).
+  let pool = loadedProducts[category] || [];
+
+  if (pool.length <= 1) {
+    // Not enough cached to pick from — fetch a slightly larger pool just
+    // for this. Not cached into loadedProducts itself, since that array
+    // deliberately mirrors "what's shown in the teaser row" elsewhere in
+    // this file, and overwriting it here would be a confusing side effect.
+    pool = await fetchProducts(category, 8);
+  }
+
+  return pool
+    .filter(p => String(p.id) !== String(excludeProductId))
+    .slice(0, 4);
+}
+
+function renderRelatedItemsHTML(items) {
+  if (!items.length) return '';
+  return `
+    <div class="modal-related-section">
+      <div class="modal-related-label">You Might Also Like</div>
+      <div class="modal-related-row">
+        ${items.map(p => `
+          <div class="modal-related-card" data-id="${p.id}">
+            <div class="modal-related-img">
+              ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy"/>` : '📦'}
+            </div>
+            <div class="modal-related-name">${p.name}</div>
+            <div class="modal-related-price">₦${Number(p.price).toLocaleString('en-NG')}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 // ── PLACEHOLDERS ───────────────────────────────────────
 const PLACEHOLDERS = {
   apparel: ['👕','👖','🩳','🧥','🎒','☕','📱'],
@@ -195,7 +329,11 @@ function getMockProducts(category) {
 }
 
 // ── FETCH ──────────────────────────────────────────────
-async function fetchProducts(category) {
+// `limit` now optional (defaults to 3, the original teaser-row size) — the
+// related-items feature above requests a larger pool (8) so it has more
+// than 3 candidates to exclude the current product from and still have
+// enough left over.
+async function fetchProducts(category, limit = 3) {
    const categoryMap = {
     apparel: 'Apparels & Merchandise',
     design:  'Graphic Design',
@@ -203,7 +341,7 @@ async function fetchProducts(category) {
   };
   try {
     const cat = encodeURIComponent(categoryMap[category] || category);
-   const res = await fetch(`${API}/api/products?category=${cat}&limit=3`);
+   const res = await fetch(`${API}/api/products?category=${cat}&limit=${limit}`);
     if (!res.ok) throw new Error();
     const data = await res.json();
     return Array.isArray(data) ? data : data.products || [];
@@ -282,7 +420,8 @@ function renderCard(product, index, category) {
     </div>
   `;
 
-  // Card click → modal
+  // Card click → modal (item 20: this IS the engagement moment for
+  // non-apparel/non-sized-apparel products, so record the view here)
   card.addEventListener('click', (e) => {
     if (!e.target.classList.contains('card-action') &&
         !e.target.classList.contains('configure-btn') &&
@@ -303,12 +442,16 @@ function renderCard(product, index, category) {
       for (let i = 0; i < qty; i++) {
         addToCart(product, null, category);
       }
+      recordProductView(product.id); // item 20 — Order Now is a real engagement even without opening the modal
     } else {
       addToCart(product, null, category);
+      recordProductView(product.id); // item 20
     }
   });
 
-  // Design It button — go to configurator
+  // Design It button — go to configurator (item 20: configurator.js
+  // records the view itself once it loads the product there, so nothing
+  // extra needed at this specific click — just the navigation)
   card.querySelector('.configure-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     window.location.href = `configurator.html?product=${product.id}`;
@@ -322,7 +465,7 @@ async function loadCategory(category) {
   const grid    = document.getElementById(`${category}-grid`);
   const products = await fetchProducts(category);
   grid.innerHTML = '';
-  loadedProducts[category] = products; // item 19 — stash for the wishlist heart's product lookup
+  loadedProducts[category] = products; // item 19 — stash for the wishlist heart's product lookup; item 20 reuses this too
 
   if (!products.length) {
     grid.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;padding:2rem 0;grid-column:1/-1">No products found.</div>`;
@@ -340,7 +483,7 @@ document.querySelectorAll('.load-more-btn').forEach(btn => {
 });
 
 // ── MODAL ──────────────────────────────────────────────
-function openModal(product, category) {
+async function openModal(product, category) {
   currentModalProduct = product;
   selectedSize        = null;
 
@@ -401,6 +544,7 @@ function openModal(product, category) {
         ${actionHTML}
       </div>
     </div>
+    <div id="modalRelatedContainer"></div>
   `;
 
   // Size selection
@@ -438,7 +582,24 @@ function openModal(product, category) {
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('product-modal').classList.add('open');
 
-  syncWishlistHearts(); // item 19 — apply saved state to this modal's heart
+  syncWishlistHearts(); // item 19 — the modal's own heart needs its saved state applied too
+  recordProductView(product.id); // item 20 — opening the modal IS the engagement moment
+
+  // item 20 — related items load AFTER the modal is already visible and
+  // interactive, rather than blocking the whole modal open on this fetch.
+  // The rest of the modal (price, Add to Cart, wishlist heart) is fully
+  // usable immediately; the related row fills in a moment later.
+  const relatedContainer = document.getElementById('modalRelatedContainer');
+  const related = await fetchRelatedItems(category, product.id);
+  if (relatedContainer) {
+    relatedContainer.innerHTML = renderRelatedItemsHTML(related);
+    relatedContainer.querySelectorAll('.modal-related-card').forEach(cardEl => {
+      cardEl.addEventListener('click', () => {
+        const relatedProduct = related.find(p => String(p.id) === cardEl.dataset.id);
+        if (relatedProduct) openModal(relatedProduct, category); // re-opens the modal in place, for THIS related item
+      });
+    });
+  }
 }
 
 function closeModal() {
@@ -473,6 +634,7 @@ window.JaiforeCurrency?.init().then(() => {
   loadWishlistedIds(); // item 19 — fires alongside the three loads below;
                         // each loadCategory() call syncs its own hearts once
                         // its cards exist, so exact ordering isn't required
+  loadRecentlyViewed(); // item 20 — new homepage section
   loadCategory('apparel');
   loadCategory('design');
   loadCategory('webdev');

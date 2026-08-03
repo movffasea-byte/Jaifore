@@ -222,6 +222,53 @@ document.addEventListener('click', async (e) => {
   }
 });
 
+// ── RECENTLY VIEWED (item 20) ───────────────────────
+// Same reasoning as services.js — records on ENGAGEMENT only (modal open,
+// or a direct Add to Cart / Order Now from the card), not on every card
+// render. Server-backed + logged-in only, silently a no-op otherwise.
+function recordProductView(productId) {
+  const token = localStorage.getItem('jaifore_token');
+  if (!token) return;
+  fetch(`${API}/api/recently-viewed`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body:    JSON.stringify({ productId })
+  }).catch(() => { /* silent — fire-and-forget instrumentation */ });
+}
+
+// ── RELATED ITEMS (item 20 addition) ────────────────
+// 3–4 OTHER items from the same category, shown at the end of every
+// product modal — always excludes the currently-open product itself.
+// Unlike services.js, this file already caches a FULL category listing in
+// productsByCategory (not just a 3-item teaser), so there's no need for a
+// fallback fetch here — the pool is already large enough.
+function getRelatedItems(category, excludeProductId) {
+  const pool = productsByCategory[category] || [];
+  return pool
+    .filter(p => String(p.id) !== String(excludeProductId))
+    .slice(0, 4);
+}
+
+function renderRelatedItemsHTML(items) {
+  if (!items.length) return '';
+  return `
+    <div class="modal-related-section">
+      <div class="modal-related-label">You Might Also Like</div>
+      <div class="modal-related-row">
+        ${items.map(p => `
+          <div class="modal-related-card" data-id="${p.id}">
+            <div class="modal-related-img">
+              ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy"/>` : '📦'}
+            </div>
+            <div class="modal-related-name">${p.name}</div>
+            <div class="modal-related-price">₦${Number(p.price).toLocaleString('en-NG')}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 // ── INIT ────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
 currentCategory = params.get('cat') || 'apparel';
@@ -396,8 +443,10 @@ function renderCard(product, index) {
       for (let i = 0; i < qty; i++) {
         addToCart(product, null, currentCategory);
       }
+      recordProductView(product.id); // item 20 — Order Now is a real engagement
     } else {
       addToCart(product, null, currentCategory);
+      recordProductView(product.id); // item 20
     }
   });
 
@@ -410,7 +459,7 @@ function renderCard(product, index) {
 }
 
 // ── MODAL ───────────────────────────────────────────
-function openModal(product) {
+async function openModal(product) {
   const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
   currentProduct = product;
   selectedSize   = null;
@@ -469,6 +518,7 @@ function openModal(product) {
         ${actionHTML}
       </div>
     </div>
+    <div id="modalRelatedContainer"></div>
   `;
 
   document.querySelectorAll('.size-opt').forEach(btn => {
@@ -505,6 +555,21 @@ function openModal(product) {
   document.getElementById('product-modal').classList.add('open');
 
   syncWishlistHearts(); // item 19 — the modal's own heart needs its saved state applied too
+  recordProductView(product.id); // item 20 — opening the modal IS the engagement moment
+
+  // item 20 — related items, drawn from the already-cached full category
+  // listing (no extra fetch needed, unlike services.js's smaller teaser cache).
+  const relatedContainer = document.getElementById('modalRelatedContainer');
+  const related = getRelatedItems(currentCategory, product.id);
+  if (relatedContainer) {
+    relatedContainer.innerHTML = renderRelatedItemsHTML(related);
+    relatedContainer.querySelectorAll('.modal-related-card').forEach(cardEl => {
+      cardEl.addEventListener('click', () => {
+        const relatedProduct = related.find(p => String(p.id) === cardEl.dataset.id);
+        if (relatedProduct) openModal(relatedProduct); // re-opens the modal in place, for THIS related item
+      });
+    });
+  }
 }
 
 function closeModal() {

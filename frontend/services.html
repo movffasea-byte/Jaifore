@@ -42,6 +42,21 @@
   <!-- MAIN CONTENT -->
   <main class="services-main">
 
+    <!-- ── RECENTLY VIEWED (item 20) ──────────────────────
+         Logged-in only; hidden by default so it never flashes empty
+         before services.js's loadRecentlyViewed() resolves — the JS only
+         removes "hidden" if there's an actual signed-in user with view
+         history to show. Sits above the three category sections since
+         this is the user's own recent activity, not generic browsing. -->
+    <section id="recently-viewed-section" class="hidden">
+      <div class="cat-header">
+        <div class="cat-title-wrap">
+          <h2 class="cat-title">Recently Viewed</h2>
+        </div>
+      </div>
+      <div class="products-grid" id="recently-viewed-grid"></div>
+    </section>
+
     <!-- ── CATEGORY 1: APPAREL & MERCHANDISE ── -->
     <section class="category-section" id="apparel">
       <div class="cat-header">
