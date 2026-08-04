@@ -14,11 +14,11 @@ const router  = express.Router();
 // per-user somehow). If your login/verify-otp route signs the token with a
 // different key name (userId, sub, etc.), every req.user.id below becomes
 // req.user.<that key> instead — three occurrences, all in this file.
-const { authenticate } = require('../middleware/auth'); // adjust path to match where auth.js actually lives
+const { authenticate } = require('../auth'); // adjust path to match where auth.js actually lives
 
 // db is whatever your existing routes use (pg Pool / client) — swap this
 // require for however products.js / orders.js already import it.
-const db = require('../db');
+const db = require('../database');
 
 // ── CONFIG SIGNATURE ─────────────────────────────────
 // Deliberately the SAME algorithm as cart.js's configSignature(), so a
@@ -120,4 +120,4 @@ router.delete('/:id', authenticate, async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router; 
