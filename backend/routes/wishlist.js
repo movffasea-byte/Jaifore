@@ -18,7 +18,7 @@ const { authenticate } = require('../auth'); // adjust path to match where auth.
 
 // db is whatever your existing routes use (pg Pool / client) — swap this
 // require for however products.js / orders.js already import it.
-const db = require('../database');
+const { pool: db } = require('../database');
 
 // ── CONFIG SIGNATURE ─────────────────────────────────
 // Deliberately the SAME algorithm as cart.js's configSignature(), so a
