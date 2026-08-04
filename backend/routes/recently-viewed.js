@@ -8,10 +8,10 @@ const router  = express.Router();
 
 // Same auth convention as wishlist-routes.js — named export from your
 // real auth.js, populating req.user from the Bearer token.
-const { authenticate } = require('../middleware/auth');
+const { authenticate } = require('../auth'); // auth.js lives directly in backend/, no middleware/ subfolder
 
 // Swap this for however your other route files import the DB client.
-const db = require('../db');
+const db = require('../databbase');
 
 // ── GET /api/recently-viewed — list, most recent first ───────────────
 // Joins against products so the frontend gets a ready-to-render object
