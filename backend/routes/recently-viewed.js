@@ -11,7 +11,7 @@ const router  = express.Router();
 const { authenticate } = require('../auth'); // auth.js lives directly in backend/, no middleware/ subfolder
 
 // Swap this for however your other route files import the DB client.
-const db = require('../databbase');
+const db = require('../database');
 
 // ── GET /api/recently-viewed — list, most recent first ───────────────
 // Joins against products so the frontend gets a ready-to-render object
