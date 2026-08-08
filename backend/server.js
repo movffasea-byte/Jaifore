@@ -105,6 +105,9 @@ app.use('/api/wishlist', generalLimiter, require('./routes/wishlist'));
 // item 20 — recently viewed products
 app.use('/api/recently-viewed', generalLimiter, require('./routes/recently-viewed'));
 
+// item 21 — cross-device cart sync
+app.use('/api/cart', generalLimiter, require('./routes/cart'));
+
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
 // Admin panel — served from this same deploy, same origin as the API.
