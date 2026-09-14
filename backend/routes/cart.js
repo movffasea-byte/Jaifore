@@ -86,18 +86,36 @@ router.post('/', authenticate, async (req, res) => {
   const snapshotData = { name, price, category, snapshot: snapshot || null, designs: designs || [], gender: gender || null, printSize: printSize || null };
 
   try {
-    // ON CONFLICT matches cart_unique_plain / cart_unique_configured from
-    // the migration — Postgres picks the right partial index automatically
-    // based on whether config_signature is NULL here, same pattern as
-    // wishlist.js's POST route.
-    const { rows } = await db.query(
-      `INSERT INTO cart_items (user_id, product_id, config_signature, size, qty, snapshot_data)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (user_id, product_id, config_signature, size)
-       DO UPDATE SET qty = cart_items.qty + EXCLUDED.qty, updated_at = NOW()
-       RETURNING id, product_id, config_signature, size, qty, snapshot_data`,
-      [req.user.id, productId, signature, size || null, addQty, JSON.stringify(snapshotData)]
-    );
+    // Two separate query paths, branched on whether this is a plain
+    // product (signature === null) or a configured one (signature set).
+    // Each path's ON CONFLICT target matches ONE partial index exactly —
+    // cart_unique_plain is (user_id, product_id, size) WHERE config_signature
+    // IS NULL, cart_unique_configured is (user_id, product_id, config_signature, size)
+    // WHERE config_signature IS NOT NULL. A single 4-column ON CONFLICT
+    // clause can never match the plain index, which is what was causing
+    // every plain-product POST to 500 — Postgres requires an exact column
+    // match between ON CONFLICT and a real constraint/index, and there is
+    // no single index covering both cases at once.
+    let rows;
+    if (signature === null) {
+      ({ rows } = await db.query(
+        `INSERT INTO cart_items (user_id, product_id, config_signature, size, qty, snapshot_data)
+         VALUES ($1, $2, NULL, $3, $4, $5)
+         ON CONFLICT (user_id, product_id, size) WHERE config_signature IS NULL
+         DO UPDATE SET qty = cart_items.qty + EXCLUDED.qty, updated_at = NOW()
+         RETURNING id, product_id, config_signature, size, qty, snapshot_data`,
+        [req.user.id, productId, size || null, addQty, JSON.stringify(snapshotData)]
+      ));
+    } else {
+      ({ rows } = await db.query(
+        `INSERT INTO cart_items (user_id, product_id, config_signature, size, qty, snapshot_data)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (user_id, product_id, config_signature, size) WHERE config_signature IS NOT NULL
+         DO UPDATE SET qty = cart_items.qty + EXCLUDED.qty, updated_at = NOW()
+         RETURNING id, product_id, config_signature, size, qty, snapshot_data`,
+        [req.user.id, productId, signature, size || null, addQty, JSON.stringify(snapshotData)]
+      ));
+    }
     res.status(201).json(rowToCartItem(rows[0]));
   } catch (err) {
     console.error('[cart] POST failed:', err.message);
