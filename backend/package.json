@@ -24,5 +24,9 @@
     "nodemailer": "^8.0.7",
     "pg": "^8.20.0",
     "resend": "^6.12.3"
+  },
+  "devDependencies": {
+    "jest": "^30.5.1",
+    "supertest": "^7.2.2"
   }
 }
