@@ -23,6 +23,28 @@ function formatPrice(amount) {
   return `$${Number(amount).toFixed(2)}`;
 }
 
+// ── FORMAT CONFIG META (gender + print size) ─────────
+// Verification pass (checkout gender/printSize item): the cart data itself
+// was already flowing through to order creation intact — verifyAndCreateOrder()
+// sends the whole `cart` array unmodified, so gender/printSize were never
+// lost. What WAS missing is showing them back to the customer before they
+// pay. printSize is an object (not a plain string) — same shape cart.js's
+// own configSignature() already expects: { id: '...' } or
+// { size_label: '...' } — so this reads it the same way, rather than
+// assuming a single field name.
+function formatConfigMeta(item) {
+  const parts = [];
+  if (item.size) parts.push(`Size: ${item.size}`);
+  if (item.gender) parts.push(item.gender.charAt(0).toUpperCase() + item.gender.slice(1));
+
+  const printSizeLabel = item.printSize?.id ?? item.printSize?.size_label ?? null;
+  if (printSizeLabel) parts.push(`Print: ${printSizeLabel}`);
+
+  if (item.designs?.length) parts.push(`${item.designs.length} design(s)`);
+
+  return parts.join(' · ');
+}
+
 // ── CHANGE QUANTITY ──────────────────────────────────
 // Matches by id + size, same pairing cart.js uses to tell line items apart.
 // Decreasing a quantity of 1 removes the item from the cart entirely.
@@ -62,10 +84,7 @@ function renderItems() {
       </div>
       <div class="checkout-item-info">
         <div class="checkout-item-name">${item.name}</div>
-        <div class="checkout-item-meta">
-          ${item.size ? `Size: ${item.size}` : ''}
-          ${item.designs?.length ? ` · ${item.designs.length} design(s)` : ''}
-        </div>
+        <div class="checkout-item-meta">${formatConfigMeta(item)}</div>
         <div class="checkout-item-qty">
           <button class="qty-btn" onclick="changeQty(${item.id}, '${item.size || ''}', -1)" aria-label="Decrease quantity">−</button>
           <span class="qty-value">${item.qty}</span>
