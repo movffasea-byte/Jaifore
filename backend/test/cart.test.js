@@ -29,6 +29,7 @@ const jwt = require('jsonwebtoken');
 // the app without also binding a real port.
 const app = require('../app');
 const { pool: db } = require('../database');
+const { redis } = require('../redis');
 
 // A fixed fake product id used only by these tests — pick a real,
 // existing product_id from your products table so any FK constraint
@@ -82,7 +83,10 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
-  await db.end?.(); // close the pool so Jest can exit cleanly
+  await db.end?.(); // close the pg pool so Jest can exit cleanly
+  await redis.quit(); // close the ioredis connection — otherwise it stays
+                       // open and Jest hangs after tests finish, needing
+                       // --forceExit every run
 });
 
 describe('GET /api/cart', () => {
