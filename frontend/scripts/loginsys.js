@@ -73,6 +73,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     }
     localStorage.setItem('jaifore_token', data.token);
     localStorage.setItem('jaifore_user', JSON.stringify(data.user));
+    window.syncCartOnLogin?.(); // item 21 — merge any local (guest) cart into the account's server cart
     showMsg('login-msg', `Welcome back, ${data.user.name.split(' ')[0]}! Redirecting...`, 'success');
     setTimeout(() => redirectAfterLogin(data.user), 1000);
   } catch { showMsg('login-msg', 'Network error. Try again.', 'error'); }
@@ -175,6 +176,7 @@ async function autoVerifyOTP() {
     clearInterval(otpTimer);
     localStorage.setItem('jaifore_token', data.token);
     localStorage.setItem('jaifore_user', JSON.stringify(data.user));
+    window.syncCartOnLogin?.(); // item 21 — merge any local (guest) cart into the account's server cart
     showMsg('otp-msg', `✓ Verified! Welcome, ${data.user.name.split(' ')[0]}!`, 'success');
     setTimeout(() => redirectAfterLogin(data.user), 1200);
   } catch {
