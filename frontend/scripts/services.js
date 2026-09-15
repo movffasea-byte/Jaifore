@@ -8,10 +8,6 @@ const API = 'https://jai-fore-production.up.railway.app';
 let selectedSize         = null;
 let currentModalProduct  = null;
 
-// item 18b — quantity for STANDALONE design products, shared with the same
-// pattern used in category.js. Kept as a separate object per file since
-// services.js and category.js are two different pages/scripts that never
-// run together, so there's no risk of them stepping on each other.
 const designQuantities = {};
 const MIN_QUANTITY = 1;
 
@@ -45,9 +41,6 @@ function renderQtyStepper(productId, category) {
   `;
 }
 
-// Delegated listeners — same reasoning as category.js: loadCategory()
-// rebuilds each grid's innerHTML on load, so binding on document (rather
-// than per-card) survives any future re-render without re-attaching.
 document.addEventListener('click', (e) => {
   const minusBtn = e.target.closest('.qty-minus-btn');
   if (minusBtn) {
@@ -69,20 +62,20 @@ document.addEventListener('change', (e) => {
 });
 
 // ── WISHLIST HEART (item 19) ────────────────────────
-// The heart now lives ONLY inside the product modal (see openModal()) —
-// it was previously also rendered on cards, but the card's own "click
-// anywhere opens modal" listener didn't exclude the heart, so a card-heart
-// click was unreliable (sometimes opened the modal instead of toggling
-// the wishlist). Rather than patch that interaction, the heart was
-// removed from cards entirely — modal-only avoids the conflict outright.
+// Restored to cards (apparel + design; webdev excluded — enquiry-only,
+// no cart line, same reasoning the qty stepper already uses). The heart
+// was previously modal-only because the card's own "click anywhere opens
+// modal" listener didn't exclude it, making the card heart appear broken —
+// fixed properly below by adding it to that listener's exclusion list,
+// instead of removing the card heart entirely. Matches category.js's fix.
+function renderWishlistHeart(productId, category) {
+  if (category === 'webdev') return '';
+  return `<button class="wishlist-heart-btn" type="button" data-product-id="${productId}" onclick="event.stopPropagation()" aria-label="Save for later">♡</button>`;
+}
+
 let wishlistedProductIds = new Set();
 
-// services.js previously had no reason to keep fetched products around
-// after rendering; the wishlist heart's click handler needs to look a
-// product back up by id (to read its name/price/image for the POST body),
-// so loadCategory() below now stashes its result here. Item 20's related-
-// items row also reuses this cache first before falling back to a fetch.
-const loadedProducts = {}; // { apparel: [...], design: [...], webdev: [...] }
+const loadedProducts = {};
 
 async function loadWishlistedIds() {
   const token = localStorage.getItem('jaifore_token');
@@ -115,9 +108,6 @@ document.addEventListener('click', async (e) => {
   if (!token) { window.location.href = 'loginsys.html'; return; }
 
   const productId = btn.dataset.productId;
-  // Search across all three loaded category buckets, since this page
-  // (unlike category.js) doesn't track a single "current" category — all
-  // three sections (apparel/design/webdev) are on screen simultaneously.
   const product = Object.values(loadedProducts).flat().find(p => String(p.id) === String(productId));
   if (!product) return;
 
@@ -159,32 +149,17 @@ document.addEventListener('click', async (e) => {
   }
 });
 
-// ── RECENTLY VIEWED (item 20) ───────────────────────
-// Records a view on ENGAGEMENT only — opening the modal, or (for apparel)
-// going straight to the configurator — not on every card that merely
-// renders into a grid. A card existing in a scrollable grid isn't the
-// same as a person actually looking at it; recording on render would
-// fire a dozen network calls for a single scroll past a category.
-// Server-backed + logged-in only per product decision: silently does
-// nothing for a logged-out visitor, same convention as the wishlist heart.
 function recordProductView(productId) {
   const token = localStorage.getItem('jaifore_token');
-  if (!token) return; // not logged in — nothing to record, no error state needed
+  if (!token) return;
 
-  // Fire-and-forget: this is instrumentation, not a user-facing action.
-  // Nothing in the response is read, and a failure here should never
-  // interrupt the actual navigation/modal-open the user is doing.
   fetch(`${API}/api/recently-viewed`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
     body:    JSON.stringify({ productId })
-  }).catch(() => { /* silent — see reasoning above */ });
+  }).catch(() => { /* silent */ });
 }
 
-// Maps a DB category string (as returned by the recently-viewed/products
-// API) back to this file's short category keys ('apparel'/'design'/
-// 'webdev'), since openModal() and renderCard() both key off the short
-// form throughout this file.
 function dbCategoryToKey(dbCat) {
   if (dbCat === 'Apparels & Merchandise' || dbCat === 'apparel') return 'apparel';
   if (dbCat === 'Graphic Design' || dbCat === 'design') return 'design';
@@ -192,17 +167,13 @@ function dbCategoryToKey(dbCat) {
   return 'apparel';
 }
 
-// ── RECENTLY VIEWED STRIP (item 20 display) ─────────
-// New homepage section per product decision. Rendered once on load,
-// independent of the three category grids below — this is the user's OWN
-// browsing history, not tied to whichever category section it sits near.
 async function loadRecentlyViewed() {
   const section = document.getElementById('recently-viewed-section');
   const grid    = document.getElementById('recently-viewed-grid');
-  if (!section || !grid) return; // section only exists on services.html
+  if (!section || !grid) return;
 
   const token = localStorage.getItem('jaifore_token');
-  if (!token) { section.classList.add('hidden'); return; } // nothing to show a logged-out visitor
+  if (!token) { section.classList.add('hidden'); return; }
 
   try {
     const res = await fetch(`${API}/api/recently-viewed`, {
@@ -211,7 +182,7 @@ async function loadRecentlyViewed() {
     if (!res.ok) throw new Error();
     const items = await res.json();
 
-    if (!items.length) { section.classList.add('hidden'); return; } // nothing viewed yet — don't show an empty section
+    if (!items.length) { section.classList.add('hidden'); return; }
 
     section.classList.remove('hidden');
     grid.innerHTML = '';
@@ -228,11 +199,6 @@ async function loadRecentlyViewed() {
           <div class="card-price"><span class="currency">₦</span>${Number(item.price).toLocaleString('en-NG')}</div>
         </div>
       `;
-      // Reopens the EXACT product's own modal directly, per product
-      // decision — not a redirect to its category page. The recently-viewed
-      // API already returns full product fields (name/price/image_url/
-      // category/in_stock via its JOIN), which is everything openModal()
-      // and renderCard() need — no extra fetch required to reopen it.
       card.addEventListener('click', () => {
         const category = dbCategoryToKey(item.category);
         const product = {
@@ -244,26 +210,14 @@ async function loadRecentlyViewed() {
       grid.appendChild(card);
     });
   } catch {
-    section.classList.add('hidden'); // fail quiet — this is a nice-to-have section, not core page content
+    section.classList.add('hidden');
   }
 }
 
-// ── RELATED ITEMS (item 20 addition) ────────────────
-// Shown at the end of every product modal: 3–4 OTHER items from the same
-// category, per product decision. "Same category" always excludes the
-// currently-open product itself — showing a product as "related to itself"
-// would read as a bug, not a recommendation.
 async function fetchRelatedItems(category, excludeProductId) {
-  // Reuse whatever's already loaded for this category first — avoids a
-  // second network call in the common case (a visitor who's already seen
-  // this category's teaser row on the page).
   let pool = loadedProducts[category] || [];
 
   if (pool.length <= 1) {
-    // Not enough cached to pick from — fetch a slightly larger pool just
-    // for this. Not cached into loadedProducts itself, since that array
-    // deliberately mirrors "what's shown in the teaser row" elsewhere in
-    // this file, and overwriting it here would be a confusing side effect.
     pool = await fetchProducts(category, 8);
   }
 
@@ -292,7 +246,6 @@ function renderRelatedItemsHTML(items) {
   `;
 }
 
-// ── PLACEHOLDERS ───────────────────────────────────────
 const PLACEHOLDERS = {
   apparel: ['👕','👖','🩳','🧥','🎒','☕','📱'],
   design:  ['🎨','✏️','🖌️','🖼️','💡','🌀','⚡'],
@@ -304,7 +257,6 @@ function getPlaceholder(category, index) {
   return arr[index % arr.length];
 }
 
-// ── MOCK DATA ──────────────────────────────────────────
 function getMockProducts(category) {
   const mocks = {
     apparel: [
@@ -326,11 +278,6 @@ function getMockProducts(category) {
   return mocks[category] || [];
 }
 
-// ── FETCH ──────────────────────────────────────────────
-// `limit` now optional (defaults to 3, the original teaser-row size) — the
-// related-items feature above requests a larger pool (8) so it has more
-// than 3 candidates to exclude the current product from and still have
-// enough left over.
 async function fetchProducts(category, limit = 3) {
    const categoryMap = {
     apparel: 'Apparels & Merchandise',
@@ -348,7 +295,6 @@ async function fetchProducts(category, limit = 3) {
   }
 }
 
-// ── FORMAT PRICE ───────────────────────────────────────
 function formatPrice(amount) {
   if (window.JaiforeCurrency?.isReady()) {
     return window.JaiforeCurrency.format(amount);
@@ -356,7 +302,6 @@ function formatPrice(amount) {
   return `$${Number(amount).toLocaleString()}`;
 }
 
-// ── RENDER CARD ────────────────────────────────────────
 function renderCard(product, index, category) {
   const card        = document.createElement('div');
   card.className    = 'product-card';
@@ -381,20 +326,21 @@ function renderCard(product, index, category) {
   const domainHTML = isWebdev && product.domain
     ? `<div class="site-domain">↗ ${product.domain}</div>` : '';
 
-  // item 18b: design products get a qty stepper alongside Order Now.
   const qtyStepperHTML = renderQtyStepper(product.id, category);
-  // item 19: wishlist heart now lives only in the modal — see openModal().
+  // item 19: heart restored to cards (apparel + design), excluded on webdev.
+  const wishlistHeartHTML = renderWishlistHeart(product.id, category);
 
-  // Apparel gets two buttons — Add to Cart + Design It
   const footerHTML = isApparel
     ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
        <div style="display:flex;gap:0.4rem">
+         ${wishlistHeartHTML}
          <button class="configure-btn" data-id="${product.id}">🎨 Design</button>
          <button class="card-action"   data-id="${product.id}">Add to Cart</button>
        </div>`
     : isDesign
       ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+           ${wishlistHeartHTML}
            ${qtyStepperHTML}
            <button class="card-action" data-id="${product.id}">Order Now</button>
          </div>`
@@ -415,38 +361,36 @@ function renderCard(product, index, category) {
     </div>
   `;
 
-  // Card click → modal (item 20: this IS the engagement moment for
-  // non-apparel/non-sized-apparel products, so record the view here)
+  // item 19 fix: wishlist heart now excluded from this "click anywhere
+  // opens modal" listener, same fix as category.js. Previously the heart
+  // wasn't rendered on cards at all specifically to dodge this conflict —
+  // now it's rendered AND correctly excluded, so it works standalone
+  // without needing the modal open.
   card.addEventListener('click', (e) => {
     if (!e.target.classList.contains('card-action') &&
         !e.target.classList.contains('configure-btn') &&
-        !e.target.closest('.qty-stepper')) {
+        !e.target.closest('.qty-stepper') &&
+        !e.target.closest('.wishlist-heart-btn')) {
       openModal(product, category);
     }
   });
 
-  // Add to cart button
   card.querySelector('.card-action')?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (isWebdev || (isApparel && product.sizes?.length)) {
       openModal(product, category);
     } else if (isDesign) {
-      // item 18b: loop addToCart() qty times — same accumulation pattern
-      // as the configurator, no cart.js changes needed for this to work.
       const qty = getDesignQty(product.id);
       for (let i = 0; i < qty; i++) {
         addToCart(product, null, category);
       }
-      recordProductView(product.id); // item 20 — Order Now is a real engagement even without opening the modal
+      recordProductView(product.id);
     } else {
       addToCart(product, null, category);
-      recordProductView(product.id); // item 20
+      recordProductView(product.id);
     }
   });
 
-  // Design It button — go to configurator (item 20: configurator.js
-  // records the view itself once it loads the product there, so nothing
-  // extra needed at this specific click — just the navigation)
   card.querySelector('.configure-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     window.location.href = `configurator.html?product=${product.id}`;
@@ -455,29 +399,26 @@ function renderCard(product, index, category) {
   return card;
 }
 
-// ── LOAD CATEGORY ──────────────────────────────────────
 async function loadCategory(category) {
   const grid    = document.getElementById(`${category}-grid`);
   const products = await fetchProducts(category);
   grid.innerHTML = '';
-  loadedProducts[category] = products; // item 19 — stash for the wishlist heart's product lookup; item 20 reuses this too
+  loadedProducts[category] = products;
 
   if (!products.length) {
     grid.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;padding:2rem 0;grid-column:1/-1">No products found.</div>`;
     return;
   }
   products.slice(0, 3).forEach((p, i) => grid.appendChild(renderCard(p, i, category)));
-  syncWishlistHearts(); // item 19 — no-op now that cards have no heart of their own; kept in case a modal is already open when this resolves
+  syncWishlistHearts(); // item 19 — now applies to card hearts too, not just the modal's
 }
 
-// ── LOAD MORE → category page ──────────────────────────
 document.querySelectorAll('.load-more-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     window.location.href = `category.html?cat=${btn.dataset.category}`;
   });
 });
 
-// ── MODAL ──────────────────────────────────────────────
 async function openModal(product, category) {
   currentModalProduct = product;
   selectedSize        = null;
@@ -499,8 +440,6 @@ async function openModal(product, category) {
         </div>
        </div>` : '';
 
-  // item 18b: same stepper as the card, synced via shared designQuantities —
-  // opening the modal reflects whatever quantity was already set on the card.
   const qtyStepperModalHTML = isDesign
     ? `<div class="modal-qty-row">
          <label>Quantity</label>
@@ -508,9 +447,6 @@ async function openModal(product, category) {
        </div>`
     : '';
 
-  // item 19 — wishlist heart in the modal, apparel + design only. This is
-  // now the ONLY place the heart is ever rendered (see comment near
-  // wishlistedProductIds above for why it was removed from cards).
   const modalWishlistHeartHTML = !isWebdev
     ? `<button class="modal-wishlist-heart-btn wishlist-heart-btn" type="button" data-product-id="${product.id}" aria-label="Save for later">♡</button>`
     : '';
@@ -544,7 +480,6 @@ async function openModal(product, category) {
     <div id="modalRelatedContainer"></div>
   `;
 
-  // Size selection
   document.querySelectorAll('.size-opt').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.size-opt').forEach(b => b.classList.remove('selected'));
@@ -553,7 +488,6 @@ async function openModal(product, category) {
     });
   });
 
-  // Add to cart from modal
   const addBtn = document.querySelector('.modal-add-btn');
   if (addBtn) {
     addBtn.addEventListener('click', () => {
@@ -579,13 +513,9 @@ async function openModal(product, category) {
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('product-modal').classList.add('open');
 
-  syncWishlistHearts(); // item 19 — the modal's own heart needs its saved state applied too
-  recordProductView(product.id); // item 20 — opening the modal IS the engagement moment
+  syncWishlistHearts();
+  recordProductView(product.id);
 
-  // item 20 — related items load AFTER the modal is already visible and
-  // interactive, rather than blocking the whole modal open on this fetch.
-  // The rest of the modal (price, Add to Cart, wishlist heart) is fully
-  // usable immediately; the related row fills in a moment later.
   const relatedContainer = document.getElementById('modalRelatedContainer');
   const related = await fetchRelatedItems(category, product.id);
   if (relatedContainer) {
@@ -593,7 +523,7 @@ async function openModal(product, category) {
     relatedContainer.querySelectorAll('.modal-related-card').forEach(cardEl => {
       cardEl.addEventListener('click', () => {
         const relatedProduct = related.find(p => String(p.id) === cardEl.dataset.id);
-        if (relatedProduct) openModal(relatedProduct, category); // re-opens the modal in place, for THIS related item
+        if (relatedProduct) openModal(relatedProduct, category);
       });
     });
   }
@@ -607,7 +537,6 @@ function closeModal() {
 document.getElementById('modal-close').addEventListener('click', closeModal);
 document.getElementById('modal-overlay').addEventListener('click', closeModal);
 
-// ── SCROLL REVEAL ──────────────────────────────────────
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
@@ -625,15 +554,9 @@ document.querySelectorAll('.category-section').forEach(section => {
   observer.observe(section);
 });
 
-// ── INIT ───────────────────────────────────────────────
-
 window.JaiforeCurrency?.init().then(() => {
-  loadWishlistedIds().then(syncWishlistHearts); // item 19 — re-sync once the
-                        // real saved-ids arrive, in case a modal is already
-                        // open (or opens) before this fetch resolves — cards
-                        // no longer render a heart at all, so this only
-                        // matters for whatever heart the modal is showing
-  loadRecentlyViewed(); // item 20 — new homepage section
+  loadWishlistedIds().then(syncWishlistHearts);
+  loadRecentlyViewed();
   loadCategory('apparel');
   loadCategory('design');
   loadCategory('webdev');

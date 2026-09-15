@@ -32,11 +32,6 @@ const PLACEHOLDERS = {
   webdev:  ['🌐','💻','🖥️','⚙️','🚀','📡','🔮']
 };
 
-// ── FORMAT PRICE ───────────────────────────────────────
-// Pre-existing bug fix (item 17): this file called formatPrice() in
-// openModal() without ever defining or importing it (category.html loads
-// currency.js directly, not services.js, so the global services.js version
-// was never in scope). Mirrors the same pattern services.js already uses.
 function formatPrice(amount) {
   if (window.JaiforeCurrency?.isReady()) {
     return window.JaiforeCurrency.format(amount);
@@ -44,10 +39,7 @@ function formatPrice(amount) {
   return `$${Number(amount).toLocaleString()}`;
 }
 
-// ── STATE ───────────────────────────────────────────
-// item 17: products are now cached per-category in memory, so switching the
-// category dropdown back and forth doesn't refetch a category we already have.
-const productsByCategory = {}; // { apparel: [...], design: [...], webdev: [...] }
+const productsByCategory = {};
 let filteredProducts = [];
 let displayedCount   = 0;
 const PAGE_SIZE      = 12;
@@ -55,13 +47,7 @@ let currentCategory  = 'apparel';
 let selectedSize     = null;
 let currentProduct   = null;
 
-// item 18b — quantity for STANDALONE design products (not the configurator,
-// which has its own separate quantity from the first half of item 18). Keyed
-// by product id so the count is shared/synced between a product's card and
-// its modal, and independent per product on the page. Only meaningful for
-// the 'design' category — apparel goes through the configurator instead,
-// webdev is a one-off enquiry, so quantity doesn't apply to either.
-const designQuantities = {}; // { [productId]: qty }
+const designQuantities = {};
 const MIN_QUANTITY = 1;
 
 function getDesignQty(productId) {
@@ -73,8 +59,6 @@ function setDesignQty(productId, newQty) {
   const qty = (isNaN(parsed) || parsed < MIN_QUANTITY) ? MIN_QUANTITY : parsed;
   designQuantities[productId] = qty;
 
-  // Sync every stepper for this product currently on screen — card AND
-  // modal (if open) — so they never show different numbers for the same item.
   document.querySelectorAll(`.qty-input[data-product-id="${productId}"]`).forEach(input => {
     input.value = qty;
   });
@@ -84,8 +68,6 @@ function setDesignQty(productId, newQty) {
   return qty;
 }
 
-// Builds the stepper markup shared by card + modal. Returns an empty string
-// for non-design categories, so apparel/webdev cards are completely unaffected.
 function renderQtyStepper(productId, category) {
   if (category !== 'design') return '';
   const qty = getDesignQty(productId);
@@ -98,9 +80,6 @@ function renderQtyStepper(productId, category) {
   `;
 }
 
-// Delegated listeners — cards/modal content get re-created on every render
-// and filter pass, so binding once on a stable ancestor avoids re-attaching
-// listeners (and losing them) every time the DOM is rebuilt.
 document.addEventListener('click', (e) => {
   const minusBtn = e.target.closest('.qty-minus-btn');
   if (minusBtn) {
@@ -121,43 +100,28 @@ document.addEventListener('change', (e) => {
   }
 });
 
-// ── WISHLIST HEART (item 19) ────────────────────────
-// Applies to apparel + design cards; webdev is enquiry-only (no cart line),
-// same reasoning the qty stepper above already skips it there. Configured
-// designs get their own Save for Later button inside the configurator
-// itself — this only covers the base-product path.
 function renderWishlistHeart(productId, category) {
   if (category === 'webdev') return '';
   return `<button class="wishlist-heart-btn" type="button" data-product-id="${productId}" onclick="event.stopPropagation()" aria-label="Save for later">♡</button>`;
 }
 
-// Tracks which product ids are already wishlisted, so a page refresh (or a
-// re-render from a filter/search pass) shows the filled heart correctly
-// instead of resetting to empty.
 let wishlistedProductIds = new Set();
 
 async function loadWishlistedIds() {
   const token = localStorage.getItem('jaifore_token');
-  if (!token) return; // not logged in — hearts just stay empty, no error state needed
+  if (!token) return;
   try {
     const res = await fetch(`${API}/api/wishlist`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) return;
     const items = await res.json();
-    // Only plain (non-configured) entries are relevant to a card heart — a
-    // configured design's product_id would otherwise incorrectly light up
-    // the heart on every plain listing of that same base product.
     wishlistedProductIds = new Set(
       items.filter(i => !i.config_signature).map(i => String(i.product_id))
     );
   } catch { /* silent — hearts default to empty state, nothing breaks */ }
 }
 
-// Applies the "already saved" visual state to any hearts currently on
-// screen. Called after loadWishlistedIds() resolves AND after every
-// re-render (loadNextPage rebuilds cards from scratch), since a freshly
-// created button element never carries the .saved class itself.
 function syncWishlistHearts() {
   document.querySelectorAll('.wishlist-heart-btn').forEach(btn => {
     const saved = wishlistedProductIds.has(String(btn.dataset.productId));
@@ -166,9 +130,6 @@ function syncWishlistHearts() {
   });
 }
 
-// Single delegated listener — same reasoning as the qty-stepper listeners
-// above: cards are rebuilt wholesale on every filter/sort/category-switch
-// pass, so binding once on document survives re-renders.
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('.wishlist-heart-btn');
   if (!btn) return;
@@ -185,9 +146,6 @@ document.addEventListener('click', async (e) => {
 
   try {
     if (alreadySaved) {
-      // Heart already filled — clicking again removes it. Needs the
-      // wishlist_items.id (not product_id) for the DELETE route, so this
-      // re-fetches the list to find the matching row id.
       const listRes = await fetch(`${API}/api/wishlist`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -215,17 +173,12 @@ document.addEventListener('click', async (e) => {
     }
     syncWishlistHearts();
   } catch {
-    // Silent failure — heart just doesn't toggle; low-stakes action with
-    // no status line on this page to report into.
+    // Silent failure
   } finally {
     btn.disabled = false;
   }
 });
 
-// ── RECENTLY VIEWED (item 20) ───────────────────────
-// Same reasoning as services.js — records on ENGAGEMENT only (modal open,
-// or a direct Add to Cart / Order Now from the card), not on every card
-// render. Server-backed + logged-in only, silently a no-op otherwise.
 function recordProductView(productId) {
   const token = localStorage.getItem('jaifore_token');
   if (!token) return;
@@ -233,15 +186,9 @@ function recordProductView(productId) {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
     body:    JSON.stringify({ productId })
-  }).catch(() => { /* silent — fire-and-forget instrumentation */ });
+  }).catch(() => { /* silent */ });
 }
 
-// ── RELATED ITEMS (item 20 addition) ────────────────
-// 3–4 OTHER items from the same category, shown at the end of every
-// product modal — always excludes the currently-open product itself.
-// Unlike services.js, this file already caches a FULL category listing in
-// productsByCategory (not just a 3-item teaser), so there's no need for a
-// fallback fetch here — the pool is already large enough.
 function getRelatedItems(category, excludeProductId) {
   const pool = productsByCategory[category] || [];
   return pool
@@ -269,14 +216,10 @@ function renderRelatedItemsHTML(items) {
   `;
 }
 
-// ── INIT ────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
 currentCategory = params.get('cat') || 'apparel';
 if (!CATEGORY_META[currentCategory]) currentCategory = 'apparel';
 
-// ── UPDATE HERO + DROPDOWN FOR ACTIVE CATEGORY ──────
-// Keeps the page's title/tag/description in sync with whichever category is
-// active, since the dropdown can now change this without a page navigation.
 function updateHeroForCategory(cat) {
   const meta = CATEGORY_META[cat] || CATEGORY_META.apparel;
   document.getElementById('catTag').textContent   = meta.tag;
@@ -289,7 +232,6 @@ function updateHeroForCategory(cat) {
 updateHeroForCategory(currentCategory);
 document.getElementById('categorySelect').value = currentCategory;
 
-// ── FETCH ONE CATEGORY (with in-memory cache) ───────
 async function fetchCategory(cat) {
   if (productsByCategory[cat]) return productsByCategory[cat];
 
@@ -306,7 +248,6 @@ async function fetchCategory(cat) {
   return productsByCategory[cat];
 }
 
-// ── FILTER & SORT ───────────────────────────────────
 function applyFilters() {
   const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
   const sort  = document.getElementById('sortSelect').value;
@@ -334,7 +275,6 @@ function applyFilters() {
   loadNextPage();
 }
 
-// ── LOAD PAGE ───────────────────────────────────────
 function loadNextPage() {
   const grid  = document.getElementById('cat-grid');
   const slice = filteredProducts.slice(displayedCount, displayedCount + PAGE_SIZE);
@@ -348,7 +288,7 @@ function loadNextPage() {
 
   slice.forEach((p, i) => grid.appendChild(renderCard(p, displayedCount + i)));
   displayedCount += slice.length;
-  syncWishlistHearts(); // item 19 — every new batch of cards needs hearts synced
+  syncWishlistHearts();
 
   const loadMoreWrap = document.getElementById('loadMoreWrap');
   if (displayedCount >= filteredProducts.length) {
@@ -358,7 +298,6 @@ function loadNextPage() {
   }
 }
 
-// ── RENDER CARD ─────────────────────────────────────
 function renderCard(product, index) {
   const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
   const card = document.createElement('div');
@@ -387,9 +326,7 @@ function renderCard(product, index) {
     ? `<span class="card-badge out-of-stock">Out of Stock</span>`
     : `<span class="card-badge">${meta.tag}</span>`;
 
-  // item 18b: design products get a qty stepper next to Order Now.
   const qtyStepperHTML = renderQtyStepper(product.id, currentCategory);
-  // item 19: apparel + design cards get a wishlist heart; webdev does not.
   const wishlistHeartHTML = renderWishlistHeart(product.id, currentCategory);
 
   const footerHTML = isApparel
@@ -423,10 +360,18 @@ function renderCard(product, index) {
     </div>
   `;
 
+  // item 19 fix: the wishlist heart is now excluded from this "click
+  // anywhere opens the modal" listener, same as .card-action/.configure-btn/
+  // .qty-stepper already were. Previously, clicking the heart fired BOTH
+  // the delegated wishlist-toggle listener AND this listener — openModal()
+  // immediately replaced #modal-inner's content, which made the heart
+  // click look like it "did nothing" on the card even though the
+  // wishlist API call may have still gone through in the background.
   card.addEventListener('click', (e) => {
     if (!e.target.classList.contains('card-action') &&
         !e.target.classList.contains('configure-btn') &&
-        !e.target.closest('.qty-stepper')) {
+        !e.target.closest('.qty-stepper') &&
+        !e.target.closest('.wishlist-heart-btn')) {
       openModal(product);
     }
   });
@@ -436,17 +381,14 @@ function renderCard(product, index) {
     if (isWebdev || (isApparel && product.sizes?.length)) {
       openModal(product);
     } else if (isDesign) {
-      // item 18b: loop addToCart() qty times, same accumulation pattern as
-      // the configurator half — no cart.js changes needed, existing.qty += 1
-      // naturally accumulates to the right count across repeated calls.
       const qty = getDesignQty(product.id);
       for (let i = 0; i < qty; i++) {
         addToCart(product, null, currentCategory);
       }
-      recordProductView(product.id); // item 20 — Order Now is a real engagement
+      recordProductView(product.id);
     } else {
       addToCart(product, null, currentCategory);
-      recordProductView(product.id); // item 20
+      recordProductView(product.id);
     }
   });
 
@@ -458,7 +400,6 @@ function renderCard(product, index) {
   return card;
 }
 
-// ── MODAL ───────────────────────────────────────────
 async function openModal(product) {
   const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
   currentProduct = product;
@@ -481,9 +422,6 @@ async function openModal(product) {
         </div>
        </div>` : '';
 
-  // item 18b: same stepper component as the card, synced via shared
-  // designQuantities state — opening the modal shows whatever qty was
-  // already set on the card, not reset back to 1.
   const qtyStepperModalHTML = isDesign
     ? `<div class="modal-qty-row">
          <label>Quantity</label>
@@ -491,7 +429,6 @@ async function openModal(product) {
        </div>`
     : '';
 
-  // item 19 — wishlist heart in the modal, apparel + design only.
   const modalWishlistHeartHTML = !isWebdev
     ? `<button class="modal-wishlist-heart-btn wishlist-heart-btn" type="button" data-product-id="${product.id}" aria-label="Save for later">♡</button>`
     : '';
@@ -554,11 +491,9 @@ async function openModal(product) {
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('product-modal').classList.add('open');
 
-  syncWishlistHearts(); // item 19 — the modal's own heart needs its saved state applied too
-  recordProductView(product.id); // item 20 — opening the modal IS the engagement moment
+  syncWishlistHearts();
+  recordProductView(product.id);
 
-  // item 20 — related items, drawn from the already-cached full category
-  // listing (no extra fetch needed, unlike services.js's smaller teaser cache).
   const relatedContainer = document.getElementById('modalRelatedContainer');
   const related = getRelatedItems(currentCategory, product.id);
   if (relatedContainer) {
@@ -566,7 +501,7 @@ async function openModal(product) {
     relatedContainer.querySelectorAll('.modal-related-card').forEach(cardEl => {
       cardEl.addEventListener('click', () => {
         const relatedProduct = related.find(p => String(p.id) === cardEl.dataset.id);
-        if (relatedProduct) openModal(relatedProduct); // re-opens the modal in place, for THIS related item
+        if (relatedProduct) openModal(relatedProduct);
       });
     });
   }
@@ -580,12 +515,8 @@ function closeModal() {
 document.getElementById('modal-close').addEventListener('click', closeModal);
 document.getElementById('modal-overlay').addEventListener('click', closeModal);
 
-// ── LOAD MORE ────────────────────────────────────────
 document.getElementById('loadMoreBtn').addEventListener('click', loadNextPage);
 
-// ── CATEGORY SWITCH (item 17) ───────────────────────
-// Filters within the page — no navigation — using the in-memory per-category
-// cache. Fetches from the API only the first time a given category is picked.
 document.getElementById('categorySelect').addEventListener('change', async (e) => {
   const newCat = e.target.value;
   if (!CATEGORY_META[newCat]) return;
@@ -593,8 +524,6 @@ document.getElementById('categorySelect').addEventListener('change', async (e) =
   currentCategory = newCat;
   updateHeroForCategory(newCat);
 
-  // Show skeletons only if this category hasn't been fetched before —
-  // switching back to an already-cached category should feel instant.
   if (!productsByCategory[newCat]) {
     document.getElementById('cat-grid').innerHTML =
       Array(6).fill('<div class="skeleton-card"></div>').join('');
@@ -607,18 +536,15 @@ document.getElementById('categorySelect').addEventListener('change', async (e) =
   applyFilters();
 });
 
-// ── SEARCH (item 17, live/debounced) ────────────────
 let searchDebounceTimer = null;
 document.getElementById('searchInput').addEventListener('input', () => {
   clearTimeout(searchDebounceTimer);
   searchDebounceTimer = setTimeout(applyFilters, 300);
 });
 
-// ── OTHER FILTER EVENTS ──────────────────────────────
 document.getElementById('sortSelect').addEventListener('change', applyFilters);
 document.getElementById('stockSelect').addEventListener('change', applyFilters);
 
-// ── START ────────────────────────────────────────────
 (async () => {
   document.getElementById('catCount').textContent = 'Loading...';
   await Promise.all([fetchCategory(currentCategory), loadWishlistedIds()]);
