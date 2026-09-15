@@ -82,6 +82,9 @@ app.get('/', (req, res) => {
   res.json({ message: "Jai'fore backend is live 🚀" });
 });
 
+//qrcode route
+app.use('/api/qr', require('./routes/qr'));
+
 // Auth routes get the strict limiter (login, OTP send/verify, register, etc.)
 app.use('/api/auth', authLimiter, authRouter);
 
