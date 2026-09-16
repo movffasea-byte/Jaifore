@@ -84,6 +84,12 @@ app.get('/', (req, res) => {
   res.json({ message: "Jai'fore backend is live 🚀" });
 });
 
+// QR code flyer/awareness tracking — public redirect + admin CRUD/stats.
+// No rate limiter wrapper here deliberately: the public GET /:slug redirect
+// is hit by real phones scanning a physical flyer and needs to stay
+// permissive, unlike the general API browsing routes below.
+app.use('/api/qr', require('./routes/qr'));
+
 // Auth routes get the strict limiter (login, OTP send/verify, register, etc.)
 app.use('/api/auth', authLimiter, authRouter);
 
