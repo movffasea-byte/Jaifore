@@ -320,6 +320,36 @@ async function sendWelcomeEmail(toEmail, name) {
   });
 }
 
+* ── PASSWORD RESET EMAIL ── */
+async function sendPasswordResetEmail(toEmail, name, resetLink) {
+  await resend.emails.send({
+    from: "Jai'fore Studio <onboarding@resend.dev>",
+    to: toEmail,
+    subject: `Reset your Jai'fore password`,
+    html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+    <table width="480" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #d8d0c4;">
+    <tr><td style="padding:32px 40px 24px;border-bottom:2px solid #111;">
+      <div style="font-family:Georgia,serif;font-size:24px;font-weight:900;color:#111;">Jai'fore</div>
+      <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#7b5ea7;margin-top:4px;">Global Creative Studio</div>
+    </td></tr>
+    <tr><td style="padding:32px 40px;">
+      <p style="font-size:15px;color:#555;margin:0 0 8px;">Hi ${name},</p>
+      <p style="font-size:15px;color:#555;margin:0 0 32px;line-height:1.6;">We received a request to reset your password. Click the button below to choose a new one. This link expires in <strong>30 minutes</strong>.</p>
+      <div style="text-align:center;margin:0 0 32px;">
+        <a href="${resetLink}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:14px 36px;font-size:14px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">Reset Password</a>
+      </div>
+      <p style="font-size:13px;color:#aaa;margin:0 0 8px;line-height:1.6;">If the button doesn't work, copy and paste this link into your browser:</p>
+      <p style="font-size:12px;color:#7b5ea7;margin:0 0 24px;line-height:1.6;word-break:break-all;">${resetLink}</p>
+      <p style="font-size:13px;color:#aaa;margin:0;line-height:1.6;">If you did not request this, you can safely ignore this email — your password will not be changed.</p>
+    </td></tr>
+    <tr><td style="padding:20px 40px;border-top:1px solid #d8d0c4;">
+      <p style="font-size:12px;color:#aaa;margin:0;">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</p>
+    </td></tr>
+    </table></td></tr></table></body></html>`
+  });
+}
+
 /* ── 6. ORDER STATUS UPDATE (customer) ── */
 const STATUS_CONFIG = {
   processing: { label: 'Processing', color: '#4a2d7a', message: 'Your order has been received and is now being prepared.' },
@@ -549,4 +579,4 @@ async function sendLowStockAlert(product) {
   });
 }
 
-module.exports = { generateOTP, sendOTPEmail, sendAdminNotification, sendOrderConfirmation, sendAdminOrderAlert, sendWelcomeEmail, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert, sendLowStockAlert };
+module.exports = { generateOTP, sendOTPEmail, sendAdminNotification, sendOrderConfirmation, sendAdminOrderAlert, sendWelcomeEmail, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert, sendLowStockAlert, sendPasswordResetEmail };

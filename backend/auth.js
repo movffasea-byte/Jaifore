@@ -5,13 +5,30 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { pool } = require('./database');
 const { authenticate } = require('./middleware');
-const { generateOTP, sendOTPEmail, sendAdminNotification, sendWelcomeEmail } = require('./mailer');
+const { cacheGet, cacheSet, cacheInvalidate } = require('./redis');
+const { generateOTP, sendOTPEmail, sendAdminNotification, sendWelcomeEmail, sendPasswordResetEmail } = require('./mailer');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const otpStore = {}; // { email: { otp, expires, userData } }
+
+// Reset links are valid for 30 minutes — long enough for someone to check
+// their email and act, short enough that a stale/leaked link doesn't stay
+// exploitable indefinitely. Kept in Redis (not otpStore's plain object) so
+// a reset link survives a Railway redeploy between "email sent" and
+// "link clicked" — otpStore is fine for OTP since that's a same-session,
+// few-minutes flow, but password reset can legitimately span longer.
+const RESET_TOKEN_TTL_SECONDS = 30 * 60;
+
+// The URL the reset link points to. Frontend is a static site (Vercel),
+// so this points at a plain HTML page there, not a backend route — the
+// backend only ever handles the API calls that page makes.
+const FRONTEND_RESET_URL = process.env.FRONTEND_URL
+  ? `${process.env.FRONTEND_URL}/reset-password.html`
+  : 'https://jai-fore.vercel.app/reset-password.html';
 
 // REGISTER — Step 1
 router.post('/register', async (req, res) => {
@@ -26,7 +43,7 @@ router.post('/register', async (req, res) => {
     otpStore[email.toLowerCase().trim()] = { otp, expires: Date.now() + 10 * 60 * 1000, userData: { name: name.trim(), email: email.toLowerCase().trim(), password: hashed } };
     await sendOTPEmail(email, name, otp);
     return res.status(200).json({ message: 'OTP sent to your email.' });
-  }  catch (err) { console.error('Register error:', err.message, err.stack); return res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error('Register error:', err.message, err.stack); return res.status(500).json({ error: err.message }); }
 });
 
 // VERIFY OTP — Step 2
@@ -91,7 +108,6 @@ router.get('/me', authenticate, async (req, res) => {
   } catch (err) { return res.status(500).json({ error: 'Server error.' }); }
 });
 
-
 // UPDATE PROFILE
 router.put('/update-profile', authenticate, async (req, res) => {
   const { name, currentPassword, newPassword } = req.body;
@@ -113,6 +129,83 @@ router.put('/update-profile', authenticate, async (req, res) => {
     const updated = await pool.query('SELECT id, name, email, role FROM users WHERE id=$1', [req.user.id]);
     res.json({ message: 'Profile updated.', user: updated.rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── FORGOT PASSWORD — request a reset link ────────────────────────────
+// Works for BOTH customers and admins, since they share the same users
+// table — the admin panel's "Forgot Password?" modal and the customer
+// login page's link both call this exact same route.
+//
+// Deliberately returns the same success message whether or not the email
+// exists — this prevents the endpoint from being usable to check which
+// emails have accounts (a common account-enumeration issue with reset
+// flows that reply differently for "not found" vs "sent").
+router.post('/forgot-password', async (req, res) => {
+  const email = req.body.email?.toLowerCase().trim();
+  if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+  try {
+    const result = await pool.query('SELECT id, name, email FROM users WHERE email = $1', [email]);
+
+    if (result.rows.length) {
+      const user  = result.rows[0];
+      const token = crypto.randomBytes(32).toString('hex'); // 64 hex chars — not guessable
+
+      await cacheSet(`reset:${token}`, { userId: user.id }, RESET_TOKEN_TTL_SECONDS);
+
+      const resetLink = `${FRONTEND_RESET_URL}?token=${token}`;
+      await sendPasswordResetEmail(user.email, user.name, resetLink);
+    }
+
+    // Same response regardless of whether the account exists — see comment above.
+    return res.json({ message: 'If an account exists with that email, a reset link has been sent.' });
+  } catch (err) {
+    console.error('Forgot password error:', err.message);
+    // Still return the generic success message even on a server error —
+    // the alternative (leaking a 500) tells an attacker something went
+    // wrong server-side, which is more information than this endpoint
+    // should ever reveal either way.
+    return res.json({ message: 'If an account exists with that email, a reset link has been sent.' });
+  }
+});
+
+// ── VERIFY RESET TOKEN — lets the frontend check before showing the form ──
+// So reset-password.html can immediately show "this link is invalid or
+// expired" instead of only finding out after the user fills in a new
+// password and submits.
+router.get('/verify-reset-token/:token', async (req, res) => {
+  try {
+    const data = await cacheGet(`reset:${req.params.token}`);
+    if (!data) return res.status(400).json({ valid: false, error: 'This reset link is invalid or has expired.' });
+    return res.json({ valid: true });
+  } catch (err) {
+    console.error('Verify reset token error:', err.message);
+    return res.status(500).json({ valid: false, error: 'Server error.' });
+  }
+});
+
+// ── RESET PASSWORD — actually set the new password ────────────────────
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ error: 'Token and new password are required.' });
+  if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+
+  try {
+    const data = await cacheGet(`reset:${token}`);
+    if (!data) return res.status(400).json({ error: 'This reset link is invalid or has expired.' });
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, data.userId]);
+
+    // One-time use — invalidate immediately so the same link can't be
+    // replayed to set the password again later.
+    await cacheInvalidate(`reset:${token}`);
+
+    return res.json({ message: 'Password reset successfully. You can now log in.' });
+  } catch (err) {
+    console.error('Reset password error:', err.message);
+    return res.status(500).json({ error: 'Server error.' });
+  }
 });
 
 module.exports = { router, authenticate };
