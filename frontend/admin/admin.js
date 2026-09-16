@@ -136,7 +136,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
   document.getElementById(`tab-${name}`).classList.remove('hidden');
 
-  const titles = { overview: 'Overview', products: 'Products', orders: 'Orders', transactions: 'Transactions', users: 'Users' };
+  const titles = { overview: 'Overview', products: 'Products', orders: 'Orders', transactions: 'Transactions', users: 'Users', pricing: 'Print Pricing', qrcodes: 'QR Codes' };
   document.getElementById('mainTitle').textContent = titles[name];
 
   if (name === 'overview')     loadOverview();
