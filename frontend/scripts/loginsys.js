@@ -80,6 +80,30 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   finally { setLoading(form, false); }
 });
 
+// ── FORGOT PASSWORD ───────────────────────────────────
+document.querySelector('.forgot')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+ 
+  const email = prompt('Enter your account email to receive a password reset link:');
+  if (!email) return; // user cancelled
+ 
+  try {
+    const res = await fetch(`${API}/api/auth/forgot-password`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: email.trim() })
+    });
+    const data = await res.json();
+ 
+    // The backend always returns this same message regardless of whether
+    // the email exists, by design — see forgot-password route's comment
+    // in auth.js for why (prevents account enumeration).
+    alert(data.message || 'If an account exists with that email, a reset link has been sent.');
+  } catch {
+    alert('Network error. Please try again.');
+  }
+});
+
 // REGISTER
 document.getElementById('register-form').addEventListener('submit', async (e) => {
   e.preventDefault();

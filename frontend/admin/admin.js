@@ -55,18 +55,34 @@ closeForgotBtn.addEventListener("click", () => {
   forgotModal.classList.add("hidden");
 });
 
-sendResetBtn.addEventListener("click", () => {
-  const email = document.getElementById("forgotEmail").value;
-
-  if(!email){
+sendResetBtn.addEventListener("click", async () => {
+  const email = document.getElementById("forgotEmail").value.trim();
+ 
+  if (!email) {
     forgotMsg.textContent = "Please enter your email.";
     return;
   }
-
-  forgotMsg.textContent = "Reset link sent successfully.";
-  
-  // backend API call here
-  // fetch("/api/admin/forgot-password", {...})
+ 
+  sendResetBtn.disabled = true;
+  forgotMsg.textContent = "Sending...";
+ 
+  try {
+    const res  = await fetch(`${API}/api/auth/forgot-password`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email })
+    });
+    const data = await res.json();
+ 
+    // Same real message from the backend now, not a hardcoded fake one —
+    // this is the exact route customers use too, since admins and
+    // customers share the same users table.
+    forgotMsg.textContent = data.message || 'If an account exists with that email, a reset link has been sent.';
+  } catch {
+    forgotMsg.textContent = 'Network error. Please try again.';
+  } finally {
+    sendResetBtn.disabled = false;
+  }
 });
 
 // Login button
