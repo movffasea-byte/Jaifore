@@ -93,6 +93,11 @@
         <button class="nav-item" data-tab="pricing">
           <span class="nav-icon">◑</span> Print Pricing
         </button>
+        <button class="nav-item" data-tab="qrcodes">
+          <span class="nav-icon">▧</span> QR Codes
+        </button>
+
+
       </nav>
       <button class="btn-logout" id="logoutBtn">⏻ Logout</button>
     </aside>
@@ -300,8 +305,61 @@
   </div>
 </section>
 
+<!-- ── QR CODES TAB ── -->
+<section class="tab hidden" id="tab-qrcodes">
+  <div class="tab-toolbar">
+    <button class="btn-primary small" id="openAddQr">+ New QR Code</button>
+  </div>
+ 
+  <!-- Add/Edit Form -->
+  <div class="form-panel hidden" id="qrForm">
+    <h3 id="qrFormTitle">New QR Code</h3>
+    <div class="form-grid">
+      <div class="field-group">
+        <label>Label <span style="color:var(--ink-muted);font-weight:400">(internal name, e.g. "Market Flyer Sep 2026")</span></label>
+        <input type="text" id="qrLabel" placeholder="Market Flyer Sep 2026"/>
+      </div>
+      <div class="field-group">
+        <label>Slug <span style="color:var(--ink-muted);font-weight:400">(short, URL-safe id — cannot be changed after creation)</span></label>
+        <input type="text" id="qrSlug" placeholder="market-flyer-2026"/>
+      </div>
+      <div class="field-group full">
+        <label>Destination URL <span style="color:var(--ink-muted);font-weight:400">(where a scan sends people right now — editable anytime)</span></label>
+        <input type="text" id="qrDestination" placeholder="https://jai-fore.vercel.app/services.html"/>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-primary small" id="saveQrBtn">Save QR Code</button>
+      <button class="btn-ghost small" id="cancelQrBtn">Cancel</button>
+    </div>
+    <p class="form-msg" id="qrMsg"></p>
+  </div>
+ 
+  <div class="table-wrap">
+    <table class="data-table" id="qrTable">
+      <thead>
+        <tr>
+          <th>Label</th><th>Slug</th><th>Destination</th><th>Scans</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="qrBody"></tbody>
+    </table>
+  </div>
+</section>
+
     </main>
   </div>
+
+  <div class="forgot-modal hidden" id="qrStatsModal">
+  <div class="forgot-box" style="max-width:480px">
+    <h3 id="qrStatsTitle">Scan Stats</h3>
+    <p id="qrStatsTotal" style="color:var(--ink-muted);font-size:0.9rem;margin-bottom:1rem"></p>
+    <canvas id="qrStatsChart" height="180"></canvas>
+    <div class="form-actions" style="margin-top:1rem">
+      <button class="btn-ghost small" id="closeQrStatsBtn">Close</button>
+    </div>
+  </div>
+</div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="admin.js"></script>

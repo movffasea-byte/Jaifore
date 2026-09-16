@@ -145,7 +145,8 @@ function switchTab(name) {
   if (name === 'transactions') initCalendar();
   if (name === 'users')        loadUsers();
   if (name === 'pricing') loadPrintPricing();
-}
+  if (name === 'qrcodes') loadQrCodes();
+  }
 
 // ── AUTH HEADER ──────────────────────────────────────
 function authHeaders() {
@@ -624,6 +625,223 @@ async function loadPrintPricing() {
     });
   } catch (err) { console.error('Print pricing error:', err); }
 }
+
+/* ================================
+   ADD THIS to admin.js.
+   Placement: anywhere after the existing PRINT PRICING section is fine —
+   this is fully self-contained and doesn't depend on any pricing code.
+
+   Wiring notes:
+   - switchTab()'s dispatch block needs one new line:
+       if (name === 'qrcodes') loadQrCodes();
+   - switchTab()'s `titles` object needs one new entry:
+       qrcodes: 'QR Codes'
+   Both shown at the bottom of this file as a reminder — the actual edits
+   go into the existing switchTab() function, not as new code here.
+   ================================ */
+
+let editingQrId = null;
+let qrStatsChart = null;
+
+// ── LOAD QR CODES LIST ───────────────────────────────
+async function loadQrCodes() {
+  try {
+    const res  = await fetch(`${API}/api/qr`, { headers: authHeaders() });
+    const data = await res.json();
+    const body = document.getElementById('qrBody');
+    body.innerHTML = '';
+
+    if (!data.length) {
+      body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--ink-muted);padding:2rem">No QR codes yet. Create one to get started.</td></tr>`;
+      return;
+    }
+
+    data.forEach(qr => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${qr.label || '—'}</td>
+        <td><code>${qr.slug}</code></td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${qr.destination_url}">${qr.destination_url}</td>
+        <td>${qr.scan_count}</td>
+        <td><span class="badge badge-${qr.is_active ? 'success' : 'failed'}">${qr.is_active ? 'Active' : 'Inactive'}</span></td>
+        <td>
+          <button class="action-btn" onclick="downloadQrImage(${qr.id}, '${qr.slug}')">Download</button>
+          <button class="action-btn" onclick="openQrStats(${qr.id}, '${(qr.label || qr.slug).replace(/'/g, "\\'")}')">Stats</button>
+          <button class="action-btn" onclick="openEditQr(${qr.id})">Edit</button>
+          <button class="action-btn danger" onclick="deleteQrCode(${qr.id})">Delete</button>
+        </td>`;
+      body.appendChild(tr);
+    });
+  } catch (err) { console.error('QR codes error:', err); }
+}
+
+// ── OPEN ADD FORM ─────────────────────────────────────
+document.getElementById('openAddQr').addEventListener('click', () => {
+  editingQrId = null;
+  document.getElementById('qrFormTitle').textContent = 'New QR Code';
+  document.getElementById('qrLabel').value       = '';
+  document.getElementById('qrSlug').value        = '';
+  document.getElementById('qrSlug').disabled     = false; // slug is only editable on create, not edit
+  document.getElementById('qrDestination').value = '';
+  document.getElementById('qrMsg').textContent   = '';
+  document.getElementById('qrForm').classList.remove('hidden');
+});
+
+// ── OPEN EDIT FORM ─────────────────────────────────────
+// Slug is intentionally NOT editable here — it's what's physically printed
+// on a flyer via the QR image, so changing it would break every already-
+// printed copy. Only label and destination can change after creation.
+async function openEditQr(id) {
+  try {
+    const res  = await fetch(`${API}/api/qr`, { headers: authHeaders() });
+    const list = await res.json();
+    const qr   = list.find(q => q.id === id);
+    if (!qr) return;
+
+    editingQrId = id;
+    document.getElementById('qrFormTitle').textContent = 'Edit QR Code';
+    document.getElementById('qrLabel').value       = qr.label || '';
+    document.getElementById('qrSlug').value        = qr.slug;
+    document.getElementById('qrSlug').disabled     = true;
+    document.getElementById('qrDestination').value = qr.destination_url;
+    document.getElementById('qrMsg').textContent   = '';
+    document.getElementById('qrForm').classList.remove('hidden');
+    document.getElementById('qrForm').scrollIntoView({ behavior: 'smooth' });
+  } catch (err) { console.error('Edit QR error:', err); }
+}
+
+// ── CANCEL FORM ────────────────────────────────────────
+document.getElementById('cancelQrBtn').addEventListener('click', () => {
+  document.getElementById('qrForm').classList.add('hidden');
+  editingQrId = null;
+});
+
+// ── SAVE (CREATE OR UPDATE) ────────────────────────────
+document.getElementById('saveQrBtn').addEventListener('click', async () => {
+  const msgEl       = document.getElementById('qrMsg');
+  const label       = document.getElementById('qrLabel').value.trim();
+  const slug        = document.getElementById('qrSlug').value.trim();
+  const destination = document.getElementById('qrDestination').value.trim();
+
+  if (!destination || (!editingQrId && !slug)) {
+    msgEl.textContent = 'Slug and destination URL are required.';
+    msgEl.className   = 'form-msg error';
+    return;
+  }
+
+  try {
+    let res;
+    if (editingQrId) {
+      res = await fetch(`${API}/api/qr/${editingQrId}`, {
+        method:  'PATCH',
+        headers: authHeaders(),
+        body:    JSON.stringify({ destinationUrl: destination, label })
+      });
+    } else {
+      res = await fetch(`${API}/api/qr`, {
+        method:  'POST',
+        headers: authHeaders(),
+        body:    JSON.stringify({ slug, destinationUrl: destination, label })
+      });
+    }
+
+    const data = await res.json();
+    if (!res.ok) { msgEl.textContent = data.error || 'Failed.'; msgEl.className = 'form-msg error'; return; }
+
+    msgEl.textContent = editingQrId ? 'QR code updated.' : 'QR code created.';
+    msgEl.className   = 'form-msg success';
+    setTimeout(() => {
+      document.getElementById('qrForm').classList.add('hidden');
+      editingQrId = null;
+      loadQrCodes();
+    }, 1000);
+  } catch { msgEl.textContent = 'Network error.'; msgEl.className = 'form-msg error'; }
+});
+
+// ── DELETE ─────────────────────────────────────────────
+async function deleteQrCode(id) {
+  if (!confirm('Delete this QR code? Any printed copies will stop working immediately, and all its scan history will be lost.')) return;
+  try {
+    await fetch(`${API}/api/qr/${id}`, { method: 'DELETE', headers: authHeaders() });
+    loadQrCodes();
+  } catch (err) { console.error('Delete QR error:', err); }
+}
+
+// ── DOWNLOAD QR IMAGE ──────────────────────────────────
+// Fetches the PNG as a blob (rather than just navigating to the URL)
+// because the request needs an Authorization header — a plain <a href>
+// can't attach that, so this does the fetch manually and triggers the
+// download via a temporary object URL.
+async function downloadQrImage(id, slug) {
+  try {
+    const res = await fetch(`${API}/api/qr/${id}/image`, { headers: authHeaders() });
+    if (!res.ok) { alert('Failed to generate QR image.'); return; }
+
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `qr-${slug}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('QR image download error:', err);
+    alert('Network error — could not download QR image.');
+  }
+}
+
+// ── STATS MODAL ────────────────────────────────────────
+async function openQrStats(id, title) {
+  document.getElementById('qrStatsTitle').textContent = `Scan Stats — ${title}`;
+  document.getElementById('qrStatsTotal').textContent  = 'Loading...';
+  document.getElementById('qrStatsModal').classList.remove('hidden');
+
+  try {
+    const res  = await fetch(`${API}/api/qr/${id}/stats`, { headers: authHeaders() });
+    const data = await res.json();
+
+    document.getElementById('qrStatsTotal').textContent = `${data.totalScans} total scan${data.totalScans !== 1 ? 's' : ''}`;
+
+    const labels = data.dailyScans.map(d => new Date(d.day).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' }));
+    const values = data.dailyScans.map(d => d.count);
+
+    const ctx = document.getElementById('qrStatsChart').getContext('2d');
+    if (qrStatsChart) qrStatsChart.destroy();
+
+    // No-data case still renders an empty chart shell rather than nothing,
+    // consistent with how the revenue chart handles a slow period.
+    qrStatsChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels.length ? labels : ['No scans yet'],
+        datasets: [{
+          label: 'Scans',
+          data: values.length ? values : [0],
+          borderColor: '#7c3aed',
+          backgroundColor: 'rgba(124, 58, 237, 0.15)',
+          fill: true,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+      }
+    });
+  } catch (err) {
+    console.error('QR stats error:', err);
+    document.getElementById('qrStatsTotal').textContent = 'Failed to load stats.';
+  }
+}
+
+document.getElementById('closeQrStatsBtn').addEventListener('click', () => {
+  document.getElementById('qrStatsModal').classList.add('hidden');
+});
+
+
 
 async function savePrintPrice(id) {
   const input = document.querySelector(`.pricing-input[data-id="${id}"]`);
