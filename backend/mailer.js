@@ -320,7 +320,7 @@ async function sendWelcomeEmail(toEmail, name) {
   });
 }
 
-* ── PASSWORD RESET EMAIL ── */
+/* ── PASSWORD RESET EMAIL ── */
 async function sendPasswordResetEmail(toEmail, name, resetLink) {
   await resend.emails.send({
     from: "Jai'fore Studio <onboarding@resend.dev>",
@@ -579,4 +579,4 @@ async function sendLowStockAlert(product) {
   });
 }
 
-module.exports = { generateOTP, sendOTPEmail, sendAdminNotification, sendOrderConfirmation, sendAdminOrderAlert, sendWelcomeEmail, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert, sendLowStockAlert, sendPasswordResetEmail };
+module.exports = { generateOTP, sendOTPEmail, sendAdminNotification, sendOrderConfirmation, sendAdminOrderAlert, sendWelcomeEmail, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert, sendLowStockAlert, sendPasswordResetEmail};
