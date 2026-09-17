@@ -15,7 +15,6 @@ const cors         = require('cors');
 const path         = require('path');
 const rateLimit     = require('express-rate-limit');
 
-const app = require('./expressApp');
 const { initDB } = require('./database');
 const { router: authRouter } = require('./auth');
 
