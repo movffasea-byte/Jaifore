@@ -27,7 +27,7 @@ const jwt = require('jsonwebtoken');
 // export, that's a small refactor needed: split into app.js (exports
 // the app) + server.js (calls app.listen()) so supertest can import
 // the app without also binding a real port.
-const app = require('../app');
+const app = require('../expressApp');
 const { pool: db } = require('../database');
 const { redis } = require('../redis');
 
