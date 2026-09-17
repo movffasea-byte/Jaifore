@@ -1,3 +1,22 @@
+/* ================================
+   JAIFORE — EXPRESS APP (BUILDER)
+   backend/expressApp.js
+
+   Deliberately NOT named app.js/App.js. That naming caused a real
+   production incident: Windows treats app.js and App.js as the same
+   file, but Railway's Linux build does not — a require('./app') call
+   silently resolved to whichever casing existed locally, while
+   production quietly ran a stale, unrelated file with no error at
+   all. Naming this file something that can't collide on any casing
+   convention removes that entire class of bug going forward.
+
+   This file BUILDS the app (all middleware + routes) and exports it,
+   but does NOT call app.listen() — server.js does that. This split
+   only exists so Jest/Supertest can import the app object directly
+   and send it fake requests in-memory, without needing a real port
+   or a real database connection cycle per test file.
+   ================================ */
+
 require('dotenv').config();
 
 // ── SENTRY — must initialize before anything else ───────
@@ -6,8 +25,8 @@ const Sentry = require('@sentry/node');
 Sentry.init({
   dsn: 'https://749ed2ea232dfaeeed46e8b711acf4fc@o4511594226253824.ingest.us.sentry.io/4511594359226368',
   environment: process.env.NODE_ENV || 'production',
-  tracesSampleRate: 1.0, // capture 100% of transactions for now; lower this later if volume grows
-  sendDefaultPii: false,  // don't auto-attach IP/cookies — we control what we send
+  tracesSampleRate: 1.0,
+  sendDefaultPii: false,
 });
 
 const express      = require('express');
@@ -15,12 +34,9 @@ const cors         = require('cors');
 const path         = require('path');
 const rateLimit     = require('express-rate-limit');
 
-const app = require('./expressApp');
-const { initDB } = require('./database');
 const { router: authRouter } = require('./auth');
 
-const app  = express();
-const PORT = process.env.PORT || 3000;
+const app = express();
 
 // ── MIDDLEWARE ─────────────────────────────────────────
 app.use(cors({
@@ -46,23 +62,16 @@ app.use(cors({
 app.use(express.json());
 
 // ── RATE LIMITERS ──────────────────────────────────────
-// The chain in front of this app is: Cloudflare -> Render edge -> Render
-// internal routing -> this app. That's 3 hops contributing to
-// X-Forwarded-For before the real client IP. Trusting exactly 3 hops
-// extracts the genuine client IP while still rejecting spoofed values
-// beyond that depth.
 app.set('trust proxy', 1);
 
-// Strict — login, OTP, password-related routes (most common brute-force target)
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 8,                    // 8 attempts per window per IP
+  windowMs: 15 * 60 * 1000,
+  max: 8,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many attempts. Please try again in 15 minutes.' }
 });
 
-// Moderate — payment verification (legitimate retries happen, but cap abuse)
 const paymentLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -71,7 +80,6 @@ const paymentLimiter = rateLimit({
   message: { error: 'Too many payment attempts. Please try again shortly.' }
 });
 
-// Relaxed — general API browsing (products, print-pricing, etc.)
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 300,
@@ -85,74 +93,35 @@ app.get('/', (req, res) => {
   res.json({ message: "Jai'fore backend is live 🚀" });
 });
 
-// QR code flyer/awareness tracking — public redirect + admin CRUD/stats.
-// No rate limiter wrapper here deliberately: the public GET /:slug redirect
-// is hit by real phones scanning a physical flyer and needs to stay
-// permissive, unlike the general API browsing routes below.
 app.use('/api/qr', require('./routes/qr'));
 
-// Auth routes get the strict limiter (login, OTP send/verify, register, etc.)
 app.use('/api/auth', authLimiter, authRouter);
 
-// Orders route handles both regular order creation AND /verify-payment —
-// apply payment limiter to the whole router since payment-adjacent traffic
-// is the sensitive part; general order reads are still capped, just more loosely
 app.use('/api/orders', paymentLimiter, require('./routes/orders'));
 
-// Everything else gets the general/relaxed limiter
 app.use('/api/products',      generalLimiter, require('./routes/products'));
 app.use('/api/transactions',  generalLimiter, require('./routes/transactions'));
 app.use('/api/users',         generalLimiter, require('./routes/users'));
 app.use('/api/print-pricing', generalLimiter, require('./routes/print-pricing'));
 app.use('/api/backup',        generalLimiter, require('./routes/backup'));
 
-// item 19 — wishlist / save for later
 app.use('/api/wishlist', generalLimiter, require('./routes/wishlist'));
-
-// item 20 — recently viewed products
 app.use('/api/recently-viewed', generalLimiter, require('./routes/recently-viewed'));
-
-// item 21 — cross-device cart sync
 app.use('/api/cart', generalLimiter, require('./routes/cart'));
 
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// Admin panel — served from this same deploy, same origin as the API.
-// One push to Jai-fore now updates the backend AND the admin panel together;
-// no separate repo, no CORS needed for this origin since it's no longer cross-origin.
-// Adjust the path below if frontend/ isn't a sibling of backend/ in your repo.
 app.use('/admin', express.static(path.join(__dirname, '../frontend/admin')));
 
-// ── SENTRY ERROR HANDLER ───────────────────────────────
-// Must come AFTER all routes, BEFORE any custom error handler / 404.
-// This catches unhandled errors thrown in route handlers and reports them.
 Sentry.setupExpressErrorHandler(app);
 
-// ── 404 HANDLER ────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found.' });
 });
 
-// ── FINAL ERROR HANDLER ────────────────────────────────
-// Catches anything Sentry passed through, sends a clean response to the client.
-// Sentry has already captured the error by this point.
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err.message);
   res.status(err.status || 500).json({ error: 'Something went wrong. Our team has been notified.' });
 });
 
-// ── START ──────────────────────────────────────────────
-async function start() {
-  try {
-    await initDB();
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`✅ Server running on port ${PORT}`);
-    });
-  } catch (err) {
-    console.error('❌ Failed to start server:', err.message);
-    Sentry.captureException(err);
-    process.exit(1);
-  }
-}
-
-start();
+module.exports = app;
