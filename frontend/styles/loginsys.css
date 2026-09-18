@@ -60,7 +60,7 @@ html,body{
 
 .page{
   display:grid;
-  rid-template-rows:auto 1fr;
+  grid-template-rows:auto 1fr;
   height:100vh
 }
 
@@ -252,6 +252,24 @@ input:focus{
 
 .forgot:hover{
   color:var(--purple)
+}
+
+/* FORGOT PASSWORD */
+#forgot-section{
+  display:flex;
+  flex-direction:column;
+  gap:1.1rem;
+  animation:fadeUp 0.5s forwards
+}
+
+#forgot-section.hidden{
+  display:none!important
+}
+
+#forgot-form{
+  display:flex;
+  flex-direction:column;
+  gap:1.1rem
 }
 
 .btn-primary{
