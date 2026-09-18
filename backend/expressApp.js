@@ -31,6 +31,7 @@ Sentry.init({
 
 const express      = require('express');
 const cors         = require('cors');
+const helmet = require('helmet');
 const path         = require('path');
 const rateLimit     = require('express-rate-limit');
 
@@ -59,6 +60,10 @@ app.use(cors({
   credentials: true
 }));
 
+
+app.use(helmet({
+  contentSecurityPolicy: false, // enable + configure directives once external script sources are audited
+}));
 app.use(express.json());
 
 // ── RATE LIMITERS ──────────────────────────────────────
