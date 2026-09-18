@@ -81,26 +81,38 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 });
 
 // ── FORGOT PASSWORD ───────────────────────────────────
-document.querySelector('.forgot')?.addEventListener('click', async (e) => {
+document.querySelector('.forgot')?.addEventListener('click', (e) => {
   e.preventDefault();
- 
-  const email = prompt('Enter your account email to receive a password reset link:');
-  if (!email) return; // user cancelled
- 
+  document.getElementById('auth-section').classList.add('hidden');
+  document.getElementById('forgot-section').classList.remove('hidden');
+  document.getElementById('forgot-email').value = '';
+  showMsg('forgot-msg', '', '');
+  document.getElementById('forgot-email').focus();
+});
+
+document.getElementById('forgot-back-btn').addEventListener('click', () => {
+  document.getElementById('forgot-section').classList.add('hidden');
+  document.getElementById('auth-section').classList.remove('hidden');
+});
+
+document.getElementById('forgot-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const email = document.getElementById('forgot-email').value.trim();
+  setLoading(form, true);
+  showMsg('forgot-msg', '', '');
   try {
     const res = await fetch(`${API}/api/auth/forgot-password`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ email: email.trim() })
+      body:    JSON.stringify({ email })
     });
     const data = await res.json();
- 
-    // The backend always returns this same message regardless of whether
-    // the email exists, by design — see forgot-password route's comment
-    // in auth.js for why (prevents account enumeration).
-    alert(data.message || 'If an account exists with that email, a reset link has been sent.');
+    showMsg('forgot-msg', data.message || 'If an account exists with that email, a reset link has been sent.', 'success');
   } catch {
-    alert('Network error. Please try again.');
+    showMsg('forgot-msg', 'Network error. Please try again.', 'error');
+  } finally {
+    setLoading(form, false);
   }
 });
 

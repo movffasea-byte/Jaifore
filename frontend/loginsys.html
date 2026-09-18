@@ -104,6 +104,24 @@
     </div>
   </div>
 
+  <!-- FORGOT PASSWORD -->
+<div id="forgot-section" class="hidden">
+  <h2 class="form-title">Reset your password.</h2>
+  <p class="form-subtitle">Enter your account email and we'll send you a reset link.</p>
+  <form id="forgot-form">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="forgot-email" placeholder="you@example.com" required/>
+    </div>
+    <button type="submit" class="btn-primary">
+      <span class="btn-text">Send Reset Link</span>
+      <span class="btn-loader hidden"></span>
+    </button>
+    <p class="msg" id="forgot-msg"></p>
+  </form>
+  <button class="btn-secondary" id="forgot-back-btn">← Back to Sign In</button>
+</div>
+
   <footer class="footer">
   <div class="footer-inner">
     <img class="footer-brand" src="logo/rooted2.jpg"/>
