@@ -61,9 +61,11 @@ app.use(cors({
 }));
 
 
-app.use(helmet({
+apapp.use(helmet({
   contentSecurityPolicy: false, // enable + configure directives once external script sources are audited
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
+
 app.use(express.json());
 
 // ── RATE LIMITERS ──────────────────────────────────────
