@@ -101,7 +101,7 @@ html,body{
 
 
 .desc{
-  ont-size:0.875rem;
+  font-size:0.875rem;
   color:var(--muted);
   line-height:1.7;
   max-width:320px;
