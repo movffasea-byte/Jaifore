@@ -35,7 +35,7 @@ const { redis } = require('../redis');
 // existing product_id from your products table so any FK constraint
 // (if cart_items.product_id references products.id) is satisfied.
 const TEST_PRODUCT_ID = 17; // <-- same id used in earlier manual testing
-const TEST_PRODUCT_ID_CONFIGURED = 1; // any existing configurable product
+const TEST_PRODUCT_ID_CONFIGURED = 17; // any existing configurable product
 
 let testUserId;
 let token;
