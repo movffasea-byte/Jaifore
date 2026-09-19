@@ -176,14 +176,6 @@
           <h3 id="productFormTitle">Add Product</h3>
           <div class="form-grid">
             <div class="field-group">
-              <label>Name</label>
-              <input type="text" id="pName" placeholder="Product name"/>
-            </div>
-            <div class="field-group">
-              <label>Price ($USD)</label>
-              <input type="number" id="pPrice" placeholder="0.00"/>
-            </div>
-            <div class="field-group">
               <label>Category</label>
               <select id="pCategory">
                 <option value="">— Select Category —</option>
@@ -193,27 +185,51 @@
               </select>
             </div>
             <div class="field-group">
-              <label>Front Image URL</label>
-              <input type="text" id="pImage" placeholder="https://jai-fore-website.vercel.app/images/FFH&P.jpg"/>
+              <label>Name</label>
+              <input type="text" id="pName" placeholder="Product name"/>
             </div>
-            <div class="field-group">
-              <label>Back Image URL</label>
-              <input type="text" id="pBackImage" placeholder="https://jai-fore-website.vercel.app/images/BFH&P.jpg"/>
+
+            <!-- APPAREL-ONLY FIELDS -->
+            <div class="field-group cat-field cat-field-apparel">
+              <label>Price ($USD)</label>
+              <input type="number" id="pPrice" placeholder="0.00"/>
             </div>
-            <div class="field-group full">
-              <label>Description</label>
-              <textarea id="pDesc" placeholder="Product description..." rows="3"></textarea>
-            </div>
-            <div class="field-group">
+            <div class="field-group cat-field cat-field-apparel">
               <label>Stock Count</label>
               <input type="number" id="pStockCount" placeholder="Leave blank if not tracked" min="0"/>
             </div>
-            <div class="field-group">
+            <div class="field-group cat-field cat-field-apparel">
               <label>In Stock (manual override)</label>
               <select id="pStock">
                 <option value="true">Yes</option>
                 <option value="false">No</option>
               </select>
+            </div>
+            <div class="field-group cat-field cat-field-apparel">
+              <label>Back Image URL</label>
+              <input type="text" id="pBackImage" placeholder="https://jai-fore-website.vercel.app/images/BFH&P.jpg"/>
+            </div>
+
+            <!-- WEB DEVELOPMENT-ONLY FIELDS -->
+            <div class="field-group cat-field cat-field-webdev">
+              <label>Live Link</label>
+              <input type="text" id="pLiveLink" placeholder="https://client-site.com"/>
+            </div>
+
+            <!-- SHARED (all categories) -->
+            <div class="field-group">
+              <label>Image URL</label>
+              <input type="text" id="pImage" placeholder="https://jai-fore-website.vercel.app/images/FFH&P.jpg"/>
+            </div>
+            <div class="field-group full">
+              <label>Description</label>
+              <textarea id="pDesc" placeholder="Product description..." rows="3"></textarea>
+            </div>
+
+           <!-- GRAPHIC DESIGN-ONLY FIELDS -->
+            <div class="field-group full cat-field cat-field-design">
+              <label>Available Print Sizes <span style="color:var(--ink-muted);font-weight:400">(the design itself is free — prices come from Print Pricing)</span></label>
+              <div id="printSizeCheckboxes" class="print-size-checkboxes"></div>
             </div>
           </div>
           <div class="form-actions">

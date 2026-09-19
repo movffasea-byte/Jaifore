@@ -10,6 +10,8 @@ let token       = localStorage.getItem('jaifore_admin_token');
 let adminUser   = JSON.parse(localStorage.getItem('jaifore_admin_user') || 'null');
 let editingProductId = null;
 let calYear, calMonth;
+let availablePrintSizes = []; // cached from /api/print-pricing, populated when the form needs it
+let selectedPrintSizeIds = new Set();
 
 // ── INIT ────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -74,9 +76,6 @@ sendResetBtn.addEventListener("click", async () => {
     });
     const data = await res.json();
  
-    // Same real message from the backend now, not a hardcoded fake one —
-    // this is the exact route customers use too, since admins and
-    // customers share the same users table.
     forgotMsg.textContent = data.message || 'If an account exists with that email, a reset link has been sent.';
   } catch {
     forgotMsg.textContent = 'Network error. Please try again.';
@@ -188,8 +187,6 @@ async function loadOverview() {
       : 0;
     document.getElementById('statRevenue').textContent = `₦${revenue.toLocaleString()}`;
 
-    // item 14 — low stock banner. Same threshold and "untracked = skip" rule as the backend.
-    // Guarded inside renderLowStockBanner itself in case the HTML banner element isn't present yet.
     renderLowStockBanner(Array.isArray(products) ? products : []);
   } catch (err) { console.error('Overview error:', err); }
 
@@ -201,7 +198,7 @@ const LOW_STOCK_THRESHOLD = 5; // kept in sync with backend/routes/products.js
 
 function renderLowStockBanner(products) {
   const banner = document.getElementById('lowStockBanner');
-  if (!banner) return; // guard — does nothing if the HTML banner element isn't present
+  if (!banner) return;
 
   const lowStockItems = products.filter(p => p.stock !== null && p.stock !== undefined && p.stock <= LOW_STOCK_THRESHOLD);
 
@@ -297,19 +294,28 @@ async function loadProducts() {
     data.forEach(p => {
       const tr = document.createElement('tr');
       const isLowStock = (p.stock !== null && p.stock !== undefined && p.stock <= LOW_STOCK_THRESHOLD);
-      const stockDisplay = (p.stock === null || p.stock === undefined)
-        ? `<span class="stock-untracked">Untracked</span>`
-        : `<button class="stock-btn" onclick="adjustStock(${p.id}, -1)">−</button>
-           <span class="stock-count">${p.stock}</span>
-           <button class="stock-btn" onclick="adjustStock(${p.id}, 1)">+</button>
-           ${isLowStock ? `<span class="badge badge-lowstock">Low</span>` : ''}`;
+      const stockDisplay = (p.category === 'Web Development' || p.category === 'Graphic Design')
+        ? `<span class="stock-untracked">N/A</span>`
+        : (p.stock === null || p.stock === undefined)
+          ? `<span class="stock-untracked">Untracked</span>`
+          : `<button class="stock-btn" onclick="adjustStock(${p.id}, -1)">−</button>
+             <span class="stock-count">${p.stock}</span>
+             <button class="stock-btn" onclick="adjustStock(${p.id}, 1)">+</button>
+             ${isLowStock ? `<span class="badge badge-lowstock">Low</span>` : ''}`;
+
+      const priceDisplay = p.category === 'Web Development'
+        ? '<span class="stock-untracked">Enquiry only</span>'
+        : p.category === 'Graphic Design'
+          ? formatPrintSizesSummary(p.print_sizes)
+          : `$${parseFloat(p.price || 0).toFixed(2)}`;
+
       tr.innerHTML = `
         <td>${p.name}</td>
         <td>${p.category || '—'}</td>
-        <td>$${parseFloat(p.price).toFixed(2)}</td>
+        <td>${priceDisplay}</td>
         <td>
           <div class="stock-cell">${stockDisplay}</div>
-          <span class="badge ${p.in_stock ? 'badge-success' : 'badge-failed'}">${p.in_stock ? 'In Stock' : 'Out'}</span>
+          ${(p.category !== 'Web Development' && p.category !== 'Graphic Design') ? `<span class="badge ${p.in_stock ? 'badge-success' : 'badge-failed'}">${p.in_stock ? 'In Stock' : 'Out'}</span>` : ''}
         </td>
         <td>
           <button class="action-btn" onclick="openEditProduct(${p.id})">Edit</button>
@@ -318,6 +324,13 @@ async function loadProducts() {
       body.appendChild(tr);
     });
   } catch (err) { console.error('Products error:', err); }
+}
+
+// p.print_sizes here is the LIVE expanded array {id, size_label, dimensions,
+// price} the backend joins in — never a value the admin form wrote itself.
+function formatPrintSizesSummary(printSizes) {
+  if (!printSizes || !printSizes.length) return '<span class="stock-untracked">No sizes set</span>';
+  return printSizes.map(s => `${s.size_label}: $${Number(s.price).toFixed(2)}`).join(', ');
 }
 
 // Quick stock +/- from the table (item 12) — skips the full edit form for routine adjustments
@@ -332,17 +345,82 @@ async function adjustStock(id, delta) {
   } catch (err) { console.error('Stock adjust error:', err); }
 }
 
+// ── CATEGORY-AWARE FORM FIELDS ────────────────────────
+function updateFormForCategory(category) {
+  const apparelFields = document.querySelectorAll('.cat-field-apparel');
+  const webdevFields  = document.querySelectorAll('.cat-field-webdev');
+  const designFields  = document.querySelectorAll('.cat-field-design');
+
+  apparelFields.forEach(el => el.classList.toggle('hidden', category !== 'Apparels & Merchandise'));
+  webdevFields.forEach(el  => el.classList.toggle('hidden', category !== 'Web Development'));
+  designFields.forEach(el  => el.classList.toggle('hidden', category !== 'Graphic Design'));
+
+  if (category === 'Graphic Design') loadPrintSizeCheckboxes();
+}
+
+document.getElementById('pCategory').addEventListener('change', (e) => {
+  updateFormForCategory(e.target.value);
+});
+
+// ── PRINT SIZE CHECKBOXES (Graphic Design) ────────────
+// Pulls live sizes+prices from the SAME Print Pricing table the "Print
+// Pricing" tab manages — a design just says WHICH sizes it offers, never
+// its own price, so changing a size's price in one place updates every
+// design that offers it automatically.
+async function loadPrintSizeCheckboxes() {
+  const wrap = document.getElementById('printSizeCheckboxes');
+  wrap.innerHTML = '<p style="color:var(--ink-muted);font-size:0.82rem">Loading sizes...</p>';
+
+  try {
+    const res = await fetch(`${API}/api/print-pricing`, { headers: authHeaders() });
+    availablePrintSizes = await res.json();
+  } catch {
+    wrap.innerHTML = '<p style="color:var(--danger);font-size:0.82rem">Failed to load print sizes.</p>';
+    return;
+  }
+
+  renderPrintSizeCheckboxes();
+}
+
+function renderPrintSizeCheckboxes() {
+  const wrap = document.getElementById('printSizeCheckboxes');
+
+  if (!availablePrintSizes.length) {
+    wrap.innerHTML = '<p style="color:var(--ink-muted);font-size:0.82rem">No print sizes configured yet — add some in the Print Pricing tab first.</p>';
+    return;
+  }
+
+  wrap.innerHTML = availablePrintSizes.map(size => `
+    <label class="print-size-checkbox-row">
+      <input type="checkbox" class="ps-checkbox" value="${size.id}" ${selectedPrintSizeIds.has(size.id) ? 'checked' : ''}/>
+      <span>${size.size_label} (${size.dimensions}) — $${Number(size.price).toFixed(2)}</span>
+    </label>
+  `).join('');
+
+  wrap.querySelectorAll('.ps-checkbox').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const id = Number(e.target.value);
+      if (e.target.checked) selectedPrintSizeIds.add(id);
+      else selectedPrintSizeIds.delete(id);
+    });
+  });
+}
+
 // Open Add form
 document.getElementById('openAddProduct').addEventListener('click', () => {
   editingProductId = null;
   document.getElementById('productFormTitle').textContent = 'Add Product';
-  document.getElementById('pName').value     = '';
-  document.getElementById('pPrice').value    = '';
-  document.getElementById('pCategory').value = '';
-  document.getElementById('pImage').value    = '';
-  document.getElementById('pDesc').value     = '';
-  document.getElementById('pStock').value    = 'true';
+  document.getElementById('pName').value      = '';
+  document.getElementById('pPrice').value     = '';
+  document.getElementById('pCategory').value  = '';
+  document.getElementById('pImage').value     = '';
+  document.getElementById('pBackImage').value = '';
+  document.getElementById('pLiveLink').value  = '';
+  document.getElementById('pDesc').value      = '';
+  document.getElementById('pStock').value     = 'true';
   document.getElementById('pStockCount').value = '';
+  selectedPrintSizeIds = new Set();
+  updateFormForCategory('');
   document.getElementById('productForm').classList.remove('hidden');
 });
 
@@ -353,14 +431,21 @@ async function openEditProduct(id) {
     const p   = await res.json();
     editingProductId = id;
     document.getElementById('productFormTitle').textContent = 'Edit Product';
-    document.getElementById('pName').value     = p.name;
-    document.getElementById('pPrice').value    = p.price;
-    document.getElementById('pCategory').value = p.category || '';
+    document.getElementById('pName').value      = p.name;
+    document.getElementById('pPrice').value     = p.price || '';
+    document.getElementById('pCategory').value  = p.category || '';
     document.getElementById('pImage').value     = p.image_url  || '';
     document.getElementById('pBackImage').value = p.back_image || '';
-    document.getElementById('pDesc').value     = p.description || '';
-    document.getElementById('pStock').value    = p.in_stock ? 'true' : 'false';
+    document.getElementById('pLiveLink').value  = p.live_link  || '';
+    document.getElementById('pDesc').value      = p.description || '';
+    document.getElementById('pStock').value     = p.in_stock ? 'true' : 'false';
     document.getElementById('pStockCount').value = (p.stock === null || p.stock === undefined) ? '' : p.stock;
+
+    // p.print_sizes is the backend's LIVE-joined array — pull just the ids
+    // back out to pre-check the right boxes.
+    selectedPrintSizeIds = new Set((p.print_sizes || []).map(s => s.id));
+
+    updateFormForCategory(p.category || '');
     document.getElementById('productForm').classList.remove('hidden');
     document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
   } catch (err) { console.error('Edit product error:', err); }
@@ -374,20 +459,38 @@ document.getElementById('cancelProductBtn').addEventListener('click', () => {
 
 // Save product
 document.getElementById('saveProductBtn').addEventListener('click', async () => {
-  const msgEl = document.getElementById('productMsg');
+  const msgEl    = document.getElementById('productMsg');
+  const category = document.getElementById('pCategory').value.trim();
   const stockRaw = document.getElementById('pStockCount').value.trim();
-  const body  = {
+
+  const body = {
     name:        document.getElementById('pName').value.trim(),
-    price:       document.getElementById('pPrice').value,
-    category:    document.getElementById('pCategory').value.trim(),
+    category:    category,
     image_url:   document.getElementById('pImage').value.trim(),
-    back_image:  document.getElementById('pBackImage').value.trim(),
     description: document.getElementById('pDesc').value.trim(),
-    in_stock:    document.getElementById('pStock').value === 'true',
-    stock:       stockRaw === '' ? null : parseInt(stockRaw, 10),
   };
 
-  if (!body.name || !body.price) { msgEl.textContent = 'Name and price are required.'; msgEl.className = 'form-msg error'; return; }
+  if (!body.name) { msgEl.textContent = 'Name is required.'; msgEl.className = 'form-msg error'; return; }
+  if (!category)  { msgEl.textContent = 'Category is required.'; msgEl.className = 'form-msg error'; return; }
+
+  if (category === 'Apparels & Merchandise') {
+    body.price      = document.getElementById('pPrice').value;
+    body.back_image = document.getElementById('pBackImage').value.trim();
+    body.in_stock   = document.getElementById('pStock').value === 'true';
+    body.stock      = stockRaw === '' ? null : parseInt(stockRaw, 10);
+
+    if (!body.price) { msgEl.textContent = 'Price is required for Apparel & Merchandise.'; msgEl.className = 'form-msg error'; return; }
+  }
+
+  if (category === 'Web Development') {
+    body.live_link = document.getElementById('pLiveLink').value.trim();
+    body.in_stock  = true; // not meaningful for webdev, kept true so it never shows as "Out"
+  }
+
+  if (category === 'Graphic Design') {
+    body.print_size_ids = Array.from(selectedPrintSizeIds);
+    body.in_stock        = true; // free/always-browsable — not stock-tracked
+  }
 
   try {
     const url    = editingProductId ? `${API}/api/products/${editingProductId}` : `${API}/api/products`;
@@ -503,7 +606,6 @@ async function renderCalendar() {
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('calTitle').textContent = `${months[calMonth - 1]} ${calYear}`;
 
-  // Fetch summary for dots
   let summary = [];
   try {
     const res = await fetch(`${API}/api/transactions/summary/${calYear}/${calMonth}`, { headers: authHeaders() });
@@ -515,7 +617,6 @@ async function renderCalendar() {
   const grid     = document.getElementById('calGrid');
   grid.innerHTML = '';
 
-  // Day name headers
   ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
     const el = document.createElement('div');
     el.className = 'cal-day-name';
@@ -527,14 +628,12 @@ async function renderCalendar() {
   const daysInMonth = new Date(calYear, calMonth, 0).getDate();
   const today = new Date().toISOString().slice(0, 10);
 
-  // Empty cells
   for (let i = 0; i < firstDay; i++) {
     const el = document.createElement('div');
     el.className = 'cal-day empty';
     grid.appendChild(el);
   }
 
-  // Day cells
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const el = document.createElement('div');
@@ -546,12 +645,10 @@ async function renderCalendar() {
     grid.appendChild(el);
   }
 
-  // Hide detail panel
   document.getElementById('txDetail').classList.add('hidden');
 }
 
 async function loadDayTransactions(dateStr, dayEl) {
-  // Highlight selected
   document.querySelectorAll('.cal-day').forEach(d => d.classList.remove('selected'));
   dayEl.classList.add('selected');
 
@@ -565,7 +662,6 @@ async function loadDayTransactions(dateStr, dayEl) {
       fetch(`${API}/api/transactions/by-date/${dateStr}`, { headers: authHeaders() }).then(r => r.json()),
     ]);
 
-    // Orders
     const ordersEl = document.getElementById('txOrders');
     if (!orders.length) {
       ordersEl.innerHTML = `<p class="tx-empty">No orders on this date.</p>`;
@@ -577,7 +673,6 @@ async function loadDayTransactions(dateStr, dayEl) {
         </div>`).join('');
     }
 
-    // Payments
     const paymentsEl = document.getElementById('txPayments');
     if (!payments.length) {
       paymentsEl.innerHTML = `<p class="tx-empty">No payments on this date.</p>`;
@@ -642,20 +737,6 @@ async function loadPrintPricing() {
   } catch (err) { console.error('Print pricing error:', err); }
 }
 
-/* ================================
-   ADD THIS to admin.js.
-   Placement: anywhere after the existing PRINT PRICING section is fine —
-   this is fully self-contained and doesn't depend on any pricing code.
-
-   Wiring notes:
-   - switchTab()'s dispatch block needs one new line:
-       if (name === 'qrcodes') loadQrCodes();
-   - switchTab()'s `titles` object needs one new entry:
-       qrcodes: 'QR Codes'
-   Both shown at the bottom of this file as a reminder — the actual edits
-   go into the existing switchTab() function, not as new code here.
-   ================================ */
-
 let editingQrId = null;
 let qrStatsChart = null;
 
@@ -697,16 +778,13 @@ document.getElementById('openAddQr').addEventListener('click', () => {
   document.getElementById('qrFormTitle').textContent = 'New QR Code';
   document.getElementById('qrLabel').value       = '';
   document.getElementById('qrSlug').value        = '';
-  document.getElementById('qrSlug').disabled     = false; // slug is only editable on create, not edit
+  document.getElementById('qrSlug').disabled     = false;
   document.getElementById('qrDestination').value = '';
   document.getElementById('qrMsg').textContent   = '';
   document.getElementById('qrForm').classList.remove('hidden');
 });
 
 // ── OPEN EDIT FORM ─────────────────────────────────────
-// Slug is intentionally NOT editable here — it's what's physically printed
-// on a flyer via the QR image, so changing it would break every already-
-// printed copy. Only label and destination can change after creation.
 async function openEditQr(id) {
   try {
     const res  = await fetch(`${API}/api/qr`, { headers: authHeaders() });
@@ -784,10 +862,6 @@ async function deleteQrCode(id) {
 }
 
 // ── DOWNLOAD QR IMAGE ──────────────────────────────────
-// Fetches the PNG as a blob (rather than just navigating to the URL)
-// because the request needs an Authorization header — a plain <a href>
-// can't attach that, so this does the fetch manually and triggers the
-// download via a temporary object URL.
 async function downloadQrImage(id, slug) {
   try {
     const res = await fetch(`${API}/api/qr/${id}/image`, { headers: authHeaders() });
@@ -826,8 +900,6 @@ async function openQrStats(id, title) {
     const ctx = document.getElementById('qrStatsChart').getContext('2d');
     if (qrStatsChart) qrStatsChart.destroy();
 
-    // No-data case still renders an empty chart shell rather than nothing,
-    // consistent with how the revenue chart handles a slow period.
     qrStatsChart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -856,8 +928,6 @@ async function openQrStats(id, title) {
 document.getElementById('closeQrStatsBtn').addEventListener('click', () => {
   document.getElementById('qrStatsModal').classList.add('hidden');
 });
-
-
 
 async function savePrintPrice(id) {
   const input = document.querySelector(`.pricing-input[data-id="${id}"]`);

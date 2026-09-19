@@ -33,6 +33,46 @@ function fireLowStockAlert(product) {
   });
 }
 
+// Web Development products have no price and no stock — they're enquiry-only.
+// Graphic Design products also have no plain price — monetization moved to
+// print pricing (each design references existing print_pricing rows via
+// print_size_ids, so a design's "price" is always whatever those rows say,
+// never duplicated onto the product itself). Apparel keeps the original
+// required-price behavior unchanged.
+function categoryRequiresPrice(category) {
+  return category === 'Apparels & Merchandise';
+}
+
+// Expands a product's print_size_ids into full {id, size_label, dimensions,
+// price} objects by joining against the print_pricing table, so the
+// frontend/admin never has to make a second request to resolve prices.
+// Kept as a plain helper (not cached per-product) since print_pricing is
+// small and rarely changes; the join cost here is negligible.
+async function attachPrintSizes(products) {
+  const list = Array.isArray(products) ? products : [products];
+  const idsNeeded = new Set();
+  list.forEach(p => (p.print_size_ids || []).forEach(id => idsNeeded.add(id)));
+
+  if (!idsNeeded.size) {
+    list.forEach(p => { p.print_sizes = []; });
+    return products;
+  }
+
+  const result = await pool.query(
+    'SELECT id, size_label, dimensions, price FROM print_pricing WHERE id = ANY($1::int[])',
+    [Array.from(idsNeeded)]
+  );
+  const byId = new Map(result.rows.map(r => [r.id, r]));
+
+  list.forEach(p => {
+    p.print_sizes = (p.print_size_ids || [])
+      .map(id => byId.get(id))
+      .filter(Boolean); // drop any id that no longer exists in print_pricing
+  });
+
+  return products;
+}
+
 // GET all products (public) — supports ?category=&search=&limit=
 // item 17: `search` matches against name OR description, case-insensitive,
 // and composes with the existing category filter (both can be present at once).
@@ -78,8 +118,9 @@ router.get('/', async (req, res) => {
     }
 
     const result = await pool.query(query, params);
-    await cacheSet(cacheKey, result.rows, CACHE_TTL);
-    res.json(result.rows);
+    const products = await attachPrintSizes(result.rows);
+    await cacheSet(cacheKey, products, CACHE_TTL);
+    res.json(products);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -111,21 +152,30 @@ router.get('/:id', async (req, res) => {
     const result = await pool.query('SELECT * FROM products WHERE id = $1', [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found.' });
 
-    await cacheSet(cacheKey, result.rows[0], CACHE_TTL);
-    res.json(result.rows[0]);
+    const [product] = await attachPrintSizes([result.rows[0]]);
+    await cacheSet(cacheKey, product, CACHE_TTL);
+    res.json(product);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // POST create product (admin only)
 router.post('/', authenticate, requireAdmin, async (req, res) => {
-  const { name, description, price, category, image_url, back_image, in_stock, stock } = req.body;
-  if (!name || !price) return res.status(400).json({ error: 'Name and price are required.' });
+  const { name, description, price, category, image_url, back_image, in_stock, stock, live_link, print_size_ids } = req.body;
+
+  if (!name) return res.status(400).json({ error: 'Name is required.' });
+  if (categoryRequiresPrice(category) && !price) {
+    return res.status(400).json({ error: 'Price is required for Apparel & Merchandise.' });
+  }
+
   try {
     const stockValue = (stock === undefined || stock === null || stock === '') ? 0 : parseInt(stock, 10);
+    const priceValue = (price === undefined || price === null || price === '') ? null : price;
+    const printSizeIdsValue = Array.isArray(print_size_ids) && print_size_ids.length ? print_size_ids : null;
+
     const result = await pool.query(
-      `INSERT INTO products (name, description, price, category, image_url, back_image, in_stock, stock)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [name, description, price, category, image_url, back_image, in_stock ?? true, stockValue]
+      `INSERT INTO products (name, description, price, category, image_url, back_image, in_stock, stock, live_link, print_size_ids)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [name, description, priceValue, category, image_url, back_image, in_stock ?? true, stockValue, live_link || null, printSizeIdsValue]
     );
 
     // New product means every cached "list" view is now stale — clear them all.
@@ -139,19 +189,28 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
       fireLowStockAlert(result.rows[0]);
     }
 
-    res.status(201).json(result.rows[0]);
+    const [product] = await attachPrintSizes([result.rows[0]]);
+    res.status(201).json(product);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // PUT update product (admin only)
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
-  const { name, description, price, category, image_url, back_image, in_stock, stock } = req.body;
+  const { name, description, price, category, image_url, back_image, in_stock, stock, live_link, print_size_ids } = req.body;
+
+  if (categoryRequiresPrice(category) && !price) {
+    return res.status(400).json({ error: 'Price is required for Apparel & Merchandise.' });
+  }
+
   try {
     // Fetch the pre-update stock so we can detect a low-stock transition below
     const before = await pool.query('SELECT stock FROM products WHERE id = $1', [req.params.id]);
     const oldStock = before.rows.length ? before.rows[0].stock : null;
 
     const stockValue = (stock === undefined || stock === null || stock === '') ? null : parseInt(stock, 10);
+    const priceValue = (price === undefined || price === null || price === '') ? null : price;
+    const printSizeIdsValue = Array.isArray(print_size_ids) && print_size_ids.length ? print_size_ids : null;
+
     // If a real stock count is provided, it governs in_stock automatically.
     // Leaving stock blank keeps this product "untracked" and respects whatever
     // in_stock was set to manually (e.g. print-on-demand or service items).
@@ -159,8 +218,9 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 
     const result = await pool.query(
       `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
-       image_url=$5, back_image=$6, in_stock=$7, stock=$8 WHERE id=$9 RETURNING *`,
-      [name, description, price, category, image_url, back_image, resolvedInStock, stockValue, req.params.id]
+       image_url=$5, back_image=$6, in_stock=$7, stock=$8, live_link=$9, print_size_ids=$10
+       WHERE id=$11 RETURNING *`,
+      [name, description, priceValue, category, image_url, back_image, resolvedInStock, stockValue, live_link || null, printSizeIdsValue, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found.' });
 
@@ -173,7 +233,8 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
       fireLowStockAlert(result.rows[0]);
     }
 
-    res.json(result.rows[0]);
+    const [product] = await attachPrintSizes([result.rows[0]]);
+    res.json(product);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
