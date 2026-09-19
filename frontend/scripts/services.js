@@ -252,10 +252,9 @@ function getPlaceholder(category, index) {
 }
 
 // ── WEB DEV SERVICES (hardcoded — rarely change, no admin CRUD needed) ──
-// These aren't real products; they're cart-line stand-ins so a customer
-// can "order" a service and pay/communicate through the normal checkout
-// flow instead of a separate mailto enquiry. Same addToCart() path as
-// everything else — checkout/order handling needs zero changes.
+// These aren't real products; they're cart-line stand-ins for the
+// "Enquire" flow — pricing shown here is illustrative only, since the
+// button opens the shared contact popup rather than adding to cart.
 const WEBDEV_SERVICES = [
   {
     id: 'svc-maintenance',
@@ -290,14 +289,14 @@ function renderServiceCard(service, index) {
       <div class="card-desc">${service.description}</div>
       <div class="card-footer">
         <div class="card-price"><span class="currency">₦</span>${Number(service.price).toLocaleString('en-NG')}</div>
-        <button class="card-action" data-id="${service.id}">Add to Cart</button>
+        <button class="card-action service-enquire-btn" type="button">Enquire</button>
       </div>
     </div>
   `;
 
-  card.querySelector('.card-action').addEventListener('click', (e) => {
+  card.querySelector('.service-enquire-btn').addEventListener('click', (e) => {
     e.stopPropagation();
-    addToCart(service, null, 'webdev-service');
+    openContactPopup();
   });
 
   return card;
@@ -323,9 +322,9 @@ function getMockProducts(category) {
       { id:'d3', name:'Street Art Illustration',description:'Urban-inspired illustration pack. Ready to print on any surface.', price:22000,  category:'design', image:null },
     ],
     webdev: [
-      { id:'w1', name:'E-Commerce Starter',      description:'Full-featured online store with cart, payments, and admin panel.', price:250000, category:'webdev', domain:'aminfinitybites.health',   siteUrl:'https://aminfinitybites.health', image:null },
-      { id:'w2', name:'Creative Portfolio',      description:'Stunning portfolio site for creatives, artists, and agencies.',   price:120000, category:'webdev', domain:'example-portfolio.com',    siteUrl:null, image:null },
-      { id:'w3', name:'Business Landing Page',   description:'High-converting landing page with contact forms and analytics.',  price:80000,  category:'webdev', domain:'example-business.com',     siteUrl:null, image:null },
+      { id:'w1', name:'E-Commerce Starter',      description:'Full-featured online store with cart, payments, and admin panel.', live_link:'aminfinitybites.health', image:null },
+      { id:'w2', name:'Creative Portfolio',      description:'Stunning portfolio site for creatives, artists, and agencies.',   live_link:null, image:null },
+      { id:'w3', name:'Business Landing Page',   description:'High-converting landing page with contact forms and analytics.',  live_link:null, image:null },
     ]
   };
   return mocks[category] || [];
@@ -376,8 +375,10 @@ function renderCard(product, index, category) {
        </div>`
     : '';
 
-  const domainHTML = isWebdev && product.domain
-    ? `<div class="site-domain">↗ ${product.domain}</div>` : '';
+  // FIX: webdev's live link comes from product.live_link (real DB field),
+  // never product.domain (that only ever existed in mock data).
+  const domainHTML = isWebdev && product.live_link
+    ? `<div class="site-domain">↗ ${product.live_link}</div>` : '';
 
   const qtyStepperHTML = renderQtyStepper(product.id, category);
   const wishlistHeartHTML = renderWishlistHeart(product.id, category);
@@ -396,7 +397,8 @@ function renderCard(product, index, category) {
            ${qtyStepperHTML}
            <button class="card-action" data-id="${product.id}">Order Now</button>
          </div>`
-      : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
+      // FIX: webdev has no price to show — it's enquiry-only.
+      : `${isWebdev ? '' : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>`}
          <button class="card-action" data-id="${product.id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
 
   card.innerHTML = `
@@ -498,17 +500,32 @@ async function openModal(product, category) {
     ? `<button class="modal-wishlist-heart-btn wishlist-heart-btn" type="button" data-product-id="${product.id}" aria-label="Save for later">♡</button>`
     : '';
 
+  // FIX: "Visit Live Site" now uses product.live_link (real DB field),
+  // never product.siteUrl (mock-only). Also normalizes a bare domain
+  // (e.g. "aminfinitybites.health") into a working https:// link, since
+  // admins may type either form into the Live Link field.
+  const liveLinkHref = product.live_link
+    ? (product.live_link.startsWith('http') ? product.live_link : `https://${product.live_link}`)
+    : null;
+
   const actionHTML = isWebdev
-    ? `<a href="mailto:hello@jaifore.com?subject=Enquiry: ${encodeURIComponent(product.name)}" class="modal-link">✉ Enquire About This Site →</a>
-       ${product.siteUrl ? `<a href="${product.siteUrl}" target="_blank" class="modal-link">🌐 Visit Live Site →</a>` : ''}`
+    ? `<button class="modal-link modal-enquire-btn" type="button" style="background:none;border:none;cursor:pointer;padding:0;font:inherit">✉ Enquire About This Site →</button>
+       ${liveLinkHref ? `<a href="${liveLinkHref}" target="_blank" class="modal-link">🌐 Visit Live Site →</a>` : ''}`
     : isApparel
       ? `<button class="modal-configure-btn" onclick="window.location.href='configurator.html?product=${product.id}'">🎨 Design It in Studio</button>
          <button class="modal-add-btn">Add to Cart</button>`
       : `<button class="modal-add-btn">Order Now</button>`;
 
-  const domainLine = isWebdev && product.domain
-    ? `<div class="modal-category">↗ ${product.domain}</div>`
+  // FIX: webdev's category line shows product.live_link (real DB field),
+  // never product.domain (mock-only).
+  const domainLine = isWebdev && product.live_link
+    ? `<div class="modal-category">↗ ${product.live_link}</div>`
     : `<div class="modal-category">${category.charAt(0).toUpperCase() + category.slice(1)}</div>`;
+
+  // FIX: webdev has no price — it's enquiry-only, so don't render ₦0.00.
+  const priceLine = isWebdev
+    ? ''
+    : `<div class="modal-price">${formatPrice(product.price)}</div>`;
 
   document.getElementById('modal-inner').innerHTML = `
     <div class="modal-grid">
@@ -516,7 +533,7 @@ async function openModal(product, category) {
       <div class="modal-details">
         ${domainLine}
         <div class="modal-name">${product.name}</div>
-        <div class="modal-price">${formatPrice(product.price)}</div>
+        ${priceLine}
         <div class="modal-desc">${product.description}</div>
         ${sizesHTML}
         ${qtyStepperModalHTML}
@@ -556,6 +573,12 @@ async function openModal(product, category) {
       openCart();
     });
   }
+
+  // FIX: the webdev "Enquire" button in the modal now opens the shared
+  // contact popup instead of the old mailto: link.
+  document.querySelector('.modal-enquire-btn')?.addEventListener('click', () => {
+    openContactPopup();
+  });
 
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('product-modal').classList.add('open');

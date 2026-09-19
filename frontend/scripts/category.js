@@ -319,8 +319,10 @@ function renderCard(product, index) {
         ${product.sizes.length > 4 ? `<span class="size-chip">+${product.sizes.length - 4}</span>` : ''}
        </div>` : '';
 
-  const domainHTML = isWebdev && product.domain
-    ? `<div class="site-domain">↗ ${product.domain}</div>` : '';
+  // FIX: webdev's live link comes from product.live_link (real DB field),
+  // never product.domain (that only ever existed in mock data).
+  const domainHTML = isWebdev && product.live_link
+    ? `<div class="site-domain">↗ ${product.live_link}</div>` : '';
 
   const stockBadge = !product.in_stock
     ? `<span class="card-badge out-of-stock">Out of Stock</span>`
@@ -343,7 +345,8 @@ function renderCard(product, index) {
            ${qtyStepperHTML}
            <button class="card-action" data-id="${product.id}">Order Now</button>
          </div>`
-      : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
+      // FIX: webdev has no price to show — it's enquiry-only.
+      : `${isWebdev ? '' : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>`}
          <button class="card-action" data-id="${product.id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
 
   card.innerHTML = `
@@ -360,13 +363,6 @@ function renderCard(product, index) {
     </div>
   `;
 
-  // item 19 fix: the wishlist heart is now excluded from this "click
-  // anywhere opens the modal" listener, same as .card-action/.configure-btn/
-  // .qty-stepper already were. Previously, clicking the heart fired BOTH
-  // the delegated wishlist-toggle listener AND this listener — openModal()
-  // immediately replaced #modal-inner's content, which made the heart
-  // click look like it "did nothing" on the card even though the
-  // wishlist API call may have still gone through in the background.
   card.addEventListener('click', (e) => {
     if (!e.target.classList.contains('card-action') &&
         !e.target.classList.contains('configure-btn') &&
@@ -433,13 +429,25 @@ async function openModal(product) {
     ? `<button class="modal-wishlist-heart-btn wishlist-heart-btn" type="button" data-product-id="${product.id}" aria-label="Save for later">♡</button>`
     : '';
 
+  // FIX: "Visit Live Site" now uses product.live_link (real DB field),
+  // never product.siteUrl (mock-only). Normalizes a bare domain into a
+  // working https:// link.
+  const liveLinkHref = product.live_link
+    ? (product.live_link.startsWith('http') ? product.live_link : `https://${product.live_link}`)
+    : null;
+
   const actionHTML = isWebdev
-    ? `<a href="mailto:hello@jaifore.com?subject=Enquiry: ${encodeURIComponent(product.name)}" class="modal-link">✉ Enquire About This Site →</a>
-       ${product.siteUrl ? `<a href="${product.siteUrl}" target="_blank" class="modal-link">🌐 Visit Live Site →</a>` : ''}`
+    ? `<button class="modal-link modal-enquire-btn" type="button" style="background:none;border:none;cursor:pointer;padding:0;font:inherit">✉ Enquire About This Site →</button>
+       ${liveLinkHref ? `<a href="${liveLinkHref}" target="_blank" class="modal-link">🌐 Visit Live Site →</a>` : ''}`
     : isApparel
       ? `<button class="modal-configure-btn" onclick="window.location.href='configurator.html?product=${product.id}'">🎨 Design It in Studio</button>
          <button class="modal-add-btn" ${!product.in_stock ? 'disabled' : ''}>Add to Cart</button>`
       : `<button class="modal-add-btn">Order Now</button>`;
+
+  // FIX: webdev has no price — it's enquiry-only.
+  const priceLine = isWebdev
+    ? ''
+    : `<div class="modal-price">${formatPrice(product.price)}</div>`;
 
   document.getElementById('modal-inner').innerHTML = `
     <div class="modal-grid">
@@ -447,7 +455,7 @@ async function openModal(product) {
       <div class="modal-details">
         <div class="modal-category">${meta.tag}</div>
         <div class="modal-name">${product.name}</div>
-        <div class="modal-price">${formatPrice(product.price)}</div>
+        ${priceLine}
         <div class="modal-desc">${product.description}</div>
         ${sizesHTML}
         ${qtyStepperModalHTML}
@@ -487,6 +495,12 @@ async function openModal(product) {
       openCart();
     });
   }
+
+  // FIX: the webdev "Enquire" button in the modal now opens the shared
+  // contact popup instead of the old mailto: link.
+  document.querySelector('.modal-enquire-btn')?.addEventListener('click', () => {
+    openContactPopup();
+  });
 
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('product-modal').classList.add('open');
