@@ -694,6 +694,36 @@ img {
 }
 
 /* ================================
+   WEB DEV SERVICES (maintenance, hosting, etc.)
+   Sits inside #webdev's .category-section, below the portfolio grid.
+   Cards reuse .product-card/.card-body/.card-footer/.card-action as-is —
+   only this wrapper + header + a distinct icon-placeholder tone are new.
+   ================================ */
+.webdev-services {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+
+.webdev-services-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.webdev-services-header p {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.service-card .card-img-placeholder {
+  font-size: 2rem;
+  opacity: 0.6;
+}
+
+/* ================================
    RECENTLY VIEWED SECTION (item 20)
    New homepage section on services.html only — sits above the three
    category sections, styled to match .category-section's rhythm without

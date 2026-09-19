@@ -62,12 +62,6 @@ document.addEventListener('change', (e) => {
 });
 
 // ── WISHLIST HEART (item 19) ────────────────────────
-// Restored to cards (apparel + design; webdev excluded — enquiry-only,
-// no cart line, same reasoning the qty stepper already uses). The heart
-// was previously modal-only because the card's own "click anywhere opens
-// modal" listener didn't exclude it, making the card heart appear broken —
-// fixed properly below by adding it to that listener's exclusion list,
-// instead of removing the card heart entirely. Matches category.js's fix.
 function renderWishlistHeart(productId, category) {
   if (category === 'webdev') return '';
   return `<button class="wishlist-heart-btn" type="button" data-product-id="${productId}" onclick="event.stopPropagation()" aria-label="Save for later">♡</button>`;
@@ -257,6 +251,65 @@ function getPlaceholder(category, index) {
   return arr[index % arr.length];
 }
 
+// ── WEB DEV SERVICES (hardcoded — rarely change, no admin CRUD needed) ──
+// These aren't real products; they're cart-line stand-ins so a customer
+// can "order" a service and pay/communicate through the normal checkout
+// flow instead of a separate mailto enquiry. Same addToCart() path as
+// everything else — checkout/order handling needs zero changes.
+const WEBDEV_SERVICES = [
+  {
+    id: 'svc-maintenance',
+    name: 'Website Maintenance (Monthly)',
+    description: 'Ongoing updates, backups, and uptime monitoring for your existing site.',
+    price: 15000,
+    category: 'webdev-service',
+    image_url: null
+  },
+  {
+    id: 'svc-hosting',
+    name: 'Hosting Setup',
+    description: 'Domain + hosting configuration, SSL, and deployment — done for you.',
+    price: 25000,
+    category: 'webdev-service',
+    image_url: null
+  }
+];
+
+function renderServiceCard(service, index) {
+  const card = document.createElement('div');
+  card.className = 'product-card service-card';
+  card.style.animationDelay = `${index * 0.1}s`;
+
+  card.innerHTML = `
+    <div class="card-img">
+      <div class="card-img-placeholder">🛠️</div>
+      <span class="card-badge">Service</span>
+    </div>
+    <div class="card-body">
+      <div class="card-name">${service.name}</div>
+      <div class="card-desc">${service.description}</div>
+      <div class="card-footer">
+        <div class="card-price"><span class="currency">₦</span>${Number(service.price).toLocaleString('en-NG')}</div>
+        <button class="card-action" data-id="${service.id}">Add to Cart</button>
+      </div>
+    </div>
+  `;
+
+  card.querySelector('.card-action').addEventListener('click', (e) => {
+    e.stopPropagation();
+    addToCart(service, null, 'webdev-service');
+  });
+
+  return card;
+}
+
+function loadWebdevServices() {
+  const grid = document.getElementById('webdev-services-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  WEBDEV_SERVICES.forEach((s, i) => grid.appendChild(renderServiceCard(s, i)));
+}
+
 function getMockProducts(category) {
   const mocks = {
     apparel: [
@@ -327,7 +380,6 @@ function renderCard(product, index, category) {
     ? `<div class="site-domain">↗ ${product.domain}</div>` : '';
 
   const qtyStepperHTML = renderQtyStepper(product.id, category);
-  // item 19: heart restored to cards (apparel + design), excluded on webdev.
   const wishlistHeartHTML = renderWishlistHeart(product.id, category);
 
   const footerHTML = isApparel
@@ -361,11 +413,6 @@ function renderCard(product, index, category) {
     </div>
   `;
 
-  // item 19 fix: wishlist heart now excluded from this "click anywhere
-  // opens modal" listener, same fix as category.js. Previously the heart
-  // wasn't rendered on cards at all specifically to dodge this conflict —
-  // now it's rendered AND correctly excluded, so it works standalone
-  // without needing the modal open.
   card.addEventListener('click', (e) => {
     if (!e.target.classList.contains('card-action') &&
         !e.target.classList.contains('configure-btn') &&
@@ -410,7 +457,7 @@ async function loadCategory(category) {
     return;
   }
   products.slice(0, 3).forEach((p, i) => grid.appendChild(renderCard(p, i, category)));
-  syncWishlistHearts(); // item 19 — now applies to card hearts too, not just the modal's
+  syncWishlistHearts();
 }
 
 document.querySelectorAll('.load-more-btn').forEach(btn => {
@@ -560,4 +607,5 @@ window.JaiforeCurrency?.init().then(() => {
   loadCategory('apparel');
   loadCategory('design');
   loadCategory('webdev');
+  loadWebdevServices();
 });
