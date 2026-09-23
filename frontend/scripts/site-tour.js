@@ -63,6 +63,7 @@
 
     const tooltip = document.createElement('div');
     tooltip.className = 'tour-tooltip';
+    tooltip.style.display = 'none';
     tooltip.innerHTML = `
       <div class="tour-tooltip-step" id="tourStepLabel"></div>
       <div class="tour-tooltip-title" id="tourTitle"></div>
@@ -119,6 +120,7 @@
     if (!validSteps.length) return;
 
     dom.overlay.classList.add('open');
+    dom.tooltip.style.display = 'block';
     document.getElementById('tourRelaunchBtn').style.display = 'none';
 
     renderStep();
@@ -199,6 +201,7 @@
 
     function endTour() {
       dom.overlay.classList.remove('open');
+      dom.tooltip.style.display = 'none';
       dom.ring.style.width = '0px';
       dom.ring.style.height = '0px';
       localStorage.setItem(storageKey, '1');
