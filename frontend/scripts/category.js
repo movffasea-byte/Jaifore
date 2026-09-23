@@ -233,7 +233,12 @@ updateHeroForCategory(currentCategory);
 document.getElementById('categorySelect').value = currentCategory;
 
 async function fetchCategory(cat) {
-  if (productsByCategory[cat]) return productsByCategory[cat];
+  // FIX: was `if (productsByCategory[cat])` — an empty array [] is truthy in JS,
+  // so once a failed fetch cached [] for a category, every future call short-circuited
+  // and returned that stale empty result forever, even after the API recovered.
+  // Checking `!== undefined` still skips re-fetching a category that legitimately
+  // came back empty, but no longer treats "never successfully fetched" the same way.
+  if (productsByCategory[cat] !== undefined) return productsByCategory[cat];
 
   const meta = CATEGORY_META[cat] || CATEGORY_META.apparel;
   try {
@@ -243,7 +248,10 @@ async function fetchCategory(cat) {
     const data = await res.json();
     productsByCategory[cat] = Array.isArray(data) ? data : [];
   } catch {
-    productsByCategory[cat] = [];
+    // FIX: was `productsByCategory[cat] = [];` — that permanently poisoned the
+    // cache on a transient failure. Now we just return [] for this one call
+    // and leave the cache slot untouched, so the next call retries the real fetch.
+    return [];
   }
   return productsByCategory[cat];
 }
