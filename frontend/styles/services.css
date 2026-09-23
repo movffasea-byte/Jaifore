@@ -24,6 +24,17 @@
   --font-body:    'Karla', sans-serif;
   --radius:       2px;
   --transition:   0.3s cubic-bezier(0.4,0,0.2,1);
+
+  /* ================================
+     SITE TOUR — shared palette (used by styles/site-tour.css)
+     Kept here as variables, not hardcoded in the tour stylesheet, so the
+     tour automatically stays on-brand if these values ever change.
+     ================================ */
+  --tour-accent:      var(--purple);
+  --tour-accent-ink:  #fff;
+  --tour-overlay:     rgba(17, 17, 17, 0.72);
+  --tour-card-bg:     #fff;
+  --tour-card-ink:    var(--ink);
 }
 
 html { scroll-behavior: smooth; }
@@ -854,11 +865,113 @@ img {
 
 /* ================================
    FOOTER
+   ================================
+   FIX: previously a separate light-cream footer (border-top only, --muted
+   text) that visually mismatched the homepage's dark navy footer, even
+   though the HTML markup is identical on every page. Now matches
+   jaifore.css's footer exactly, so Home/Services/Category/Dashboard/
+   Configurator all render the same footer regardless of which stylesheet
+   loads it. */
+.footer {
+  background: #1a0d2e;
+  padding: 2rem 3rem;
+  border-top: none;
+}
+.footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+.footer-brand {
+  height: 40px;
+  width: 40px;
+  object-fit: cover;
+  border-radius: 50% !important;
+  border: 1px solid rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+.footer-copy {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #ccc;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+}
+.footer-legal {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.footer-legal a {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  color: #888;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.footer-legal a:hover { color: #9b6fd4; }
+.footer-legal span {
+  color: #444;
+  font-size: 0.7rem;
+}
+
+/* ================================
+   BACK TO TOP BUTTON (new)
+   Shared by services.html and category.html via scripts/back-to-top.js,
+   which injects the button markup and toggles ".visible" on scroll — no
+   HTML needs to be hand-added to either page.
    ================================ */
-.footer { border-top: 2px solid var(--ink); padding: 2rem 3rem; }
-.footer-inner { display: flex; align-items: center; justify-content: space-between; max-width: 1400px; margin: 0 auto; }
-.footer-brand { height: 50px; border-radius: 50px; }
-.footer-copy { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.05em; }
+.back-to-top-btn {
+  position: fixed;
+  right: 1.75rem;
+  bottom: 1.75rem;
+  z-index: 150;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.22);
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  transition: opacity var(--transition), transform var(--transition), background var(--transition);
+}
+
+.back-to-top-btn.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.back-to-top-btn:hover {
+  background: var(--purple);
+}
+
+.back-to-top-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 600px) {
+  .back-to-top-btn {
+    right: 1.1rem;
+    bottom: 1.1rem;
+    width: 42px;
+    height: 42px;
+  }
+}
 
 /* ================================
    NOISE OVERLAY

@@ -16,6 +16,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles/jaifore.css" />
+  <!-- SITE TOUR: shared styling, loaded on every page -->
+  <link rel="stylesheet" href="styles/site-tour.css" />
 </head>
 <body>
 
@@ -27,7 +29,7 @@
       </a>
       <div class="nav-links" id="navLinks">
         <a href="#about" class="nav-link">About</a>
-        <a href="services.html" class="nav-link">Services</a>
+        <a href="services.html" class="nav-link" id="tourServicesLink">Services</a>
         <div id="nav-actions"></div>
         <button class="nav-pill" id="ctaBtn">Get in Touch</button>
       </div>
@@ -166,5 +168,29 @@
   <script src="scripts/currency.js"></script>
   <script src="scripts/jaifore.js"></script>
   <script src="scripts/cookie-consent.js"></script>
+
+  <!-- SITE TOUR: step definitions for the Home page, then the shared engine.
+       Order matters — JAIFORE_TOUR_STEPS/KEY must exist before site-tour.js runs. -->
+  <script>
+    window.JAIFORE_TOUR_KEY = 'home';
+    window.JAIFORE_TOUR_STEPS = [
+      {
+        selector: '.hero-inner',
+        title: 'Welcome to Jai\'fore',
+        body: 'Quick tour — a minute or two to show you around the site before you dive in.'
+      },
+      {
+        selector: '#tourServicesLink',
+        title: 'Browse everything we offer',
+        body: 'Click Services to see our full catalog — apparel & merch, graphic design, and web development.'
+      },
+      {
+        selector: '#ctaBtn',
+        title: 'Get in touch anytime',
+        body: 'Have a question or a custom request? This button connects you with us directly.'
+      }
+    ];
+  </script>
+  <script src="scripts/site-tour.js"></script>
 </body>
 </html>

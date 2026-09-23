@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="styles/services.css"/>
   <link rel="stylesheet" href="styles/dashboard.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+  <!-- SITE TOUR: shared styling, loaded on every page -->
+  <link rel="stylesheet" href="styles/site-tour.css"/>
 </head>
 <body>
 
@@ -30,7 +32,7 @@
   <div class="dash-wrap">
 
     <!-- SIDEBAR -->
-    <aside class="dash-sidebar">
+    <aside class="dash-sidebar" id="tourDashSidebar">
       <div class="dash-profile">
         <div class="dash-avatar" id="dashAvatar">—</div>
         <div class="dash-profile-info">
@@ -152,5 +154,28 @@
   <script src="scripts/header.js"></script>
   <script src="scripts/dashboard.js"></script>
   <script src="scripts/cookie-consent.js"></script>
+
+  <!-- SITE TOUR: step definitions for the Dashboard page, then the shared engine -->
+  <script>
+    window.JAIFORE_TOUR_KEY = 'dashboard';
+    window.JAIFORE_TOUR_STEPS = [
+      {
+        selector: '#tourDashSidebar',
+        title: 'Everything about your account',
+        body: 'Switch between Order History, Saved Designs, Wishlist, and Profile Settings right here.'
+      },
+      {
+        selector: '#ordersList',
+        title: 'Track your orders',
+        body: 'Click any order in this list to see its full status timeline and item details.'
+      },
+      {
+        selector: '.dash-nav-item[data-tab="designs"]',
+        title: 'Your saved designs',
+        body: 'Designs you save from the Studio while customizing apparel show up here for later.'
+      }
+    ];
+  </script>
+  <script src="scripts/site-tour.js"></script>
 </body>
 </html>

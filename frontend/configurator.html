@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="styles/services.css"/>
   <link rel="stylesheet" href="styles/configurator.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Karla:wght@300;400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+  <!-- SITE TOUR: shared styling, loaded on every page -->
+  <link rel="stylesheet" href="styles/site-tour.css"/>
 
   <style>
     /* ── GENDER MODAL ─────────────────────────────── */
@@ -293,5 +295,33 @@
   <script src="scripts/configurator.js"></script>
   <script src="scripts/size-guide.js"></script>
   <script src="scripts/cookie-consent.js"></script>
+
+  <!-- SITE TOUR: step definitions for the Configurator (Studio) page, then the shared engine -->
+  <script>
+    window.JAIFORE_TOUR_KEY = 'configurator';
+    window.JAIFORE_TOUR_STEPS = [
+      {
+        selector: '#canvasContainer',
+        title: 'Your live preview',
+        body: 'This is your product — every design you add shows up here in real time, front and back.'
+      },
+      {
+        selector: '#graphicGrid',
+        title: 'Pick a design',
+        body: 'Choose one of our curated graphics, or scroll down to upload your own image instead.'
+      },
+      {
+        selector: '.size-row',
+        title: 'Choose a garment size',
+        body: 'Pick the size that fits — use the Size Guide link next to it if you\'re not sure which to choose.'
+      },
+      {
+        selector: '#addToCartBtn',
+        title: 'Ready to order',
+        body: 'Once your design and size are set, add it straight to your cart from here.'
+      }
+    ];
+  </script>
+  <script src="scripts/site-tour.js"></script>
 </body>
 </html>

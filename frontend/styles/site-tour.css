@@ -1,0 +1,171 @@
+/* ================================
+   JAIFORE — SITE TOUR CSS
+   styles/site-tour.css
+
+   Shared across Home, Services, Dashboard, and Configurator. Colors pull
+   from the --tour-* variables defined in services.css's :root so the tour
+   stays on-brand automatically. jaifore.css (Home) does not define these
+   variables, so hex fallbacks are given on every var() call below —
+   Home still gets the same purple/white look without needing its own
+   copy of these variables.
+   ================================ */
+
+#tourOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: var(--tour-overlay, rgba(17, 17, 17, 0.72));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+#tourOverlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* The four "mask" strips that surround the highlighted element, so the
+   element itself sits in a bright cutout while everything else dims.
+   Positioned/sized via inline styles set by site-tour.js at runtime. */
+.tour-mask-piece {
+  position: fixed;
+  background: var(--tour-overlay, rgba(17, 17, 17, 0.72));
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  pointer-events: all;
+}
+
+.tour-spotlight-ring {
+  position: fixed;
+  border: 2px solid var(--tour-accent, #4a2d7a);
+  border-radius: 10px;
+  box-shadow: 0 0 0 4px rgba(74,45,122,0.18);
+  pointer-events: none;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  z-index: 9001;
+}
+
+.tour-tooltip {
+  position: fixed;
+  z-index: 9002;
+  background: var(--tour-card-bg, #fff);
+  color: var(--tour-card-ink, #111);
+  border-radius: 12px;
+  padding: 1.2rem 1.3rem;
+  width: min(300px, 86vw);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.28);
+  transition: top 0.35s cubic-bezier(0.4,0,0.2,1), left 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+
+.tour-tooltip-step {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tour-accent, #4a2d7a);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.tour-tooltip-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  line-height: 1.3;
+}
+
+.tour-tooltip-body {
+  font-size: 0.85rem;
+  color: #555;
+  line-height: 1.55;
+  margin-bottom: 1rem;
+}
+
+.tour-tooltip-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.tour-dots {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ddd;
+  transition: background 0.2s;
+}
+
+.tour-dot.active {
+  background: var(--tour-accent, #4a2d7a);
+}
+
+.tour-btn-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tour-btn {
+  border: none;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, opacity 0.2s;
+}
+
+.tour-btn-skip {
+  background: none;
+  color: #999;
+}
+.tour-btn-skip:hover { color: #555; }
+
+.tour-btn-back {
+  background: #f0ecf7;
+  color: var(--tour-accent, #4a2d7a);
+}
+.tour-btn-back:hover { background: #e6ddf2; }
+
+.tour-btn-next {
+  background: var(--tour-accent, #4a2d7a);
+  color: var(--tour-accent-ink, #fff);
+}
+.tour-btn-next:hover { opacity: 0.88; }
+
+/* Small "Show me around" re-launch button, in case a user skipped and
+   wants it back later. Placed bottom-left so it never collides with the
+   back-to-top button (bottom-right) on pages that have both. */
+.tour-relaunch-btn {
+  position: fixed;
+  left: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 150;
+  background: var(--tour-card-bg, #fff);
+  color: var(--tour-accent, #4a2d7a);
+  border: 1.5px solid var(--tour-accent, #4a2d7a);
+  border-radius: 30px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  transition: background 0.2s, color 0.2s;
+}
+
+.tour-relaunch-btn:hover {
+  background: var(--tour-accent, #4a2d7a);
+  color: var(--tour-accent-ink, #fff);
+}
+
+@media (max-width: 600px) {
+  .tour-tooltip { width: min(270px, 88vw); padding: 1rem 1.1rem; }
+  .tour-relaunch-btn { left: 1rem; bottom: 1rem; padding: 0.5rem 0.85rem; font-size: 0.68rem; }
+}

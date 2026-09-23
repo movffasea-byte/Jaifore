@@ -6,6 +6,8 @@
   <title>Jai'fore — Services</title>
   <link rel="stylesheet" href="styles/services.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Karla:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <!-- SITE TOUR: shared styling, loaded on every page -->
+  <link rel="stylesheet" href="styles/site-tour.css"/>
 </head>
 <body>
 
@@ -65,7 +67,7 @@
           <h2 class="cat-title">Apparel &amp; Merchandise</h2>
           <p class="cat-desc">Premium blank canvas pieces — yours to wear, gift, or brand. Select size, quantity, and we ship worldwide.</p>
         </div>
-        <a href="category.html?cat=apparel" class="cat-view-all">View All <span>→</span></a>
+        <a href="category.html?cat=apparel" class="cat-view-all" id="tourViewAllApparel">View All <span>→</span></a>
       </div>
       <div class="products-grid" id="apparel-grid">
         <div class="skeleton-card"></div>
@@ -169,5 +171,31 @@
   <script src="scripts/services.js"></script>
   <script src="scripts/size-guide.js"></script>
   <script src="scripts/cookie-consent.js"></script>
+
+  <!-- BACK TO TOP: injects its own button, no HTML needed here -->
+  <script src="scripts/back-to-top.js"></script>
+
+  <!-- SITE TOUR: step definitions for the Services page, then the shared engine -->
+  <script>
+    window.JAIFORE_TOUR_KEY = 'services';
+    window.JAIFORE_TOUR_STEPS = [
+      {
+        selector: '#tourViewAllApparel',
+        title: 'See the full catalog',
+        body: '"View All" on any category takes you to the complete list of products in that category, with search, sort, and filters.'
+      },
+      {
+        selector: '.configure-btn',
+        title: 'Design it yourself',
+        body: 'Click "🎨 Design" on an apparel item to open the Studio, where you can add designs, choose a size, and preview it live.'
+      },
+      {
+        selector: '#cart-btn',
+        title: 'Your cart lives here',
+        body: 'Everything you add — from any category — collects here, ready for checkout whenever you\'re done browsing.'
+      }
+    ];
+  </script>
+  <script src="scripts/site-tour.js"></script>
 </body>
 </html>
