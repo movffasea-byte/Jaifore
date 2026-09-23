@@ -319,8 +319,6 @@ function renderCard(product, index) {
         ${product.sizes.length > 4 ? `<span class="size-chip">+${product.sizes.length - 4}</span>` : ''}
        </div>` : '';
 
-  // FIX: webdev's live link comes from product.live_link (real DB field),
-  // never product.domain (that only ever existed in mock data).
   const domainHTML = isWebdev && product.live_link
     ? `<div class="site-domain">↗ ${product.live_link}</div>` : '';
 
@@ -345,7 +343,6 @@ function renderCard(product, index) {
            ${qtyStepperHTML}
            <button class="card-action" data-id="${product.id}">Order Now</button>
          </div>`
-      // FIX: webdev has no price to show — it's enquiry-only.
       : `${isWebdev ? '' : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>`}
          <button class="card-action" data-id="${product.id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
 
@@ -429,9 +426,6 @@ async function openModal(product) {
     ? `<button class="modal-wishlist-heart-btn wishlist-heart-btn" type="button" data-product-id="${product.id}" aria-label="Save for later">♡</button>`
     : '';
 
-  // FIX: "Visit Live Site" now uses product.live_link (real DB field),
-  // never product.siteUrl (mock-only). Normalizes a bare domain into a
-  // working https:// link.
   const liveLinkHref = product.live_link
     ? (product.live_link.startsWith('http') ? product.live_link : `https://${product.live_link}`)
     : null;
@@ -444,7 +438,6 @@ async function openModal(product) {
          <button class="modal-add-btn" ${!product.in_stock ? 'disabled' : ''}>Add to Cart</button>`
       : `<button class="modal-add-btn">Order Now</button>`;
 
-  // FIX: webdev has no price — it's enquiry-only.
   const priceLine = isWebdev
     ? ''
     : `<div class="modal-price">${formatPrice(product.price)}</div>`;
@@ -496,8 +489,6 @@ async function openModal(product) {
     });
   }
 
-  // FIX: the webdev "Enquire" button in the modal now opens the shared
-  // contact popup instead of the old mailto: link.
   document.querySelector('.modal-enquire-btn')?.addEventListener('click', () => {
     openContactPopup();
   });
@@ -562,14 +553,5 @@ document.getElementById('stockSelect').addEventListener('change', applyFilters);
 (async () => {
   document.getElementById('catCount').textContent = 'Loading...';
   await Promise.all([fetchCategory(currentCategory), loadWishlistedIds()]);
-
-  if (!(productsByCategory[currentCategory] || []).length) {
-    document.getElementById('cat-grid').innerHTML = '';
-    document.getElementById('catEmpty').classList.remove('hidden');
-    document.getElementById('loadMoreWrap').classList.add('hidden');
-    document.getElementById('catCount').textContent = '0 products';
-    return;
-  }
-
   applyFilters();
 })();
