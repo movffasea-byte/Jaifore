@@ -175,6 +175,17 @@
   gap: 1rem;
 }
 
+/* FIX: .cat-empty's own `display: flex` has the same specificity as a
+   plain `.hidden { display: none; }` rule defined elsewhere (services.css,
+   loaded before this file), so on a cascade tie the later stylesheet wins —
+   meaning .cat-empty could keep the "hidden" class in the DOM while still
+   rendering visually. Combining both classes in one selector raises
+   specificity above either rule alone, so hidden reliably wins regardless
+   of stylesheet load order. */
+.cat-empty.hidden {
+  display: none;
+}
+
 .empty-icon {
   font-size: 3rem;
   color: #d8d0c4;
