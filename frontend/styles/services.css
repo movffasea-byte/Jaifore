@@ -716,6 +716,20 @@ img {
   border-top: 1px solid var(--border);
 }
 
+.webdev-services-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.webdev-services-header-text {
+  flex: 1;
+  min-width: 200px;
+}
+
 .webdev-services-header h3 {
   font-family: var(--font-display);
   font-size: 1.4rem;
@@ -726,7 +740,11 @@ img {
 .webdev-services-header p {
   color: var(--muted);
   font-size: 0.85rem;
-  margin-bottom: 1.25rem;
+}
+
+.webdev-services-enquire-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .service-card .card-img-placeholder {

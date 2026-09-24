@@ -252,25 +252,46 @@ function getPlaceholder(category, index) {
 }
 
 // ── WEB DEV SERVICES (hardcoded — rarely change, no admin CRUD needed) ──
-// These aren't real products; they're cart-line stand-ins for the
-// "Enquire" flow — pricing shown here is illustrative only, since the
-// button opens the shared contact popup rather than adding to cart.
+// These are informational cards only, not purchasable products: no price,
+// no per-card action. All 6 share a single "Enquire" button that lives in
+// the section header (see services.html), which opens the same contact
+// popup every other Enquire flow on the site uses.
 const WEBDEV_SERVICES = [
   {
     id: 'svc-maintenance',
     name: 'Website Maintenance (Monthly)',
     description: 'Ongoing updates, backups, and uptime monitoring for your existing site.',
-    price: 15000,
-    category: 'webdev-service',
-    image_url: null
+    icon: '🛠️'
   },
   {
     id: 'svc-hosting',
     name: 'Hosting Setup',
     description: 'Domain + hosting configuration, SSL, and deployment — done for you.',
-    price: 25000,
-    category: 'webdev-service',
-    image_url: null
+    icon: '🌐'
+  },
+  {
+    id: 'svc-bugfixes',
+    name: 'Bug Fixes & Support',
+    description: 'Something broken or behaving oddly? We diagnose and fix issues on your existing site.',
+    icon: '🐞'
+  },
+  {
+    id: 'svc-updates',
+    name: 'Website Updates',
+    description: 'Content changes, new pages, or feature additions to keep your site current.',
+    icon: '✏️'
+  },
+  {
+    id: 'svc-security',
+    name: 'Security & Backups',
+    description: 'Regular backups, security patches, and monitoring to keep your site safe.',
+    icon: '🔒'
+  },
+  {
+    id: 'svc-performance',
+    name: 'Performance & Optimization',
+    description: 'Speed audits and optimization so your site loads fast and ranks well.',
+    icon: '🚀'
   }
 ];
 
@@ -279,25 +300,18 @@ function renderServiceCard(service, index) {
   card.className = 'product-card service-card';
   card.style.animationDelay = `${index * 0.1}s`;
 
+  // No price, no per-card button — enquiries for all 6 services go
+  // through the single shared button in the section header instead.
   card.innerHTML = `
     <div class="card-img">
-      <div class="card-img-placeholder">🛠️</div>
+      <div class="card-img-placeholder">${service.icon || '🛠️'}</div>
       <span class="card-badge">Service</span>
     </div>
     <div class="card-body">
       <div class="card-name">${service.name}</div>
       <div class="card-desc">${service.description}</div>
-      <div class="card-footer">
-        <div class="card-price"><span class="currency">₦</span>${Number(service.price).toLocaleString('en-NG')}</div>
-        <button class="card-action service-enquire-btn" type="button">Enquire</button>
-      </div>
     </div>
   `;
-
-  card.querySelector('.service-enquire-btn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    openContactPopup();
-  });
 
   return card;
 }
@@ -308,6 +322,12 @@ function loadWebdevServices() {
   grid.innerHTML = '';
   WEBDEV_SERVICES.forEach((s, i) => grid.appendChild(renderServiceCard(s, i)));
 }
+
+// Single shared Enquire button for the whole "Need ongoing support
+// instead?" section — lives in services.html's section header.
+document.getElementById('webdevServicesEnquireBtn')?.addEventListener('click', () => {
+  openContactPopup();
+});
 
 function getMockProducts(category) {
   const mocks = {
