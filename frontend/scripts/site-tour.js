@@ -31,6 +31,13 @@
     const tourKey = window.JAIFORE_TOUR_KEY || 'default';
     if (!steps.length) return;
 
+    // Flags pages with a fixed bottom-left sidebar element (currently just
+    // Dashboard) so site-tour.css can reposition the relaunch button clear
+    // of whatever sits in that corner on this page, e.g. the Logout button.
+    if (document.querySelector('.dash-sidebar')) {
+      document.body.classList.add('tour-has-sidebar');
+    }
+
     const storageKey = STORAGE_PREFIX + tourKey;
     const alreadySeen = localStorage.getItem(storageKey) === '1';
 

@@ -165,6 +165,16 @@
   color: var(--tour-accent-ink, #fff);
 }
 
+/* FIX: on the Dashboard page, the sidebar's Logout button sits in this
+   same bottom-left corner, so the relaunch button would otherwise cover
+   it. site-tour.js adds "tour-has-sidebar" to <body> only when a
+   .dash-sidebar element exists on the page, so this override only ever
+   applies on Dashboard and leaves every other page's default position
+   untouched. */
+body.tour-has-sidebar .tour-relaunch-btn {
+  bottom: 5.5rem;
+}
+
 @media (max-width: 600px) {
   .tour-tooltip { width: min(270px, 88vw); padding: 1rem 1.1rem; }
   .tour-relaunch-btn { left: 1rem; bottom: 1rem; padding: 0.5rem 0.85rem; font-size: 0.68rem; }
