@@ -128,6 +128,7 @@
 
     dom.overlay.classList.add('open');
     dom.tooltip.style.display = 'block';
+    dom.ring.style.display = 'block';
     document.getElementById('tourRelaunchBtn').style.display = 'none';
 
     renderStep();
@@ -209,8 +210,11 @@
     function endTour() {
       dom.overlay.classList.remove('open');
       dom.tooltip.style.display = 'none';
+      dom.ring.style.display = 'none';
       dom.ring.style.width = '0px';
       dom.ring.style.height = '0px';
+      dom.ring.style.top = '-9999px';
+      dom.ring.style.left = '-9999px';
       localStorage.setItem(storageKey, '1');
       document.getElementById('tourRelaunchBtn').style.display = 'inline-block';
       window.removeEventListener('resize', repositionOnResize);
@@ -222,4 +226,4 @@
   } else {
     init();
   }
-})();
+})()
