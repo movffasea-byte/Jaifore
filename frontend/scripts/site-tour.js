@@ -49,6 +49,10 @@
       // Small delay so the page's own layout/animations settle first —
       // avoids highlighting an element that's still animating into place.
       setTimeout(() => startTour(dom, steps, storageKey), 500);
+    } else {
+      // Returning visitor — the tour won't auto-run, so the relaunch
+      // button is the only way to see it. Show it directly.
+      document.getElementById('tourRelaunchBtn').style.display = 'inline-block';
     }
   }
 
@@ -108,17 +112,9 @@
     btn.className = 'tour-relaunch-btn';
     btn.id = 'tourRelaunchBtn';
     btn.textContent = '✨ Show me around';
-    btn.style.display = 'none'; // shown only after the tour closes at least once
     document.body.appendChild(btn);
 
     btn.addEventListener('click', () => startTour(dom, steps, storageKey));
-
-    // Reveal the relaunch button once we know whether this page's tour
-    // has already been dismissed (so it doesn't flash before the
-    // auto-start tour has had a chance to run).
-    setTimeout(() => {
-      btn.style.display = 'inline-block';
-    }, 600);
   }
 
   function startTour(dom, steps, storageKey) {
@@ -226,4 +222,4 @@
   } else {
     init();
   }
-})
+})();

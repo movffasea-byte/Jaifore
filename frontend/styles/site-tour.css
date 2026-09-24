@@ -142,6 +142,7 @@
    wants it back later. Placed bottom-left so it never collides with the
    back-to-top button (bottom-right) on pages that have both. */
 .tour-relaunch-btn {
+  display: none; /* shown by startTour()/endTour() directly — no timer race */
   position: fixed;
   left: 1.5rem;
   bottom: 1.5rem;
