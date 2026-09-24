@@ -106,6 +106,20 @@
     };
   }
 
+  // Shared across all startTour() calls on this page — set to the active
+  // run's validSteps/index/dom whenever a tour is open, and cleared on
+  // close, so repositionOnResize (registered exactly once, below) always
+  // acts on whichever run is currently active instead of each relaunch
+  // adding its own separate listener.
+  let activeRun = null;
+
+  function repositionOnResize() {
+    if (activeRun && activeRun.dom.overlay.classList.contains('open')) {
+      positionOn(activeRun.dom, activeRun.validSteps[activeRun.index]);
+    }
+  }
+  window.addEventListener('resize', repositionOnResize, { passive: true });
+
   function injectRelaunchButton(dom, steps, storageKey) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -118,9 +132,10 @@
   }
 
   function startTour(dom, steps, storageKey) {
-    let index = 0;
     const validSteps = steps.filter(s => document.querySelector(s.selector));
     if (!validSteps.length) return;
+
+    activeRun = { dom, validSteps, index: 0 };
 
     dom.overlay.classList.add('open');
     dom.tooltip.style.display = 'block';
@@ -130,41 +145,52 @@
     renderStep();
 
     dom.skipBtn.onclick = () => endTour();
-    dom.backBtn.onclick = () => { if (index > 0) { index--; renderStep(); } };
+    dom.backBtn.onclick = () => { if (activeRun.index > 0) { activeRun.index--; renderStep(); } };
     dom.nextBtn.onclick = () => {
-      if (index < validSteps.length - 1) { index++; renderStep(); }
+      if (activeRun.index < validSteps.length - 1) { activeRun.index++; renderStep(); }
       else { endTour(); }
     };
 
-    window.addEventListener('resize', repositionOnResize, { passive: true });
-
-    function repositionOnResize() {
-      if (dom.overlay.classList.contains('open')) positionOn(validSteps[index]);
-    }
-
     function renderStep() {
-      const step = validSteps[index];
-      dom.stepLabel.textContent = `Step ${index + 1} of ${validSteps.length}`;
+      const step = validSteps[activeRun.index];
+      dom.stepLabel.textContent = `Step ${activeRun.index + 1} of ${validSteps.length}`;
       dom.title.textContent = step.title;
       dom.body.textContent = step.body;
-      dom.backBtn.style.visibility = index === 0 ? 'hidden' : 'visible';
-      dom.nextBtn.textContent = index === validSteps.length - 1 ? 'Finish' : 'Next';
+      dom.backBtn.style.visibility = activeRun.index === 0 ? 'hidden' : 'visible';
+      dom.nextBtn.textContent = activeRun.index === validSteps.length - 1 ? 'Finish' : 'Next';
 
       dom.dots.innerHTML = '';
       validSteps.forEach((_, i) => {
         const dot = document.createElement('span');
-        dot.className = 'tour-dot' + (i === index ? ' active' : '');
+        dot.className = 'tour-dot' + (i === activeRun.index ? ' active' : '');
         dom.dots.appendChild(dot);
       });
 
-      positionOn(step);
+      positionOn(dom, step);
       const el = document.querySelector(step.selector);
       if (el && el.scrollIntoView) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
 
-    function positionOn(step) {
+    function endTour() {
+      dom.overlay.classList.remove('open');
+      dom.tooltip.style.display = 'none';
+      dom.ring.style.display = 'none';
+      dom.ring.style.width = '0px';
+      dom.ring.style.height = '0px';
+      dom.ring.style.top = '-9999px';
+      dom.ring.style.left = '-9999px';
+      localStorage.setItem(storageKey, '1');
+      document.getElementById('tourRelaunchBtn').style.display = 'inline-block';
+      activeRun = null;
+    }
+  }
+
+  // Standalone so both renderStep() (inside an active run) and the single
+  // module-level repositionOnResize (outside any run) can call the same
+  // positioning logic without each needing its own closure over it.
+  function positionOn(dom, step) {
       const el = document.querySelector(step.selector);
       if (!el) return;
       // Slight delay lets scrollIntoView finish before measuring position
@@ -201,20 +227,6 @@
         dom.tooltip.style.top = `${tooltipTop}px`;
         dom.tooltip.style.left = `${tooltipLeft}px`;
       });
-    }
-
-    function endTour() {
-      dom.overlay.classList.remove('open');
-      dom.tooltip.style.display = 'none';
-      dom.ring.style.display = 'none';
-      dom.ring.style.width = '0px';
-      dom.ring.style.height = '0px';
-      dom.ring.style.top = '-9999px';
-      dom.ring.style.left = '-9999px';
-      localStorage.setItem(storageKey, '1');
-      document.getElementById('tourRelaunchBtn').style.display = 'inline-block';
-      window.removeEventListener('resize', repositionOnResize);
-    }
   }
 
   if (document.readyState === 'loading') {
