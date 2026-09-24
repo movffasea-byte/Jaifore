@@ -109,7 +109,7 @@ img {
   text-decoration: none;
   color: var(--ink);
   padding: 0.3rem 0.8rem;
-  border-radius: var(--radius);
+  border-radius: 20px; /* was var(--radius) (2px) — now matches Home's rounded pill */
   border: 1px solid var(--border);
   transition: border-color var(--transition);
 }
