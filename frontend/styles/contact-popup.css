@@ -1,0 +1,139 @@
+/* ================================
+   JAIFORE — CONTACT POPUP CSS
+   styles/contact-popup.css
+
+   New file — openContactPopup() was called from several places across
+   the site (webdev product modal's "Enquire About This Site", the old
+   per-service enquire buttons, and the new shared "Need ongoing support"
+   button) but the function and its markup never actually existed. This
+   is the first real implementation. Follows the same modal conventions
+   as .product-modal / .size-guide-modal already defined in services.css
+   (fixed overlay + centered card, opacity/scale transition via an
+   ".open" class) so it looks native to the rest of the site.
+   ================================ */
+
+.contact-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+.contact-popup-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.contact-popup-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -48%) scale(0.96);
+  width: 90%;
+  max-width: 420px;
+  background: var(--bg-card, #fff);
+  border: 2px solid var(--ink, #111);
+  border-radius: var(--radius, 2px);
+  z-index: 501;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  padding: 2rem;
+}
+
+.contact-popup-modal.open {
+  opacity: 1;
+  pointer-events: all;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.contact-popup-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: var(--muted, #888);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.contact-popup-close:hover { color: var(--ink, #111); }
+
+.contact-popup-title {
+  font-family: var(--font-display, 'Playfair Display', serif);
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.contact-popup-sub {
+  font-size: 0.85rem;
+  color: var(--muted, #888);
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.contact-popup-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.contact-popup-link {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: var(--bg-soft, #f5f0e8);
+  border: 1px solid var(--border, #d8d0c4);
+  border-radius: var(--radius, 2px);
+  padding: 0.8rem 1rem;
+  text-decoration: none;
+  color: var(--ink, #111);
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+}
+
+.contact-popup-link:hover {
+  border-color: var(--purple, #4a2d7a);
+  background: var(--purple-dim, rgba(74,45,122,0.08));
+  transform: translateX(2px);
+}
+
+.contact-popup-link-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--purple, #4a2d7a);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.contact-popup-link-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.contact-popup-link-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, #888);
+}
+
+.contact-popup-link-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .contact-popup-modal { padding: 1.5rem; }
+}
