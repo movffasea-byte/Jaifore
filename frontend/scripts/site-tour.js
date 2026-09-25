@@ -31,29 +31,22 @@
     const tourKey = window.JAIFORE_TOUR_KEY || 'default';
     if (!steps.length) return;
 
+    const storageKey = STORAGE_PREFIX + tourKey;
+    const alreadySeen = localStorage.getItem(storageKey) === '1';
+    if (alreadySeen) return; // one-time tour — nothing more to do on repeat visits
+
     // Flags pages with a fixed bottom-left sidebar element (currently just
-    // Dashboard) so site-tour.css can reposition the relaunch button clear
-    // of whatever sits in that corner on this page, e.g. the Logout button.
+    // Dashboard) — kept in case a future fixed bottom-left tour element
+    // needs to avoid this page's sidebar content.
     if (document.querySelector('.dash-sidebar')) {
       document.body.classList.add('tour-has-sidebar');
     }
 
-    const storageKey = STORAGE_PREFIX + tourKey;
-    const alreadySeen = localStorage.getItem(storageKey) === '1';
-
-    // Build the DOM once; only auto-open if never seen before.
     const dom = buildTourDOM();
-    injectRelaunchButton(dom, steps, storageKey);
 
-    if (!alreadySeen) {
-      // Small delay so the page's own layout/animations settle first —
-      // avoids highlighting an element that's still animating into place.
-      setTimeout(() => startTour(dom, steps, storageKey), 500);
-    } else {
-      // Returning visitor — the tour won't auto-run, so the relaunch
-      // button is the only way to see it. Show it directly.
-      document.getElementById('tourRelaunchBtn').style.display = 'inline-block';
-    }
+    // Small delay so the page's own layout/animations settle first —
+    // avoids highlighting an element that's still animating into place.
+    setTimeout(() => startTour(dom, steps, storageKey), 500);
   }
 
   function buildTourDOM() {
@@ -106,11 +99,10 @@
     };
   }
 
-  // Shared across all startTour() calls on this page — set to the active
-  // run's validSteps/index/dom whenever a tour is open, and cleared on
-  // close, so repositionOnResize (registered exactly once, below) always
-  // acts on whichever run is currently active instead of each relaunch
-  // adding its own separate listener.
+  // Shared for the lifetime of this page load — set when the (single,
+  // one-time) tour run starts, cleared when it ends, so the one
+  // module-level repositionOnResize listener below always knows whether
+  // there's an active run to reposition.
   let activeRun = null;
 
   function repositionOnResize() {
@@ -119,17 +111,6 @@
     }
   }
   window.addEventListener('resize', repositionOnResize, { passive: true });
-
-  function injectRelaunchButton(dom, steps, storageKey) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'tour-relaunch-btn';
-    btn.id = 'tourRelaunchBtn';
-    btn.textContent = '✨ Show me around';
-    document.body.appendChild(btn);
-
-    btn.addEventListener('click', () => startTour(dom, steps, storageKey));
-  }
 
   function startTour(dom, steps, storageKey) {
     const validSteps = steps.filter(s => document.querySelector(s.selector));
@@ -140,7 +121,6 @@
     dom.overlay.classList.add('open');
     dom.tooltip.style.display = 'block';
     dom.ring.style.display = 'block';
-    document.getElementById('tourRelaunchBtn').style.display = 'none';
 
     renderStep();
 
@@ -182,7 +162,6 @@
       dom.ring.style.top = '-9999px';
       dom.ring.style.left = '-9999px';
       localStorage.setItem(storageKey, '1');
-      document.getElementById('tourRelaunchBtn').style.display = 'inline-block';
       activeRun = null;
     }
   }
