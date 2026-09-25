@@ -7,6 +7,11 @@
   <link rel="stylesheet" href="styles/services.css"/>
   <link rel="stylesheet" href="styles/category.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Karla:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <!-- SITE TOUR: shared styling, loaded on every page -->
+  <link rel="stylesheet" href="styles/site-tour.css"/>
+  <!-- CONTACT POPUP: the <script> below already existed but pointed at a
+       file that never existed until now — this stylesheet is new too -->
+  <link rel="stylesheet" href="styles/contact-popup.css"/>
 </head>
 <body>
 
@@ -117,5 +122,31 @@
   <script src="scripts/contact-popup.js"></script>
   <script src="scripts/category.js"></script>
   <script src="scripts/cookie-consent.js"></script>
+
+  <!-- BACK TO TOP: injects its own button, no HTML needed here -->
+  <script src="scripts/back-to-top.js"></script>
+
+  <!-- SITE TOUR: step definitions for the Category page, then the shared engine -->
+  <script>
+    window.JAIFORE_TOUR_KEY = 'category';
+    window.JAIFORE_TOUR_STEPS = [
+      {
+        selector: '#categorySelect',
+        title: 'Switch categories anytime',
+        body: 'Jump between Apparel, Graphic Design, and Web Development without going back to Services.'
+      },
+      {
+        selector: '#searchInput',
+        title: 'Search this category',
+        body: 'Type to filter products by name or description — results update as you type.'
+      },
+      {
+        selector: '#sortSelect',
+        title: 'Sort and filter',
+        body: 'Sort by price or newest, or show only items currently in stock.'
+      }
+    ];
+  </script>
+  <script src="scripts/site-tour.js"></script>
 </body>
 </html>
