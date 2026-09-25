@@ -121,6 +121,9 @@
     dom.overlay.classList.add('open');
     dom.tooltip.style.display = 'block';
     dom.ring.style.display = 'block';
+    [dom.maskTop, dom.maskBottom, dom.maskLeft, dom.maskRight].forEach(mask => {
+      mask.style.display = 'block';
+    });
 
     renderStep();
 
@@ -161,6 +164,17 @@
       dom.ring.style.height = '0px';
       dom.ring.style.top = '-9999px';
       dom.ring.style.left = '-9999px';
+      // The four mask pieces each carry their own pointer-events:all
+      // (see .tour-mask-piece in site-tour.css), which overrides the
+      // overlay's pointer-events:none once .open is removed — without
+      // this, they stay invisible but fully clickable, tiling the whole
+      // viewport and silently blocking every click/hover on the real
+      // page underneath.
+      [dom.maskTop, dom.maskBottom, dom.maskLeft, dom.maskRight].forEach(mask => {
+        mask.style.display = 'none';
+        mask.style.width = '0px';
+        mask.style.height = '0px';
+      });
       localStorage.setItem(storageKey, '1');
       activeRun = null;
     }

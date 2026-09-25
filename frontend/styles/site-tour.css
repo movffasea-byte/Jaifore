@@ -32,7 +32,7 @@
   position: fixed;
   background: var(--tour-overlay, rgba(17, 17, 17, 0.72));
   transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
-  pointer-events: all;
+  pointer-events: none;
 }
 
 .tour-spotlight-ring {
