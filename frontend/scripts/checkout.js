@@ -23,6 +23,13 @@ function formatPrice(amount) {
   return `$${Number(amount).toFixed(2)}`;
 }
 
+// ── ESCAPE HTML (used by the item-details modal) ─────
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
 // ── FORMAT CONFIG META (gender + print size) ─────────
 // Verification pass (checkout gender/printSize item): the cart data itself
 // was already flowing through to order creation intact — verifyAndCreateOrder()
@@ -62,6 +69,173 @@ function changeQty(id, size, delta) {
   renderItems();
 }
 
+// ── ITEM DETAILS MODAL ───────────────────────────────
+// Clicking a cart row (anywhere except the qty buttons) opens a modal
+// showing what that product contains: image, size/gender/print size,
+// each design in the item, quantity and price, plus a description when
+// one is available (already on the cart item, or fetched best-effort
+// from the API — see loadProductDescription below).
+let itemModalEl  = null;
+let itemModalSeq = 0; // guards against a slow description fetch landing in a newer modal
+
+function isImageSrc(value) {
+  return typeof value === 'string' && /^(https?:|data:image)/i.test(value);
+}
+
+function renderDesignList(designs) {
+  if (!Array.isArray(designs) || !designs.length) return '';
+
+  const rows = designs.map((d, i) => {
+    // A design entry may be a plain string (label or image URL) or an object.
+    if (typeof d === 'string') {
+      return isImageSrc(d)
+        ? `<li><img class="item-modal-thumb" src="${escapeHtml(d)}" alt="Design ${i + 1}"/><span>Design ${i + 1}</span></li>`
+        : `<li><span>${escapeHtml(d)}</span></li>`;
+    }
+
+    const label = d?.name || d?.title || d?.label || d?.id || `Design ${i + 1}`;
+    const img   = d?.image || d?.url || d?.preview || d?.snapshot || d?.src;
+    return `<li>${isImageSrc(img) ? `<img class="item-modal-thumb" src="${escapeHtml(img)}" alt="${escapeHtml(label)}"/>` : ''}<span>${escapeHtml(label)}</span></li>`;
+  }).join('');
+
+  return `
+    <div class="item-modal-block">
+      <div class="item-modal-label">Designs included</div>
+      <ul class="item-modal-designs">${rows}</ul>
+    </div>`;
+}
+
+function ensureItemModal() {
+  if (itemModalEl) return itemModalEl;
+
+  itemModalEl = document.createElement('div');
+  itemModalEl.className = 'item-modal-overlay';
+  itemModalEl.setAttribute('aria-hidden', 'true');
+  itemModalEl.innerHTML = `
+    <div class="item-modal" role="dialog" aria-modal="true" aria-labelledby="itemModalTitle">
+      <button type="button" class="item-modal-close" id="itemModalClose" aria-label="Close">×</button>
+      <div class="item-modal-content" id="itemModalContent"></div>
+    </div>
+  `;
+  document.body.appendChild(itemModalEl);
+
+  // Close on backdrop click (but not when clicking inside the dialog)
+  itemModalEl.addEventListener('click', (e) => {
+    if (e.target === itemModalEl) closeItemModal();
+  });
+  itemModalEl.querySelector('#itemModalClose').addEventListener('click', closeItemModal);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && itemModalEl.classList.contains('open')) closeItemModal();
+  });
+
+  return itemModalEl;
+}
+
+function openItemModal(index) {
+  const item = cart[index];
+  if (!item) return;
+
+  const modal   = ensureItemModal();
+  const content = modal.querySelector('#itemModalContent');
+  const seq     = ++itemModalSeq;
+
+  const printSizeLabel = item.printSize?.id ?? item.printSize?.size_label ?? null;
+  const gender = item.gender ? item.gender.charAt(0).toUpperCase() + item.gender.slice(1) : null;
+
+  const detailRows = [
+    item.size      ? ['Size', item.size]           : null,
+    gender         ? ['Gender', gender]            : null,
+    printSizeLabel ? ['Print size', printSizeLabel] : null,
+    ['Quantity', item.qty],
+    ['Unit price', formatPrice(item.price)],
+    ['Line total', formatPrice(item.price * item.qty)],
+  ].filter(Boolean).map(([k, v]) =>
+    `<div class="item-modal-row"><span>${escapeHtml(k)}</span><span>${escapeHtml(v)}</span></div>`
+  ).join('');
+
+  const knownDescription = item.description || item.details || '';
+
+  content.innerHTML = `
+    <div class="item-modal-head">
+      <div class="item-modal-img">
+        ${isImageSrc(item.snapshot) ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}"/>` : '🛍'}
+      </div>
+      <h3 class="item-modal-title" id="itemModalTitle">${escapeHtml(item.name)}</h3>
+    </div>
+    <p class="item-modal-desc" id="itemModalDesc" ${knownDescription ? '' : 'hidden'}>${escapeHtml(knownDescription)}</p>
+    <div class="item-modal-block">
+      <div class="item-modal-label">Order details</div>
+      ${detailRows}
+    </div>
+    ${renderDesignList(item.designs)}
+  `;
+
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('item-modal-open');
+  modal.querySelector('#itemModalClose').focus();
+
+  if (!knownDescription) loadProductDescription(item, seq);
+}
+
+function closeItemModal() {
+  if (!itemModalEl) return;
+  itemModalEl.classList.remove('open');
+  itemModalEl.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('item-modal-open');
+}
+
+// Best-effort: try to pull a product description from the API. If the route
+// or field doesn't exist this fails silently and the modal simply shows the
+// cart's own details. (Route guess: GET /api/products/:id — adjust if yours differs.)
+async function loadProductDescription(item, seq) {
+  try {
+    const res = await fetch(`${API}/api/products/${encodeURIComponent(item.id)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const product = data.product || data;
+    const text = product.description || product.details;
+    if (!text || seq !== itemModalSeq) return;
+
+    const el = document.getElementById('itemModalDesc');
+    if (el) {
+      el.textContent = text;
+      el.hidden = false;
+    }
+  } catch {
+    /* description is optional — ignore */
+  }
+}
+
+// One delegated listener on the container (survives every re-render).
+// Qty buttons keep their own behaviour; everything else on a row opens details.
+(function wireItemClicks() {
+  const container = document.getElementById('checkoutItems');
+  if (!container) return;
+
+  function rowIndex(target) {
+    if (target.closest('.qty-btn')) return -1;
+    const row = target.closest('.checkout-item');
+    if (!row) return -1;
+    return Number(row.dataset.index);
+  }
+
+  container.addEventListener('click', (e) => {
+    const idx = rowIndex(e.target);
+    if (idx >= 0) openItemModal(idx);
+  });
+
+  container.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const idx = rowIndex(e.target);
+    if (idx >= 0) {
+      e.preventDefault();
+      openItemModal(idx);
+    }
+  });
+})();
+
 // ── RENDER ITEMS ─────────────────────────────────────
 function renderItems() {
   const container    = document.getElementById('checkoutItems');
@@ -75,8 +249,8 @@ function renderItems() {
     return;
   }
 
-  container.innerHTML = cart.map(item => `
-    <div class="checkout-item">
+  container.innerHTML = cart.map((item, index) => `
+    <div class="checkout-item checkout-item-clickable" data-index="${index}" tabindex="0" role="button" aria-label="View details for ${escapeHtml(item.name)}">
       <div class="checkout-item-img">
         ${item.snapshot
           ? `<img src="${item.snapshot}" alt="${item.name}"/>`
@@ -85,6 +259,7 @@ function renderItems() {
       <div class="checkout-item-info">
         <div class="checkout-item-name">${item.name}</div>
         <div class="checkout-item-meta">${formatConfigMeta(item)}</div>
+        <div class="checkout-item-hint">Tap to see what's included</div>
         <div class="checkout-item-qty">
           <button class="qty-btn" onclick="changeQty(${item.id}, '${item.size || ''}', -1)" aria-label="Decrease quantity">−</button>
           <span class="qty-value">${item.qty}</span>

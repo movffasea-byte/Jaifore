@@ -6,6 +6,8 @@
   <title>Jai'fore — Checkout</title>
   <link rel="stylesheet" href="styles/services.css"/>
   <link rel="stylesheet" href="styles/checkout.css"/>
+  <link rel="stylesheet" href="styles/site-tour.css"/>
+  <link rel="stylesheet" href="styles/contact-popup.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
 </head>
 <body>
@@ -126,6 +128,7 @@
         </button>
 
         <p class="checkout-secure">🔒 Secure checkout powered by Flutterwave</p>
+        <p class="checkout-help">Need help with your order? <a href="#" id="checkoutHelpLink">Contact us</a></p>
       </div>
     </div>
 
@@ -151,5 +154,36 @@
   <script src="scripts/header.js"></script>
   <script src="scripts/checkout.js"></script>
   <script src="scripts/cookie-consent.js"></script>
+  <script src="scripts/contact-popup.js"></script>
+  <script src="scripts/back-to-top.js"></script>
+
+  <script>
+    // Checkout tour: 3 short steps, one-time per browser.
+    // Must be defined BEFORE site-tour.js loads (it reads these on init).
+    window.JAIFORE_TOUR_KEY = 'checkout';
+    window.JAIFORE_TOUR_STEPS = [
+      {
+        selector: '.checkout-left .checkout-section',
+        title: 'Review your order',
+        body: 'Everything in your cart is listed here. Tap any item to see exactly what it includes.'
+      },
+      {
+        selector: '.shipping-form',
+        title: 'Where should we send it?',
+        body: 'Fill in your delivery details. Your email is used for the order confirmation and status updates.'
+      },
+      {
+        selector: '.order-summary',
+        title: 'Confirm and pay',
+        body: 'Your total is here. Place Order takes you to Flutterwave to pay securely.'
+      }
+    ];
+
+    document.getElementById('checkoutHelpLink')?.addEventListener('click', function (e) {
+      e.preventDefault();
+      window.openContactPopup?.();
+    });
+  </script>
+  <script src="scripts/site-tour.js"></script>
 </body>
 </html>
