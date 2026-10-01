@@ -196,22 +196,44 @@ async function loadOverview() {
 
 const LOW_STOCK_THRESHOLD = 5; // kept in sync with backend/routes/products.js
 
+// Only apparel has a stock count. Graphic designs and web development are
+// never stock-tracked, so they never count toward the low-stock banner or
+// get a "Low" badge — even if an old row still has a stray stock number.
+// Kept in sync with STOCK_TRACKED_CATEGORY in backend/routes/products.js.
+const STOCK_TRACKED_CATEGORY = 'Apparels & Merchandise';
+
+function isStockTracked(product) {
+  return product.category === STOCK_TRACKED_CATEGORY;
+}
+
+function isLowStockProduct(product) {
+  return isStockTracked(product) &&
+    product.stock !== null &&
+    product.stock !== undefined &&
+    product.stock <= LOW_STOCK_THRESHOLD;
+}
+
 function renderLowStockBanner(products) {
   const banner = document.getElementById('lowStockBanner');
   if (!banner) return;
 
-  const lowStockItems = products.filter(p => p.stock !== null && p.stock !== undefined && p.stock <= LOW_STOCK_THRESHOLD);
+  const lowStockItems = products.filter(isLowStockProduct);
 
   if (!lowStockItems.length) {
     banner.classList.add('hidden');
     return;
   }
 
+  // List the lowest few by name so the banner stays one readable line
+  const MAX_NAMES = 4;
+  const sorted = [...lowStockItems].sort((a, b) => a.stock - b.stock);
+  const shown  = sorted.slice(0, MAX_NAMES).map(p => `${p.name} (${p.stock})`).join(', ');
+  const extra  = sorted.length > MAX_NAMES ? ` and ${sorted.length - MAX_NAMES} more` : '';
+
   banner.classList.remove('hidden');
-  const names = lowStockItems.map(p => `${p.name} (${p.stock})`).join(', ');
   banner.innerHTML = `
     <span class="low-stock-icon">⚠</span>
-    <span><strong>${lowStockItems.length}</strong> product${lowStockItems.length > 1 ? 's' : ''} low on stock: ${names}</span>
+    <span><strong>${lowStockItems.length}</strong> apparel item${lowStockItems.length > 1 ? 's' : ''} low on stock: ${shown}${extra}</span>
     <button class="low-stock-goto" onclick="switchTab('products')">View →</button>
   `;
 }
@@ -293,8 +315,11 @@ async function loadProducts() {
 
     data.forEach(p => {
       const tr = document.createElement('tr');
-      const isLowStock = (p.stock !== null && p.stock !== undefined && p.stock <= LOW_STOCK_THRESHOLD);
-      const stockDisplay = (p.category === 'Web Development' || p.category === 'Graphic Design')
+      const tracked    = isStockTracked(p);
+      const isLowStock = isLowStockProduct(p);
+
+      // Stock controls only exist for apparel; graphics and web development show N/A
+      const stockDisplay = !tracked
         ? `<span class="stock-untracked">N/A</span>`
         : (p.stock === null || p.stock === undefined)
           ? `<span class="stock-untracked">Untracked</span>`
@@ -315,7 +340,7 @@ async function loadProducts() {
         <td>${priceDisplay}</td>
         <td>
           <div class="stock-cell">${stockDisplay}</div>
-          ${(p.category !== 'Web Development' && p.category !== 'Graphic Design') ? `<span class="badge ${p.in_stock ? 'badge-success' : 'badge-failed'}">${p.in_stock ? 'In Stock' : 'Out'}</span>` : ''}
+          ${tracked ? `<span class="badge ${p.in_stock ? 'badge-success' : 'badge-failed'}">${p.in_stock ? 'In Stock' : 'Out'}</span>` : ''}
         </td>
         <td>
           <button class="action-btn" onclick="openEditProduct(${p.id})">Edit</button>
