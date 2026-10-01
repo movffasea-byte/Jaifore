@@ -58,14 +58,18 @@
         <option value="design">Graphic Design</option>
         <option value="webdev">Web Development</option>
       </select>
+      <!-- Sort options are rebuilt by category.js for each category -->
       <select class="filter-select" id="sortSelect" aria-label="Sort products">
         <option value="newest">Newest First</option>
-        <option value="price-asc">Price: Low to High</option>
-        <option value="price-desc">Price: High to Low</option>
       </select>
+      <!-- Apparel only: shown/hidden by category.js -->
       <select class="filter-select" id="stockSelect" aria-label="Filter by stock availability">
         <option value="all">All Items</option>
         <option value="instock">In Stock Only</option>
+      </select>
+      <!-- Graphic Design only: options filled in by category.js from the sizes the designs offer -->
+      <select class="filter-select" id="printSizeSelect" aria-label="Filter by print size" style="display:none">
+        <option value="all">Any Print Size</option>
       </select>
     </div>
   </div>
@@ -143,7 +147,7 @@
       {
         selector: '#sortSelect',
         title: 'Sort and filter',
-        body: 'Sort by price or newest, or show only items currently in stock.'
+        body: 'Sort the results and narrow them down with the filters that fit this category.'
       }
     ];
   </script>
