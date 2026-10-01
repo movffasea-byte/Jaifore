@@ -13,6 +13,15 @@ const { sendLowStockAlert } = require('../mailer');
 const CACHE_TTL = 300; // 5 minutes — product catalog changes rarely, read often
 const LOW_STOCK_THRESHOLD = 5; // item 14 — anything at or below this triggers an alert
 
+// Only apparel is a physical product with a stock count. Graphic designs are
+// free, browsable artwork (you earn from the print size ordered) and Web
+// Development is enquiry-only — neither ever has stock, a low-stock badge,
+// a low-stock alert, or an "out of stock" state.
+const STOCK_TRACKED_CATEGORY = 'Apparels & Merchandise';
+function tracksStock(category) {
+  return category === STOCK_TRACKED_CATEGORY;
+}
+
 // Fires the low-stock email exactly once per transition — only when stock
 // crosses from "above threshold" to "at or below threshold". This prevents
 // a flood of emails while a product sits at a low number and sells one at a time
@@ -127,14 +136,14 @@ router.get('/', async (req, res) => {
 // GET low-stock products only (admin only) — item 14, backs the Overview
 // banner and Products tab badge without requiring the full list every time.
 // Deliberately excludes untracked (NULL stock) products, same convention as
-// the rest of the inventory system (item 12).
+// the rest of the inventory system (item 12), and only ever returns apparel.
 router.get('/alerts/low-stock', authenticate, requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, name, stock FROM products
-       WHERE stock IS NOT NULL AND stock <= $1
+       WHERE category = $2 AND stock IS NOT NULL AND stock <= $1
        ORDER BY stock ASC`,
-      [LOW_STOCK_THRESHOLD]
+      [LOW_STOCK_THRESHOLD, STOCK_TRACKED_CATEGORY]
     );
     res.json({ threshold: LOW_STOCK_THRESHOLD, products: result.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -168,14 +177,21 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   }
 
   try {
-    const stockValue = (stock === undefined || stock === null || stock === '') ? 0 : parseInt(stock, 10);
+    const tracked = tracksStock(category);
+
+    // Non-apparel products never get a stock count (NULL = "not tracked"),
+    // so they can never appear in low-stock banners/alerts or be decremented.
+    const stockValue = !tracked
+      ? null
+      : ((stock === undefined || stock === null || stock === '') ? 0 : parseInt(stock, 10));
     const priceValue = (price === undefined || price === null || price === '') ? null : price;
     const printSizeIdsValue = Array.isArray(print_size_ids) && print_size_ids.length ? print_size_ids : null;
+    const inStockValue = tracked ? (in_stock ?? true) : true;
 
     const result = await pool.query(
       `INSERT INTO products (name, description, price, category, image_url, back_image, in_stock, stock, live_link, print_size_ids)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [name, description, priceValue, category, image_url, back_image, in_stock ?? true, stockValue, live_link || null, printSizeIdsValue]
+      [name, description, priceValue, category, image_url, back_image, inStockValue, stockValue, live_link || null, printSizeIdsValue]
     );
 
     // New product means every cached "list" view is now stale — clear them all.
@@ -203,24 +219,33 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   }
 
   try {
-    // Fetch the pre-update stock so we can detect a low-stock transition below
-    const before = await pool.query('SELECT stock FROM products WHERE id = $1', [req.params.id]);
+    // Fetch the pre-update stock (and category) so we can detect a low-stock
+    // transition below, and fall back to the stored category if the request
+    // didn't send one.
+    const before = await pool.query('SELECT stock, category FROM products WHERE id = $1', [req.params.id]);
     const oldStock = before.rows.length ? before.rows[0].stock : null;
+    const effectiveCategory = category || (before.rows.length ? before.rows[0].category : null);
+    const tracked = tracksStock(effectiveCategory);
 
-    const stockValue = (stock === undefined || stock === null || stock === '') ? null : parseInt(stock, 10);
+    const stockValue = !tracked
+      ? null
+      : ((stock === undefined || stock === null || stock === '') ? null : parseInt(stock, 10));
     const priceValue = (price === undefined || price === null || price === '') ? null : price;
     const printSizeIdsValue = Array.isArray(print_size_ids) && print_size_ids.length ? print_size_ids : null;
 
-    // If a real stock count is provided, it governs in_stock automatically.
+    // Apparel: if a real stock count is provided, it governs in_stock automatically.
     // Leaving stock blank keeps this product "untracked" and respects whatever
-    // in_stock was set to manually (e.g. print-on-demand or service items).
-    const resolvedInStock = (stockValue !== null) ? stockValue > 0 : in_stock;
+    // in_stock was set to manually (e.g. print-on-demand items).
+    // Everything else is always available.
+    const resolvedInStock = !tracked
+      ? true
+      : ((stockValue !== null) ? stockValue > 0 : in_stock);
 
     const result = await pool.query(
       `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
        image_url=$5, back_image=$6, in_stock=$7, stock=$8, live_link=$9, print_size_ids=$10
        WHERE id=$11 RETURNING *`,
-      [name, description, priceValue, category, image_url, back_image, resolvedInStock, stockValue, live_link || null, printSizeIdsValue, req.params.id]
+      [name, description, priceValue, effectiveCategory, image_url, back_image, resolvedInStock, stockValue, live_link || null, printSizeIdsValue, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found.' });
 
@@ -241,14 +266,19 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 // PATCH quick stock adjustment (admin only) — for the +/- buttons in the
 // admin table, so routine restocking doesn't require opening the full edit form.
 // Body: { delta: 5 } to adjust relatively, or { set: 20 } to set an exact value.
+// Apparel only — other categories have no stock to adjust.
 router.patch('/:id/stock', authenticate, requireAdmin, async (req, res) => {
   const { delta, set } = req.body;
   if (delta === undefined && set === undefined) {
     return res.status(400).json({ error: 'Provide either "delta" (relative change) or "set" (exact value).' });
   }
   try {
-    const current = await pool.query('SELECT stock FROM products WHERE id = $1', [req.params.id]);
+    const current = await pool.query('SELECT stock, category FROM products WHERE id = $1', [req.params.id]);
     if (!current.rows.length) return res.status(404).json({ error: 'Product not found.' });
+
+    if (!tracksStock(current.rows[0].category)) {
+      return res.status(400).json({ error: 'Stock is only tracked for Apparel & Merchandise.' });
+    }
 
     const currentStock = current.rows[0].stock ?? 0;
     const newStock = Math.max(0, set !== undefined ? Number(set) : currentStock + Number(delta));

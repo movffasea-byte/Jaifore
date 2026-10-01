@@ -29,6 +29,22 @@ function configSignature({ designs, gender, printSize }) {
   return `${designKey}::${gender || ''}::${printSizeKey}`;
 }
 
+// ── LINE VALIDATION ──────────────────────────────────
+// Same rule as isValidCartLine() in the frontend cart.js: a line needs a real
+// price, and a graphic design (category 'design') needs a chosen print size
+// and a price above zero — graphics are free, so the print size is what is
+// actually being bought. Works on both a request body and a mapped cart item.
+function isValidCartLine({ category, price, printSize }) {
+  const p = Number(price);
+  if (price === null || price === undefined || !Number.isFinite(p) || p < 0) return false;
+
+  if (category === 'design') {
+    if (!printSize || (printSize.id == null && !printSize.size_label)) return false;
+    if (p <= 0) return false;
+  }
+  return true;
+}
+
 // Shape a raw DB row into what the frontend cart.js expects — same field
 // names as the frontend's own cart array items, so cart.js can treat a
 // server response and a localStorage item identically.
@@ -50,6 +66,9 @@ function rowToCartItem(row) {
 }
 
 // ── GET /api/cart — list the current user's server cart ─────────────
+// Lines that could never be paid for correctly (old graphic designs saved
+// without a print size, missing prices) are filtered out here so they never
+// reach the customer's cart on another device.
 router.get('/', authenticate, async (req, res) => {
   try {
     const { rows } = await db.query(
@@ -59,7 +78,7 @@ router.get('/', authenticate, async (req, res) => {
        ORDER BY created_at ASC`,
       [req.user.id]
     );
-    res.json(rows.map(rowToCartItem));
+    res.json(rows.map(rowToCartItem).filter(isValidCartLine));
   } catch (err) {
     console.error('[cart] GET failed:', err.message);
     res.status(500).json({ error: 'Failed to load cart.' });
@@ -80,8 +99,16 @@ router.post('/', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'productId, name, and price are required.' });
   }
 
+  if (!isValidCartLine({ category, price, printSize })) {
+    return res.status(400).json({
+      error: category === 'design'
+        ? 'Graphic designs need a print size before they can be added to the cart.'
+        : 'Invalid price for this cart item.'
+    });
+  }
+
   const signature = configSignature({ designs, gender, printSize });
-  const addQty    = qty || 1;
+  const addQty    = Math.max(1, parseInt(qty, 10) || 1);
 
   const snapshotData = { name, price, category, snapshot: snapshot || null, designs: designs || [], gender: gender || null, printSize: printSize || null };
 
@@ -177,6 +204,8 @@ router.delete('/:id', authenticate, async (req, res) => {
 //    the server's qty (server row updated, not summed).
 //  - keepLocal=false -> for conflicting lines, the server's existing qty
 //    is left untouched; the local line is simply dropped.
+//  - Invalid local lines (no price, or a graphic design with no print size)
+//    are skipped and never written to the server.
 //  - Returns the final merged cart (same shape as GET /api/cart) so the
 //    frontend can replace its local `cart` variable with the authoritative
 //    result in one step, rather than re-fetching separately.
@@ -205,6 +234,8 @@ router.post('/merge', authenticate, async (req, res) => {
     });
 
     for (const item of localCart) {
+      if (!isValidCartLine(item)) continue; // never persist a line that can't be paid for correctly
+
       const signature = configSignature({ designs: item.designs, gender: item.gender, printSize: item.printSize });
       const key = `${item.id}::${signature || ''}::${item.size || ''}`;
       const existing = serverByKey.get(key);
@@ -241,7 +272,7 @@ router.post('/merge', authenticate, async (req, res) => {
        FROM cart_items WHERE user_id = $1 ORDER BY created_at ASC`,
       [req.user.id]
     );
-    res.json(finalRows.map(rowToCartItem));
+    res.json(finalRows.map(rowToCartItem).filter(isValidCartLine));
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[cart] MERGE failed:', err.message);

@@ -8,6 +8,18 @@
    call to /api/cart in the background so the cart follows them across
    devices. Background sync failures never block or revert the UI —
    same "degrade gracefully" philosophy as the backend's redis cache.
+
+   Prices in the cart are USD.
+
+   This version also:
+   - refuses graphic-design lines that have no print size (graphics are
+     free, so the print size IS the product and its price),
+   - refuses lines with a missing/invalid price,
+   - removes any such invalid lines that are already sitting in a cart,
+   - matches cart lines by id + size + configuration, so two prints of the
+     same design in different sizes never merge or get edited together,
+   - lets addToCart() add N at once (one sync call instead of N),
+   - no longer crashes if localStorage is full.
    ================================ */
 
 let cart = JSON.parse(localStorage.getItem('jaifore_cart') || '[]');
@@ -34,13 +46,16 @@ function formatPrice(amount) {
 }
 
 // ── CONFIG SIGNATURE (item 18) ────────────────────────────
-// Plain products (no customDesigns) have no signature — they match purely on
+// Plain products (no designs) have no signature — they match purely on
 // id + size, exactly as before. Configured items get a signature built from
 // WHICH designs are used (by name, sorted so order doesn't matter) plus
 // gender and print size — deliberately excluding x/y position and w/h, since
 // dragging/resizing the same designs should still count as the same cart line.
 //
-// Kept identical to the backend's copy in cart.js (routes) — no shared build
+// Graphic-design lines carry their one design + chosen print size, so the
+// same design in Small and in Large are different lines.
+//
+// Kept identical to the backend's copy in routes/cart.js — no shared build
 // step between frontend and backend, so both copies must stay in sync by hand.
 function configSignature(item) {
   const designs = item.designs || [];
@@ -55,6 +70,31 @@ function configSignature(item) {
   const printSizeKey = item.printSize?.id ?? item.printSize?.size_label ?? '';
 
   return `${designKey}::${item.gender || ''}::${printSizeKey}`;
+}
+
+// ── VALIDATION ─────────────────────────────────────────────
+// A line is valid when it has a real price, and — for graphic designs —
+// a chosen print size and a price above zero. Must match the backend's
+// isValidCartLine() in routes/cart.js.
+function isValidCartLine(item) {
+  const price = Number(item.price);
+  if (item.price === null || item.price === undefined || !Number.isFinite(price) || price < 0) return false;
+
+  if (item.category === 'design') {
+    const ps = item.printSize;
+    if (!ps || (ps.id == null && !ps.size_label)) return false;
+    if (price <= 0) return false;
+  }
+  return true;
+}
+
+// Matches a cart line by id + size, and — when a signature is given — by
+// configuration too. Legacy callers that pass no signature keep the old
+// id + size behaviour.
+function lineMatches(line, id, size, signature) {
+  if (line.id !== id || (line.size || null) !== (size || null)) return false;
+  if (signature === undefined) return true;
+  return configSignature(line) === signature;
 }
 
 // ── SERVER SYNC HELPERS ────────────────────────────────────
@@ -96,78 +136,139 @@ function syncToServer(method, path, body) {
   apiRequest(method, path, body);
 }
 
+// ── SAVE ─────────────────────────────────────────────────
+// Returns false instead of throwing when the browser's storage is full
+// (large uploaded images can exceed the quota).
+function saveCart() {
+  try {
+    localStorage.setItem('jaifore_cart', JSON.stringify(cart));
+    return true;
+  } catch (err) {
+    console.error('[cart] Could not save cart locally:', err.message);
+    return false;
+  }
+}
+
+// ── CLEAN UP INVALID LINES ─────────────────────────────────
+// Removes any line that could never be paid for correctly — e.g. graphic
+// designs added before the print-size rule existed (they sit in carts as
+// $0 items). Also removes them from the server cart for logged-in users.
+function sanitizeCart() {
+  const bad = cart.filter(i => !isValidCartLine(i));
+  if (!bad.length) return;
+
+  cart = cart.filter(isValidCartLine);
+  saveCart();
+  updateCartCount();
+
+  if (isLoggedIn()) {
+    bad.forEach(i => {
+      if (i.cartItemId) syncToServer('DELETE', `/${i.cartItemId}`);
+    });
+  }
+}
+
 // ── ADD TO CART ────────────────────────────────────────────
 // Uses `id` consistently (matches product schema from the API / configurator),
-// not `_id` — that mismatch previously caused every cart match check to fail
-// silently, since product._id was always undefined.
+// not `_id`.
 //
-// item 18: matching now also checks configSignature() when the incoming item
-// is a custom configured product. Two configured shirts with the same id and
-// size but DIFFERENT designs on them no longer silently merge into one line —
-// they only merge if the design set (+ gender + print size) also matches.
-// Plain (non-custom) products are completely unaffected: configSignature()
-// returns null for them, so the extra check is skipped exactly as before.
+// item 18: matching also checks configSignature() when the incoming item
+// is a custom configured product, so two configured shirts with the same id
+// and size but DIFFERENT designs never silently merge.
 //
 // item 21: for logged-in users, the same add is mirrored to the server in
-// the background via POST /api/cart, which the backend also merges on
-// id+signature+size — so local and server merge logic stay consistent.
-function addToCart(product, size, category) {
+// the background via POST /api/cart, which merges on the same key.
+//
+// qty (optional, default 1) adds that many in one go — used by the graphic
+// design ordering so a quantity of 5 is one line update and one sync call.
+//
+// Returns true when the item was added, false when it was refused.
+function addToCart(product, size, category, qty = 1) {
+  const addQty  = Math.max(1, parseInt(qty, 10) || 1);
+  const normSize = size || null;
+
+  const candidate = {
+    id:        product.id,
+    name:      product.name,
+    price:     product.price,
+    category:  category,
+    printSize: product.printSize || null,
+  };
+
+  if (!isValidCartLine(candidate)) {
+    if (category === 'design') {
+      showCartToast('Please choose a print size first.');
+    } else {
+      showCartToast('This item can’t be added right now.');
+    }
+    return false;
+  }
+
+  const incomingDesigns = product.customDesigns || product.designs || [];
   const incomingSig = configSignature({
-    designs:   product.customDesigns || product.designs || [],
+    designs:   incomingDesigns,
     gender:    product.gender,
     printSize: product.printSize
   });
 
   const existing = cart.find(i => {
-    if (i.id !== product.id || i.size !== size) return false;
+    if (i.id !== product.id || (i.size || null) !== normSize) return false;
     if (incomingSig === null) return configSignature(i) === null; // both plain
     return configSignature(i) === incomingSig;
   });
 
   if (existing) {
-    existing.qty += 1;
+    existing.qty += addQty;
   } else {
     cart.push({
       id:        product.id,
       name:      product.name,
-      price:     product.price,
+      price:     Number(product.price),
       category:  category,
-      size:      size || null,
-      qty:       1,
+      size:      normSize,
+      qty:       addQty,
       snapshot:  product.snapshot || product.image_url || null,
-      designs:   product.customDesigns || product.designs || [],
+      designs:   incomingDesigns,
       gender:    product.gender || null,
       printSize: product.printSize || null,
     });
   }
-  saveCart();
+
+  const saved = saveCart();
   updateCartCount();
   showCartNotification(product.name);
+  if (!saved) {
+    showCartToast('Cart saved for this visit only — your browser storage is full.');
+  }
 
   if (isLoggedIn()) {
     syncToServer('POST', '', {
       productId: product.id,
       name:      product.name,
-      price:     product.price,
+      price:     Number(product.price),
       category:  category,
-      size:      size || null,
-      qty:       1, // POST always adds one — matches backend's increment semantics
+      size:      normSize,
+      qty:       addQty,
       snapshot:  product.snapshot || product.image_url || null,
-      designs:   product.customDesigns || product.designs || [],
+      designs:   incomingDesigns,
       gender:    product.gender || null,
       printSize: product.printSize || null,
     });
   }
+
+  return true;
 }
 
 // ── REMOVE FROM CART ───────────────────────────────────────
 // item 21: for logged-in users, also fires DELETE /api/cart/:cartItemId
 // in the background. Guests (or any local item that hasn't synced yet
-// and has no cartItemId) skip the server call entirely — nothing to
-// delete server-side.
-function removeFromCart(id, size) {
-  const target = cart.find(i => i.id === id && i.size === size);
-  cart = cart.filter(i => !(i.id === id && i.size === size));
+// and has no cartItemId) skip the server call entirely.
+//
+// Pass `signature` (from configSignature(line)) to remove exactly one
+// configured line; omit it for the old id + size behaviour.
+function removeFromCart(id, size, signature) {
+  const target = cart.find(i => lineMatches(i, id, size, signature));
+  cart = cart.filter(i => !lineMatches(i, id, size, signature));
   saveCart();
   updateCartCount();
 
@@ -177,13 +278,12 @@ function removeFromCart(id, size) {
 }
 
 // ── UPDATE QUANTITY ─────────────────────────────────────────
-// New in item 21 — checkout's +/- editor needs a way to set an absolute
-// qty rather than only incrementing via addToCart(). Mirrors the backend's
-// PATCH semantics exactly (set qty directly, not add to it).
-function updateCartQty(id, size, newQty) {
+// Sets an absolute qty. Mirrors the backend's PATCH semantics exactly.
+// Pass `signature` to target one configured line.
+function updateCartQty(id, size, newQty, signature) {
   if (newQty < 1) return; // matches backend's PATCH validation (qty must be >= 1)
 
-  const item = cart.find(i => i.id === id && i.size === size);
+  const item = cart.find(i => lineMatches(i, id, size, signature));
   if (!item) return;
 
   item.qty = newQty;
@@ -195,11 +295,6 @@ function updateCartQty(id, size, newQty) {
   }
 }
 
-// ── SAVE ─────────────────────────────────────────────────
-function saveCart() {
-  localStorage.setItem('jaifore_cart', JSON.stringify(cart));
-}
-
 // ── UPDATE COUNT BADGE ─────────────────────────────────────
 function updateCartCount() {
   const total = cart.reduce((sum, i) => sum + i.qty, 0);
@@ -207,8 +302,8 @@ function updateCartCount() {
   if (el) el.textContent = total;
 }
 
-// ── CART NOTIFICATION ───────────────────────────────────────
-function showCartNotification(name) {
+// ── TOAST ─────────────────────────────────────────────────────
+function showCartToast(text) {
   let toast = document.getElementById('cart-toast');
   if (!toast) {
     toast = document.createElement('div');
@@ -224,7 +319,7 @@ function showCartNotification(name) {
     `;
     document.body.appendChild(toast);
   }
-  toast.textContent = `✓ ${name} added to cart`;
+  toast.textContent = text;
   toast.style.transform = 'translateY(0)';
   toast.style.opacity = '1';
   clearTimeout(toast._timeout);
@@ -234,10 +329,14 @@ function showCartNotification(name) {
   }, 2500);
 }
 
+function showCartNotification(name) {
+  showCartToast(`✓ ${name} added to cart`);
+}
+
 // ── GO TO CHECKOUT ───────────────────────────────────────────
 function goToCheckout() {
   if (!cart.length) {
-    showCartNotification('Your cart is empty');
+    showCartToast('Your cart is empty');
     return;
   }
   const token = localStorage.getItem('jaifore_token');
@@ -251,8 +350,7 @@ function goToCheckout() {
 
 // ── LOGIN-TIME SYNC (item 21) ─────────────────────────────────
 // Call this right after a successful login/OTP-verify, once jaifore_token
-// is set. Not wired to any button here — login.js (wherever the login
-// success handler lives) should call window.syncCartOnLogin() at that point.
+// is set (loginsys.js already does, via window.syncCartOnLogin?.()).
 //
 // Behavior:
 //  - If the server cart is empty and local has items, or vice versa, no
@@ -260,9 +358,7 @@ function goToCheckout() {
 //    automatically, so this just calls it plainly and adopts the result.
 //  - If BOTH sides have overlapping lines (same product+signature+size),
 //    that's a genuine conflict — this shows a simple confirm-style prompt
-//    asking the user which to keep, matching the planned "merge-conflict
-//    modal" from the roadmap, kept intentionally simple (native confirm())
-//    for a first pass rather than a full custom modal.
+//    asking the user which to keep.
 async function syncCartOnLogin() {
   if (!isLoggedIn()) return;
 
@@ -275,7 +371,7 @@ async function syncCartOnLogin() {
     const sig = configSignature(localItem);
     return serverCart.some(serverItem =>
       serverItem.id === localItem.id &&
-      serverItem.size === localItem.size &&
+      (serverItem.size || null) === (localItem.size || null) &&
       configSignature(serverItem) === sig
     );
   });
@@ -289,17 +385,22 @@ async function syncCartOnLogin() {
     );
   }
 
-  const merged = await apiRequest('POST', '/merge', { localCart: cart, keepLocal });
+  const merged = await apiRequest('POST', '/merge', { localCart: cart.filter(isValidCartLine), keepLocal });
   if (merged === null) return; // merge failed, keep local cart as-is
 
   cart = merged;
+  sanitizeCart();
   saveCart();
   updateCartCount();
 }
 
-// Exposed globally so the login success handler can call it without an
-// import — matches how other cross-file calls already work in this codebase.
-window.syncCartOnLogin = syncCartOnLogin;
+// Exposed globally so the login success handler and checkout can call
+// these without an import.
+window.syncCartOnLogin  = syncCartOnLogin;
+window.cartLineSignature = configSignature;
+
+// Drop any invalid lines already sitting in this browser's cart
+sanitizeCart();
 
 // ── CART BUTTON LISTENERS ────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {

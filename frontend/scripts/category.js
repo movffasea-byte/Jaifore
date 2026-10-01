@@ -1,28 +1,58 @@
 /* ================================
    JAIFORE — CATEGORY PAGE
    scripts/category.js
+
+   Prices are USD (database truth) and are displayed through the currency
+   module, which shows visitors an estimate in their own currency.
    ================================ */
 
 const API = 'https://jai-fore-production.up.railway.app';
+
+// The products table has no `sizes` column, so apparel uses this list unless a
+// product ever comes back with its own `sizes` array.
+// KEEP IN SYNC with the size buttons (.sz-btn) in configurator.html.
+const APPAREL_SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
 const CATEGORY_META = {
   apparel: {
     title: 'Apparel & Merchandise',
     tag:   'Merch',
     desc:  'Premium blank canvas pieces — yours to wear, gift, or brand. Select size, quantity, and we ship worldwide.',
-    dbCat: 'Apparels & Merchandise'
+    dbCat: 'Apparels & Merchandise',
+    searchHint: 'Search apparel...',
+    sorts: [
+      ['newest',     'Newest First'],
+      ['price-asc',  'Price: Low to High'],
+      ['price-desc', 'Price: High to Low']
+    ],
+    hasStock:       true,   // only apparel has stock
+    hasPrintFilter: false
   },
   design: {
     title: 'Graphic Design',
     tag:   'Design',
     desc:  'Pick from our curated designs or bring your vision — we\'ll bring it to life on any surface.',
-    dbCat: 'Graphic Design'
+    dbCat: 'Graphic Design',
+    searchHint: 'Search designs...',
+    sorts: [
+      ['newest',   'Newest First'],
+      ['name-asc', 'Name: A to Z']
+    ],
+    hasStock:       false,
+    hasPrintFilter: true
   },
   webdev: {
     title: 'Web Development',
     tag:   'Web',
     desc:  'Sites we\'ve built, live and breathing. Want something similar? Let\'s talk scope and we\'ll build yours.',
-    dbCat: 'Web Development'
+    dbCat: 'Web Development',
+    searchHint: 'Search websites...',
+    sorts: [
+      ['newest',   'Newest First'],
+      ['name-asc', 'Name: A to Z']
+    ],
+    hasStock:       false,
+    hasPrintFilter: false
   }
 };
 
@@ -36,7 +66,7 @@ function formatPrice(amount) {
   if (window.JaiforeCurrency?.isReady()) {
     return window.JaiforeCurrency.format(amount);
   }
-  return `$${Number(amount).toLocaleString()}`;
+  return `$${Number(amount).toFixed(2)}`;
 }
 
 const productsByCategory = {};
@@ -45,11 +75,46 @@ let displayedCount   = 0;
 const PAGE_SIZE      = 12;
 let currentCategory  = 'apparel';
 let selectedSize     = null;
+let selectedPrintSize = null;
 let currentProduct   = null;
 
 const designQuantities = {};
 const MIN_QUANTITY = 1;
 
+// ── PRODUCT HELPERS ──────────────────────────────────
+function getSizes(product) {
+  return Array.isArray(product.sizes) && product.sizes.length ? product.sizes : APPAREL_SIZES;
+}
+
+// Live-joined by the API: [{ id, size_label, dimensions, price }]
+function getPrintSizes(product) {
+  return Array.isArray(product.print_sizes) ? product.print_sizes : [];
+}
+
+// Graphic designs are free, so the base price is normally 0 — the print size
+// chosen is what is actually bought.
+function getDesignBasePrice(product) {
+  const p = parseFloat(product.price);
+  return isNaN(p) ? 0 : p;
+}
+
+function getLowestPrintPrice(product) {
+  const sizes = getPrintSizes(product);
+  if (!sizes.length) return null;
+  return Math.min(...sizes.map(s => parseFloat(s.price)));
+}
+
+function getPriceLabel(product, category) {
+  if (category === 'webdev') return '';
+  if (category === 'design') {
+    const from = getLowestPrintPrice(product);
+    if (from === null) return '';
+    return `From ${formatPrice(getDesignBasePrice(product) + from)}`;
+  }
+  return formatPrice(product.price);
+}
+
+// ── QUANTITY (graphic designs, shown in the modal) ───
 function getDesignQty(productId) {
   return designQuantities[productId] || MIN_QUANTITY;
 }
@@ -100,6 +165,7 @@ document.addEventListener('change', (e) => {
   }
 });
 
+// ── WISHLIST ─────────────────────────────────────────
 function renderWishlistHeart(productId, category) {
   if (category === 'webdev') return '';
   return `<button class="wishlist-heart-btn" type="button" data-product-id="${productId}" onclick="event.stopPropagation()" aria-label="Save for later">♡</button>`;
@@ -165,7 +231,7 @@ document.addEventListener('click', async (e) => {
         body: JSON.stringify({
           productId: product.id,
           name: product.name,
-          price: product.price,
+          price: product.price ?? 0,
           snapshot: product.image_url || null
         })
       });
@@ -189,6 +255,7 @@ function recordProductView(productId) {
   }).catch(() => { /* silent */ });
 }
 
+// ── RELATED ITEMS ────────────────────────────────────
 function getRelatedItems(category, excludeProductId) {
   const pool = productsByCategory[category] || [];
   return pool
@@ -208,7 +275,7 @@ function renderRelatedItemsHTML(items) {
               ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy"/>` : '📦'}
             </div>
             <div class="modal-related-name">${p.name}</div>
-            <div class="modal-related-price">₦${Number(p.price).toLocaleString('en-NG')}</div>
+            <div class="modal-related-price">${getPriceLabel(p, currentCategory)}</div>
           </div>
         `).join('')}
       </div>
@@ -216,6 +283,7 @@ function renderRelatedItemsHTML(items) {
   `;
 }
 
+// ── CATEGORY SETUP ───────────────────────────────────
 const params = new URLSearchParams(window.location.search);
 currentCategory = params.get('cat') || 'apparel';
 if (!CATEGORY_META[currentCategory]) currentCategory = 'apparel';
@@ -226,10 +294,53 @@ function updateHeroForCategory(cat) {
   document.getElementById('catTitle').textContent = meta.title;
   document.getElementById('catDesc').textContent  = meta.desc;
   document.getElementById('catEmptyMsg').textContent = `No products found in ${meta.title.toLowerCase()} yet.`;
+  document.getElementById('searchInput').placeholder = meta.searchHint;
   document.title = `Jai'fore — ${meta.title}`;
 }
 
+// Shows only the sort / filter controls that make sense for this category:
+// stock filter for apparel only, print-size filter for graphic designs only,
+// and a sort list without price options where items have no single price.
+function configureToolbar(cat) {
+  const meta = CATEGORY_META[cat] || CATEGORY_META.apparel;
+
+  const sortSelect = document.getElementById('sortSelect');
+  sortSelect.innerHTML = meta.sorts.map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+  sortSelect.value = 'newest';
+
+  const stockSelect = document.getElementById('stockSelect');
+  stockSelect.value = 'all';
+  stockSelect.style.display = meta.hasStock ? '' : 'none';
+
+  const printSelect = document.getElementById('printSizeSelect');
+  if (printSelect) {
+    printSelect.value = 'all';
+    printSelect.style.display = meta.hasPrintFilter ? '' : 'none';
+  }
+}
+
+// Builds the "print size" filter from the sizes the loaded designs actually offer
+function populatePrintSizeFilter() {
+  const select = document.getElementById('printSizeSelect');
+  if (!select || !CATEGORY_META[currentCategory].hasPrintFilter) return;
+
+  const seen = new Map(); // label -> price, so sizes list smallest-price first
+  (productsByCategory[currentCategory] || []).forEach(p => {
+    getPrintSizes(p).forEach(s => {
+      if (!seen.has(s.size_label)) seen.set(s.size_label, parseFloat(s.price));
+    });
+  });
+
+  const labels = [...seen.entries()].sort((a, b) => a[1] - b[1]).map(([label]) => label);
+  const previous = select.value;
+
+  select.innerHTML = '<option value="all">Any Print Size</option>' +
+    labels.map(label => `<option value="${label}">${label} prints</option>`).join('');
+  select.value = labels.includes(previous) ? previous : 'all';
+}
+
 updateHeroForCategory(currentCategory);
+configureToolbar(currentCategory);
 document.getElementById('categorySelect').value = currentCategory;
 
 async function fetchCategory(cat) {
@@ -256,10 +367,13 @@ async function fetchCategory(cat) {
   return productsByCategory[cat];
 }
 
+// ── FILTERING ────────────────────────────────────────
 function applyFilters() {
+  const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
   const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
   const sort  = document.getElementById('sortSelect').value;
   const stock = document.getElementById('stockSelect').value;
+  const printFilter = document.getElementById('printSizeSelect')?.value || 'all';
 
   let result = [...(productsByCategory[currentCategory] || [])];
 
@@ -270,10 +384,16 @@ function applyFilters() {
     );
   }
 
-  if (stock === 'instock') result = result.filter(p => p.in_stock);
+  // Stock only exists for apparel — never filter other categories by it
+  if (meta.hasStock && stock === 'instock') result = result.filter(p => p.in_stock);
+
+  if (meta.hasPrintFilter && printFilter !== 'all') {
+    result = result.filter(p => getPrintSizes(p).some(s => s.size_label === printFilter));
+  }
 
   if (sort === 'price-asc')  result.sort((a, b) => a.price - b.price);
   if (sort === 'price-desc') result.sort((a, b) => b.price - a.price);
+  if (sort === 'name-asc')   result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   if (sort === 'newest')     result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   filteredProducts = result;
@@ -306,6 +426,7 @@ function loadNextPage() {
   }
 }
 
+// ── PRODUCT CARD ─────────────────────────────────────
 function renderCard(product, index) {
   const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
   const card = document.createElement('div');
@@ -321,38 +442,50 @@ function renderCard(product, index) {
     ? `<img src="${product.image_url}" alt="${product.name}" loading="lazy"/>`
     : `<div class="card-img-placeholder">${placeholder}</div>`;
 
-  const sizeHTML = isApparel && product.sizes?.length
-    ? `<div class="size-chips">
-        ${product.sizes.slice(0,4).map(s => `<span class="size-chip">${s}</span>`).join('')}
-        ${product.sizes.length > 4 ? `<span class="size-chip">+${product.sizes.length - 4}</span>` : ''}
-       </div>` : '';
+  const printSizes = getPrintSizes(product);
+  const hasPrintSizes = printSizes.length > 0;
+
+  let sizeHTML = '';
+  if (isApparel) {
+    const sizes = getSizes(product);
+    sizeHTML = `<div class="size-chips">
+        ${sizes.slice(0, 4).map(s => `<span class="size-chip">${s}</span>`).join('')}
+        ${sizes.length > 4 ? `<span class="size-chip">+${sizes.length - 4}</span>` : ''}
+       </div>`;
+  } else if (isDesign && hasPrintSizes) {
+    sizeHTML = `<div class="size-chips">
+        ${printSizes.map(s => `<span class="size-chip">${s.size_label}</span>`).join('')}
+       </div>`;
+  }
 
   const domainHTML = isWebdev && product.live_link
     ? `<div class="site-domain">↗ ${product.live_link}</div>` : '';
 
-  const stockBadge = !product.in_stock
+  // "Out of stock" only ever applies to apparel
+  const stockBadge = (isApparel && !product.in_stock)
     ? `<span class="card-badge out-of-stock">Out of Stock</span>`
     : `<span class="card-badge">${meta.tag}</span>`;
 
-  const qtyStepperHTML = renderQtyStepper(product.id, currentCategory);
   const wishlistHeartHTML = renderWishlistHeart(product.id, currentCategory);
+  const priceLabel = getPriceLabel(product, currentCategory);
 
-  const footerHTML = isApparel
-    ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
+  let footerHTML;
+  if (isApparel) {
+    footerHTML = `<div class="card-price">${priceLabel}</div>
        <div style="display:flex;gap:0.4rem">
          ${wishlistHeartHTML}
          <button class="configure-btn" data-id="${product.id}">🎨 Design</button>
          <button class="card-action" data-id="${product.id}" ${!product.in_stock ? 'disabled' : ''}>Add to Cart</button>
-       </div>`
-    : isDesign
-      ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
-         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-           ${wishlistHeartHTML}
-           ${qtyStepperHTML}
-           <button class="card-action" data-id="${product.id}">Order Now</button>
-         </div>`
-      : `${isWebdev ? '' : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>`}
-         <button class="card-action" data-id="${product.id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
+       </div>`;
+  } else if (isDesign) {
+    footerHTML = `<div class="card-price">${priceLabel || 'Not available yet'}</div>
+       <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+         ${wishlistHeartHTML}
+         <button class="card-action" data-id="${product.id}" ${hasPrintSizes ? '' : 'disabled'}>Order Now</button>
+       </div>`;
+  } else {
+    footerHTML = `<button class="card-action" data-id="${product.id}">Enquire</button>`;
+  }
 
   card.innerHTML = `
     <div class="card-img">
@@ -362,7 +495,7 @@ function renderCard(product, index) {
     <div class="card-body">
       ${domainHTML}
       <div class="card-name">${product.name}</div>
-      <div class="card-desc">${product.description}</div>
+      <div class="card-desc">${product.description || ''}</div>
       ${sizeHTML}
       <div class="card-footer">${footerHTML}</div>
     </div>
@@ -377,20 +510,11 @@ function renderCard(product, index) {
     }
   });
 
+  // Every "add" button opens the modal: apparel needs a size chosen, graphic
+  // designs need a print size chosen, web development is an enquiry.
   card.querySelector('.card-action')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (isWebdev || (isApparel && product.sizes?.length)) {
-      openModal(product);
-    } else if (isDesign) {
-      const qty = getDesignQty(product.id);
-      for (let i = 0; i < qty; i++) {
-        addToCart(product, null, currentCategory);
-      }
-      recordProductView(product.id);
-    } else {
-      addToCart(product, null, currentCategory);
-      recordProductView(product.id);
-    }
+    openModal(product);
   });
 
   card.querySelector('.configure-btn')?.addEventListener('click', (e) => {
@@ -401,29 +525,48 @@ function renderCard(product, index) {
   return card;
 }
 
+// ── PRODUCT MODAL ────────────────────────────────────
 async function openModal(product) {
   const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
-  currentProduct = product;
-  selectedSize   = null;
+  currentProduct    = product;
+  selectedSize      = null;
+  selectedPrintSize = null;
 
   const isWebdev  = currentCategory === 'webdev';
   const isApparel = currentCategory === 'apparel';
   const isDesign  = currentCategory === 'design';
   const placeholder = PLACEHOLDERS[currentCategory]?.[0] || '📦';
 
+  const printSizes    = getPrintSizes(product);
+  const hasPrintSizes = printSizes.length > 0;
+
   const imgHTML = product.image_url
     ? `<img src="${product.image_url}" alt="${product.name}"/>`
     : `<div class="modal-img-placeholder">${placeholder}</div>`;
 
-  const sizesHTML = isApparel && product.sizes?.length
+  const sizesHTML = isApparel
     ? `<div class="modal-sizes">
         <label>Select Size</label>
         <div class="modal-size-opts">
-          ${product.sizes.map(s => `<button class="size-opt" data-size="${s}">${s}</button>`).join('')}
+          ${getSizes(product).map(s => `<button class="size-opt" type="button" data-size="${s}">${s}</button>`).join('')}
         </div>
        </div>` : '';
 
-  const qtyStepperModalHTML = isDesign
+  const printSizesHTML = isDesign
+    ? (hasPrintSizes
+        ? `<div class="modal-sizes">
+            <label>Select Print Size</label>
+            <div class="modal-size-opts">
+              ${printSizes.map(s => `
+                <button class="size-opt print-opt" type="button" data-print-id="${s.id}">
+                  ${s.size_label} · ${s.dimensions} · ${formatPrice(getDesignBasePrice(product) + parseFloat(s.price))}
+                </button>`).join('')}
+            </div>
+           </div>`
+        : `<p class="modal-desc">This design isn't available to order yet.</p>`)
+    : '';
+
+  const qtyStepperModalHTML = (isDesign && hasPrintSizes)
     ? `<div class="modal-qty-row">
          <label>Quantity</label>
          ${renderQtyStepper(product.id, currentCategory)}
@@ -444,11 +587,11 @@ async function openModal(product) {
     : isApparel
       ? `<button class="modal-configure-btn" onclick="window.location.href='configurator.html?product=${product.id}'">🎨 Design It in Studio</button>
          <button class="modal-add-btn" ${!product.in_stock ? 'disabled' : ''}>Add to Cart</button>`
-      : `<button class="modal-add-btn">Order Now</button>`;
+      : `<button class="modal-add-btn" ${hasPrintSizes ? '' : 'disabled'}>Order Now</button>`;
 
   const priceLine = isWebdev
     ? ''
-    : `<div class="modal-price">${formatPrice(product.price)}</div>`;
+    : `<div class="modal-price" id="modalPriceLine">${getPriceLabel(product, currentCategory)}</div>`;
 
   document.getElementById('modal-inner').innerHTML = `
     <div class="modal-grid">
@@ -457,8 +600,9 @@ async function openModal(product) {
         <div class="modal-category">${meta.tag}</div>
         <div class="modal-name">${product.name}</div>
         ${priceLine}
-        <div class="modal-desc">${product.description}</div>
+        <div class="modal-desc">${product.description || ''}</div>
         ${sizesHTML}
+        ${printSizesHTML}
         ${qtyStepperModalHTML}
         ${modalWishlistHeartHTML}
         ${actionHTML}
@@ -467,33 +611,62 @@ async function openModal(product) {
     <div id="modalRelatedContainer"></div>
   `;
 
-  document.querySelectorAll('.size-opt').forEach(btn => {
+  // Apparel size selection
+  document.querySelectorAll('.size-opt[data-size]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.size-opt').forEach(b => b.classList.remove('selected'));
+      document.querySelectorAll('.size-opt[data-size]').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       selectedSize = btn.dataset.size;
     });
   });
 
+  // Graphic design print-size selection — also updates the price shown
+  document.querySelectorAll('.print-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.print-opt').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedPrintSize = printSizes.find(s => String(s.id) === btn.dataset.printId) || null;
+      const priceEl = document.getElementById('modalPriceLine');
+      if (priceEl && selectedPrintSize) {
+        priceEl.textContent = formatPrice(getDesignBasePrice(product) + parseFloat(selectedPrintSize.price));
+      }
+    });
+  });
+
   const addBtn = document.querySelector('.modal-add-btn');
   if (addBtn) {
+    const flashError = (message, restoreText) => {
+      addBtn.textContent = message;
+      addBtn.style.background = '#b03030';
+      setTimeout(() => { addBtn.textContent = restoreText; addBtn.style.background = ''; }, 1500);
+    };
+
     addBtn.addEventListener('click', () => {
-      if (isApparel && product.sizes?.length && !selectedSize) {
-        addBtn.textContent = 'Please select a size first';
-        addBtn.style.background = '#b03030';
-        setTimeout(() => { addBtn.textContent = 'Add to Cart'; addBtn.style.background = ''; }, 1500);
-        return;
-      }
-      if (isDesign) {
-        const qty = getDesignQty(product.id);
-        for (let i = 0; i < qty; i++) {
-          addToCart(product, selectedSize, currentCategory);
-        }
+      if (isApparel) {
+        if (!selectedSize) { flashError('Please select a size first', 'Add to Cart'); return; }
+        addToCart({ ...product, price: parseFloat(product.price) }, selectedSize, 'apparel');
+      } else if (isDesign) {
+        if (!selectedPrintSize) { flashError('Please select a print size first', 'Order Now'); return; }
+
+        const basePrice = getDesignBasePrice(product);
+        const added = addToCart({
+          id:            product.id,
+          name:          product.name,
+          price:         basePrice + parseFloat(selectedPrintSize.price),
+          image_url:     product.image_url,
+          // The one design + its print size make up this line's identity, so
+          // the same design in two print sizes stays as two separate lines.
+          customDesigns: [{ name: product.name, src: product.image_url || '', price: basePrice }],
+          printSize:     selectedPrintSize
+        }, null, 'design', getDesignQty(product.id));
+
+        if (!added) return;
       } else {
-        addToCart(product, selectedSize, currentCategory);
+        addToCart(product, null, currentCategory);
       }
+
       closeModal();
-      openCart();
+      if (typeof openCart === 'function') openCart();
     });
   }
 
@@ -530,12 +703,15 @@ document.getElementById('modal-overlay').addEventListener('click', closeModal);
 
 document.getElementById('loadMoreBtn').addEventListener('click', loadNextPage);
 
+// ── CONTROLS ─────────────────────────────────────────
 document.getElementById('categorySelect').addEventListener('change', async (e) => {
   const newCat = e.target.value;
   if (!CATEGORY_META[newCat]) return;
 
   currentCategory = newCat;
+  history.replaceState(null, '', `?cat=${newCat}`);
   updateHeroForCategory(newCat);
+  configureToolbar(newCat); // swaps in the sort/filter controls that fit this category
 
   if (!productsByCategory[newCat]) {
     document.getElementById('cat-grid').innerHTML =
@@ -546,6 +722,7 @@ document.getElementById('categorySelect').addEventListener('change', async (e) =
   }
 
   await fetchCategory(newCat);
+  populatePrintSizeFilter();
   applyFilters();
 });
 
@@ -557,9 +734,22 @@ document.getElementById('searchInput').addEventListener('input', () => {
 
 document.getElementById('sortSelect').addEventListener('change', applyFilters);
 document.getElementById('stockSelect').addEventListener('change', applyFilters);
+document.getElementById('printSizeSelect')?.addEventListener('change', applyFilters);
 
+// If the currency finishes loading after the first render, redraw so prices
+// show in the visitor's currency.
+window.addEventListener('jaifore:currency-ready', () => {
+  if (productsByCategory[currentCategory] !== undefined) applyFilters();
+});
+
+// ── START ────────────────────────────────────────────
 (async () => {
   document.getElementById('catCount').textContent = 'Loading...';
-  await Promise.all([fetchCategory(currentCategory), loadWishlistedIds()]);
+  await Promise.all([
+    fetchCategory(currentCategory),
+    loadWishlistedIds(),
+    (window.JaiforeCurrency?.init() || Promise.resolve()).catch(() => {})
+  ]);
+  populatePrintSizeFilter();
   applyFilters();
 })();
