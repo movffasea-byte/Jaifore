@@ -51,14 +51,25 @@
          before services.js's loadRecentlyViewed() resolves — the JS only
          removes "hidden" if there's an actual signed-in user with view
          history to show. Sits above the three category sections since
-         this is the user's own recent activity, not generic browsing. -->
+         this is the user's own recent activity, not generic browsing.
+         Shown as a slider: arrow buttons (and swipe on touch screens)
+         scroll the row left and right. The track keeps its original id
+         (recently-viewed-grid) so services.js still fills it the same way. -->
     <section id="recently-viewed-section" class="hidden">
       <div class="cat-header">
         <div class="cat-title-wrap">
           <h2 class="cat-title">Recently Viewed</h2>
         </div>
       </div>
-      <div class="products-grid" id="recently-viewed-grid"></div>
+      <div class="rv-slider" id="recentlyViewedSlider">
+        <button class="rv-arrow rv-arrow-prev" type="button" id="rvPrev" aria-label="Scroll recently viewed left" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="rv-track" id="recently-viewed-grid"></div>
+        <button class="rv-arrow rv-arrow-next" type="button" id="rvNext" aria-label="Scroll recently viewed right">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
     </section>
 
     <!-- ── CATEGORY 1: APPAREL & MERCHANDISE ── -->

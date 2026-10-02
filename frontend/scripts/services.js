@@ -1,16 +1,68 @@
 /* ================================
    JAIFORE — SERVICES PAGE
    services.js (cart lives in cart.js)
+
+   Prices are USD (database truth) and are displayed through the currency
+   module, which shows visitors an estimate in their own currency.
+   Mirrors the ordering rules in category.js: apparel needs a size, graphic
+   designs need a print size, stock only applies to apparel.
    ================================ */
 
 const API = 'https://jai-fore-production.up.railway.app';
 
+// The products table has no `sizes` column, so apparel uses this list unless a
+// product ever comes back with its own `sizes` array.
+// KEEP IN SYNC with category.js and the size buttons (.sz-btn) in configurator.html.
+const APPAREL_SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
+
 let selectedSize         = null;
+let selectedPrintSize    = null;
 let currentModalProduct  = null;
 
 const designQuantities = {};
 const MIN_QUANTITY = 1;
 
+// ── PRODUCT HELPERS ──────────────────────────────────
+function getSizes(product) {
+  return Array.isArray(product.sizes) && product.sizes.length ? product.sizes : APPAREL_SIZES;
+}
+
+// Live-joined by the API: [{ id, size_label, dimensions, price }]
+function getPrintSizes(product) {
+  return Array.isArray(product.print_sizes) ? product.print_sizes : [];
+}
+
+// Graphic designs are free, so the base price is normally 0 — the print size
+// chosen is what is actually bought.
+function getDesignBasePrice(product) {
+  const p = parseFloat(product.price);
+  return isNaN(p) ? 0 : p;
+}
+
+function getLowestPrintPrice(product) {
+  const sizes = getPrintSizes(product);
+  if (!sizes.length) return null;
+  return Math.min(...sizes.map(s => parseFloat(s.price)));
+}
+
+function getPriceLabel(product, category) {
+  if (category === 'webdev') return '';
+  if (category === 'design') {
+    const from = getLowestPrintPrice(product);
+    if (from === null) return '';
+    return `From ${formatPrice(getDesignBasePrice(product) + from)}`;
+  }
+  return formatPrice(product.price);
+}
+
+function formatPrice(amount) {
+  if (window.JaiforeCurrency?.isReady()) {
+    return window.JaiforeCurrency.format(amount);
+  }
+  return `$${Number(amount).toFixed(2)}`;
+}
+
+// ── QUANTITY (graphic designs, shown in the modal) ───
 function getDesignQty(productId) {
   return designQuantities[productId] || MIN_QUANTITY;
 }
@@ -129,7 +181,7 @@ document.addEventListener('click', async (e) => {
         body: JSON.stringify({
           productId: product.id,
           name: product.name,
-          price: product.price,
+          price: product.price ?? 0,
           snapshot: product.image_url || null
         })
       });
@@ -161,6 +213,59 @@ function dbCategoryToKey(dbCat) {
   return 'apparel';
 }
 
+// ── RECENTLY VIEWED (slider) ─────────────────────────
+function recentlyViewedPriceLabel(item, category) {
+  if (category === 'webdev') return '';
+  const price = parseFloat(item.price);
+  if (category === 'design') return price > 0 ? formatPrice(price) : 'Choose a print size';
+  return isNaN(price) ? '' : formatPrice(price);
+}
+
+// The recently-viewed endpoint only returns a slim product, so open the modal
+// from the full product (it carries print sizes, which graphic designs need).
+async function openProductById(id, category, fallbackProduct) {
+  let product = fallbackProduct;
+  try {
+    const res = await fetch(`${API}/api/products/${id}`);
+    if (res.ok) product = await res.json();
+  } catch { /* fall back to the slim product */ }
+
+  if (!loadedProducts.recent) loadedProducts.recent = [];
+  loadedProducts.recent.push(product);
+  openModal(product, category);
+}
+
+function updateRecentlyViewedArrows() {
+  const slider = document.getElementById('recentlyViewedSlider');
+  const track  = document.getElementById('recently-viewed-grid');
+  const prev   = document.getElementById('rvPrev');
+  const next   = document.getElementById('rvNext');
+  if (!slider || !track || !prev || !next) return;
+
+  const maxScroll = track.scrollWidth - track.clientWidth;
+  slider.classList.toggle('no-overflow', maxScroll <= 2);
+  prev.disabled = track.scrollLeft <= 2;
+  next.disabled = track.scrollLeft >= maxScroll - 2;
+}
+
+function initRecentlyViewedSlider() {
+  const slider = document.getElementById('recentlyViewedSlider');
+  const track  = document.getElementById('recently-viewed-grid');
+  const prev   = document.getElementById('rvPrev');
+  const next   = document.getElementById('rvNext');
+  if (!slider || !track || !prev || !next || slider.dataset.ready) return;
+  slider.dataset.ready = '1';
+
+  // Scroll by most of the visible width so a few new cards slide in per click
+  const step = () => Math.max(track.clientWidth * 0.8, 200);
+
+  prev.addEventListener('click', () => track.scrollBy({ left: -step(), behavior: 'smooth' }));
+  next.addEventListener('click', () => track.scrollBy({ left:  step(), behavior: 'smooth' }));
+
+  track.addEventListener('scroll', updateRecentlyViewedArrows, { passive: true });
+  window.addEventListener('resize', updateRecentlyViewedArrows);
+}
+
 async function loadRecentlyViewed() {
   const section = document.getElementById('recently-viewed-section');
   const grid    = document.getElementById('recently-viewed-grid');
@@ -181,6 +286,9 @@ async function loadRecentlyViewed() {
     section.classList.remove('hidden');
     grid.innerHTML = '';
     items.forEach((item, i) => {
+      const category = dbCategoryToKey(item.category);
+      const priceLabel = recentlyViewedPriceLabel(item, category);
+
       const card = document.createElement('div');
       card.className = 'product-card recently-viewed-card';
       card.style.animationDelay = `${i * 0.05}s`;
@@ -190,29 +298,32 @@ async function loadRecentlyViewed() {
         </div>
         <div class="card-body">
           <div class="card-name">${item.name}</div>
-          <div class="card-price"><span class="currency">₦</span>${Number(item.price).toLocaleString('en-NG')}</div>
+          ${priceLabel ? `<div class="card-price">${priceLabel}</div>` : ''}
         </div>
       `;
       card.addEventListener('click', () => {
-        const category = dbCategoryToKey(item.category);
-        const product = {
+        openProductById(item.product_id, category, {
           id: item.product_id, name: item.name, price: item.price,
-          image_url: item.image_url, in_stock: item.in_stock
-        };
-        openModal(product, category);
+          image_url: item.image_url, in_stock: item.in_stock, description: ''
+        });
       });
       grid.appendChild(card);
     });
+
+    initRecentlyViewedSlider();
+    // Measure after the section is visible and the cards are in place
+    requestAnimationFrame(() => { grid.scrollLeft = 0; updateRecentlyViewedArrows(); });
   } catch {
     section.classList.add('hidden');
   }
 }
 
+// ── RELATED ITEMS ────────────────────────────────────
 async function fetchRelatedItems(category, excludeProductId) {
   let pool = loadedProducts[category] || [];
 
   if (pool.length <= 1) {
-    pool = await fetchProducts(category, 8);
+    pool = (await fetchProducts(category, 8)) || [];
   }
 
   return pool
@@ -220,7 +331,7 @@ async function fetchRelatedItems(category, excludeProductId) {
     .slice(0, 4);
 }
 
-function renderRelatedItemsHTML(items) {
+function renderRelatedItemsHTML(items, category) {
   if (!items.length) return '';
   return `
     <div class="modal-related-section">
@@ -232,7 +343,7 @@ function renderRelatedItemsHTML(items) {
               ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy"/>` : '📦'}
             </div>
             <div class="modal-related-name">${p.name}</div>
-            <div class="modal-related-price">₦${Number(p.price).toLocaleString('en-NG')}</div>
+            <div class="modal-related-price">${getPriceLabel(p, category)}</div>
           </div>
         `).join('')}
       </div>
@@ -329,51 +440,28 @@ document.getElementById('webdevServicesEnquireBtn')?.addEventListener('click', (
   openContactPopup();
 });
 
-function getMockProducts(category) {
-  const mocks = {
-    apparel: [
-      { id:'a1', name:'Classic Black Tee',   description:'Premium 100% cotton blank tee. Clean cut, heavyweight feel.',         price:8500,   category:'apparel', sizes:['XS','S','M','L','XL','XXL'], image:null },
-      { id:'a2', name:'Relaxed Fit Hoodie',  description:'Heavyweight fleece hoodie. Oversized fit, kangaroo pocket.',          price:18500,  category:'apparel', sizes:['S','M','L','XL','XXL'],      image:null },
-      { id:'a3', name:'Cargo Shorts',        description:'Multi-pocket cargo shorts. Durable cotton twill, mid-rise.',          price:12000,  category:'apparel', sizes:['S','M','L','XL'],            image:null },
-    ],
-    design: [
-      { id:'d1', name:'Abstract Waves',         description:'Bold fluid wave pattern. Available in mono or full colour print.', price:15000,  category:'design', image:null },
-      { id:'d2', name:'Custom Logo Design',     description:'Bring your idea — we craft a professional logo from scratch.',     price:35000,  category:'design', image:null },
-      { id:'d3', name:'Street Art Illustration',description:'Urban-inspired illustration pack. Ready to print on any surface.', price:22000,  category:'design', image:null },
-    ],
-    webdev: [
-      { id:'w1', name:'E-Commerce Starter',      description:'Full-featured online store with cart, payments, and admin panel.', live_link:'aminfinitybites.health', image:null },
-      { id:'w2', name:'Creative Portfolio',      description:'Stunning portfolio site for creatives, artists, and agencies.',   live_link:null, image:null },
-      { id:'w3', name:'Business Landing Page',   description:'High-converting landing page with contact forms and analytics.',  live_link:null, image:null },
-    ]
-  };
-  return mocks[category] || [];
-}
-
+// ── FETCH ────────────────────────────────────────────
+// Returns null when the products couldn't be loaded. (The old made-up
+// fallback products are gone: they had fake ids and prices and could be
+// added to a cart and ordered.)
 async function fetchProducts(category, limit = 3) {
-   const categoryMap = {
+  const categoryMap = {
     apparel: 'Apparels & Merchandise',
     design:  'Graphic Design',
     webdev:  'Web Development'
   };
   try {
     const cat = encodeURIComponent(categoryMap[category] || category);
-   const res = await fetch(`${API}/api/products?category=${cat}&limit=${limit}`);
+    const res = await fetch(`${API}/api/products?category=${cat}&limit=${limit}`);
     if (!res.ok) throw new Error();
     const data = await res.json();
     return Array.isArray(data) ? data : data.products || [];
   } catch {
-    return getMockProducts(category);
+    return null;
   }
 }
 
-function formatPrice(amount) {
-  if (window.JaiforeCurrency?.isReady()) {
-    return window.JaiforeCurrency.format(amount);
-  }
-  return `$${Number(amount).toLocaleString()}`;
-}
-
+// ── PRODUCT CARD ─────────────────────────────────────
 function renderCard(product, index, category) {
   const card        = document.createElement('div');
   card.className    = 'product-card';
@@ -388,48 +476,62 @@ function renderCard(product, index, category) {
     ? `<img src="${product.image_url}" alt="${product.name}" loading="lazy"/>`
     : `<div class="card-img-placeholder">${placeholder}</div>`;
 
-  const sizeHTML = isApparel && product.sizes?.length
-    ? `<div class="size-chips">
-        ${product.sizes.slice(0,4).map(s => `<span class="size-chip">${s}</span>`).join('')}
-        ${product.sizes.length > 4 ? `<span class="size-chip">+${product.sizes.length - 4}</span>` : ''}
-       </div>`
-    : '';
+  const printSizes    = getPrintSizes(product);
+  const hasPrintSizes = printSizes.length > 0;
 
-  // FIX: webdev's live link comes from product.live_link (real DB field),
-  // never product.domain (that only ever existed in mock data).
+  let sizeHTML = '';
+  if (isApparel) {
+    const sizes = getSizes(product);
+    sizeHTML = `<div class="size-chips">
+        ${sizes.slice(0,4).map(s => `<span class="size-chip">${s}</span>`).join('')}
+        ${sizes.length > 4 ? `<span class="size-chip">+${sizes.length - 4}</span>` : ''}
+       </div>`;
+  } else if (isDesign && hasPrintSizes) {
+    sizeHTML = `<div class="size-chips">
+        ${printSizes.map(s => `<span class="size-chip">${s.size_label}</span>`).join('')}
+       </div>`;
+  }
+
+  // webdev's live link comes from product.live_link (real DB field)
   const domainHTML = isWebdev && product.live_link
     ? `<div class="site-domain">↗ ${product.live_link}</div>` : '';
 
-  const qtyStepperHTML = renderQtyStepper(product.id, category);
-  const wishlistHeartHTML = renderWishlistHeart(product.id, category);
+  // "Out of stock" only ever applies to apparel
+  const badgeHTML = (isApparel && product.in_stock === false)
+    ? `<span class="card-badge out-of-stock">Out of Stock</span>`
+    : `<span class="card-badge">${isApparel ? 'Merch' : isDesign ? 'Design' : 'Web'}</span>`;
 
-  const footerHTML = isApparel
-    ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
+  const wishlistHeartHTML = renderWishlistHeart(product.id, category);
+  const priceLabel = getPriceLabel(product, category);
+
+  let footerHTML;
+  if (isApparel) {
+    footerHTML = `<div class="card-price">${priceLabel}</div>
        <div style="display:flex;gap:0.4rem">
          ${wishlistHeartHTML}
          <button class="configure-btn" data-id="${product.id}">🎨 Design</button>
-         <button class="card-action"   data-id="${product.id}">Add to Cart</button>
-       </div>`
-    : isDesign
-      ? `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>
-         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-           ${wishlistHeartHTML}
-           ${qtyStepperHTML}
-           <button class="card-action" data-id="${product.id}">Order Now</button>
-         </div>`
-      // FIX: webdev has no price to show — it's enquiry-only.
-      : `${isWebdev ? '' : `<div class="card-price"><span class="currency">₦</span>${Number(product.price).toLocaleString('en-NG')}</div>`}
-         <button class="card-action" data-id="${product.id}">${isWebdev ? 'Enquire' : 'Order Now'}</button>`;
+         <button class="card-action" data-id="${product.id}" ${product.in_stock === false ? 'disabled' : ''}>Add to Cart</button>
+       </div>`;
+  } else if (isDesign) {
+    footerHTML = `<div class="card-price">${priceLabel || 'Not available yet'}</div>
+       <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+         ${wishlistHeartHTML}
+         <button class="card-action" data-id="${product.id}" ${hasPrintSizes ? '' : 'disabled'}>Order Now</button>
+       </div>`;
+  } else {
+    // webdev has no price to show — it's enquiry-only.
+    footerHTML = `<button class="card-action" data-id="${product.id}">Enquire</button>`;
+  }
 
   card.innerHTML = `
     <div class="card-img">
       ${imgHTML}
-      <span class="card-badge">${isApparel ? 'Merch' : isDesign ? 'Design' : 'Web'}</span>
+      ${badgeHTML}
     </div>
     <div class="card-body">
       ${domainHTML}
       <div class="card-name">${product.name}</div>
-      <div class="card-desc">${product.description}</div>
+      <div class="card-desc">${product.description || ''}</div>
       ${sizeHTML}
       <div class="card-footer">${footerHTML}</div>
     </div>
@@ -444,20 +546,11 @@ function renderCard(product, index, category) {
     }
   });
 
+  // Every "add" button opens the modal: apparel needs a size chosen, graphic
+  // designs need a print size chosen, web development is an enquiry.
   card.querySelector('.card-action')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (isWebdev || (isApparel && product.sizes?.length)) {
-      openModal(product, category);
-    } else if (isDesign) {
-      const qty = getDesignQty(product.id);
-      for (let i = 0; i < qty; i++) {
-        addToCart(product, null, category);
-      }
-      recordProductView(product.id);
-    } else {
-      addToCart(product, null, category);
-      recordProductView(product.id);
-    }
+    openModal(product, category);
   });
 
   card.querySelector('.configure-btn')?.addEventListener('click', (e) => {
@@ -469,13 +562,17 @@ function renderCard(product, index, category) {
 }
 
 async function loadCategory(category) {
-  const grid    = document.getElementById(`${category}-grid`);
-  const products = await fetchProducts(category);
+  const grid     = document.getElementById(`${category}-grid`);
+  const fetched  = await fetchProducts(category);
+  const products = fetched || [];
   grid.innerHTML = '';
   loadedProducts[category] = products;
 
   if (!products.length) {
-    grid.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;padding:2rem 0;grid-column:1/-1">No products found.</div>`;
+    const message = fetched === null
+      ? 'We couldn’t load these products right now. Please refresh in a moment.'
+      : 'No products found.';
+    grid.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;padding:2rem 0;grid-column:1/-1">${message}</div>`;
     return;
   }
   products.slice(0, 3).forEach((p, i) => grid.appendChild(renderCard(p, i, category)));
@@ -488,28 +585,48 @@ document.querySelectorAll('.load-more-btn').forEach(btn => {
   });
 });
 
+// ── PRODUCT MODAL ────────────────────────────────────
 async function openModal(product, category) {
   currentModalProduct = product;
   selectedSize        = null;
+  selectedPrintSize   = null;
 
   const isWebdev  = category === 'webdev';
   const isApparel = category === 'apparel';
   const isDesign  = category === 'design';
   const placeholder = getPlaceholder(category, 0);
 
+  const printSizes    = getPrintSizes(product);
+  const hasPrintSizes = printSizes.length > 0;
+
   const imgHTML = product.image_url
     ? `<img src="${product.image_url}" alt="${product.name}"/>`
     : `<div class="modal-img-placeholder">${placeholder}</div>`;
 
-  const sizesHTML = isApparel && product.sizes?.length
+  const sizesHTML = isApparel
     ? `<div class="modal-sizes">
-        <label>Select Size <button class="size-guide-link" onclick="openSizeGuide()">Size Guide</button></label>
+        <label>Select Size <button class="size-guide-link" type="button" onclick="openSizeGuide()">Size Guide</button></label>
         <div class="modal-size-opts">
-          ${product.sizes.map(s => `<button class="size-opt" data-size="${s}">${s}</button>`).join('')}
+          ${getSizes(product).map(s => `<button class="size-opt" type="button" data-size="${s}">${s}</button>`).join('')}
         </div>
        </div>` : '';
 
-  const qtyStepperModalHTML = isDesign
+  const printSizesHTML = isDesign
+    ? (hasPrintSizes
+        ? `<div class="modal-sizes">
+            <label>Select Print Size</label>
+            <div class="modal-size-opts">
+              ${printSizes.map(s => `
+                <button class="size-opt print-opt" type="button" data-print-id="${s.id}">
+                  <span>${s.size_label} · ${s.dimensions}</span>
+                  <span>${formatPrice(getDesignBasePrice(product) + parseFloat(s.price))}</span>
+                </button>`).join('')}
+            </div>
+           </div>`
+        : `<p class="modal-desc">This design isn't available to order yet.</p>`)
+    : '';
+
+  const qtyStepperModalHTML = (isDesign && hasPrintSizes)
     ? `<div class="modal-qty-row">
          <label>Quantity</label>
          ${renderQtyStepper(product.id, category)}
@@ -520,10 +637,9 @@ async function openModal(product, category) {
     ? `<button class="modal-wishlist-heart-btn wishlist-heart-btn" type="button" data-product-id="${product.id}" aria-label="Save for later">♡</button>`
     : '';
 
-  // FIX: "Visit Live Site" now uses product.live_link (real DB field),
-  // never product.siteUrl (mock-only). Also normalizes a bare domain
-  // (e.g. "aminfinitybites.health") into a working https:// link, since
-  // admins may type either form into the Live Link field.
+  // "Visit Live Site" uses product.live_link (real DB field) and normalizes a
+  // bare domain (e.g. "aminfinitybites.health") into a working https:// link,
+  // since admins may type either form into the Live Link field.
   const liveLinkHref = product.live_link
     ? (product.live_link.startsWith('http') ? product.live_link : `https://${product.live_link}`)
     : null;
@@ -533,19 +649,17 @@ async function openModal(product, category) {
        ${liveLinkHref ? `<a href="${liveLinkHref}" target="_blank" class="modal-link">🌐 Visit Live Site →</a>` : ''}`
     : isApparel
       ? `<button class="modal-configure-btn" onclick="window.location.href='configurator.html?product=${product.id}'">🎨 Design It in Studio</button>
-         <button class="modal-add-btn">Add to Cart</button>`
-      : `<button class="modal-add-btn">Order Now</button>`;
+         <button class="modal-add-btn" ${product.in_stock === false ? 'disabled' : ''}>Add to Cart</button>`
+      : `<button class="modal-add-btn" ${hasPrintSizes ? '' : 'disabled'}>Order Now</button>`;
 
-  // FIX: webdev's category line shows product.live_link (real DB field),
-  // never product.domain (mock-only).
   const domainLine = isWebdev && product.live_link
     ? `<div class="modal-category">↗ ${product.live_link}</div>`
     : `<div class="modal-category">${category.charAt(0).toUpperCase() + category.slice(1)}</div>`;
 
-  // FIX: webdev has no price — it's enquiry-only, so don't render ₦0.00.
+  // webdev has no price — it's enquiry-only.
   const priceLine = isWebdev
     ? ''
-    : `<div class="modal-price">${formatPrice(product.price)}</div>`;
+    : `<div class="modal-price" id="modalPriceLine">${getPriceLabel(product, category)}</div>`;
 
   document.getElementById('modal-inner').innerHTML = `
     <div class="modal-grid">
@@ -554,8 +668,9 @@ async function openModal(product, category) {
         ${domainLine}
         <div class="modal-name">${product.name}</div>
         ${priceLine}
-        <div class="modal-desc">${product.description}</div>
+        <div class="modal-desc">${product.description || ''}</div>
         ${sizesHTML}
+        ${printSizesHTML}
         ${qtyStepperModalHTML}
         ${modalWishlistHeartHTML}
         ${actionHTML}
@@ -564,38 +679,66 @@ async function openModal(product, category) {
     <div id="modalRelatedContainer"></div>
   `;
 
-  document.querySelectorAll('.size-opt').forEach(btn => {
+  // Apparel size selection
+  document.querySelectorAll('.size-opt[data-size]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.size-opt').forEach(b => b.classList.remove('selected'));
+      document.querySelectorAll('.size-opt[data-size]').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       selectedSize = btn.dataset.size;
     });
   });
 
+  // Graphic design print-size selection — also updates the price shown
+  document.querySelectorAll('.print-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.print-opt').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedPrintSize = printSizes.find(s => String(s.id) === btn.dataset.printId) || null;
+      const priceEl = document.getElementById('modalPriceLine');
+      if (priceEl && selectedPrintSize) {
+        priceEl.textContent = formatPrice(getDesignBasePrice(product) + parseFloat(selectedPrintSize.price));
+      }
+    });
+  });
+
   const addBtn = document.querySelector('.modal-add-btn');
   if (addBtn) {
+    const flashError = (message, restoreText) => {
+      addBtn.textContent = message;
+      addBtn.style.background = '#b03030';
+      setTimeout(() => { addBtn.textContent = restoreText; addBtn.style.background = ''; }, 1500);
+    };
+
     addBtn.addEventListener('click', () => {
-      if (isApparel && product.sizes?.length && !selectedSize) {
-        addBtn.textContent = 'Please select a size first';
-        addBtn.style.background = '#b03030';
-        setTimeout(() => { addBtn.textContent = 'Add to Cart'; addBtn.style.background = ''; }, 1500);
-        return;
-      }
-      if (isDesign) {
-        const qty = getDesignQty(product.id);
-        for (let i = 0; i < qty; i++) {
-          addToCart(product, selectedSize, category);
-        }
+      if (isApparel) {
+        if (!selectedSize) { flashError('Please select a size first', 'Add to Cart'); return; }
+        addToCart({ ...product, price: parseFloat(product.price) }, selectedSize, 'apparel');
+      } else if (isDesign) {
+        if (!selectedPrintSize) { flashError('Please select a print size first', 'Order Now'); return; }
+
+        const basePrice = getDesignBasePrice(product);
+        const added = addToCart({
+          id:            product.id,
+          name:          product.name,
+          price:         basePrice + parseFloat(selectedPrintSize.price),
+          image_url:     product.image_url,
+          // The one design + its print size make up this line's identity, so
+          // the same design in two print sizes stays as two separate lines.
+          customDesigns: [{ name: product.name, src: product.image_url || '', price: basePrice }],
+          printSize:     selectedPrintSize
+        }, null, 'design', getDesignQty(product.id));
+
+        if (!added) return;
       } else {
-        addToCart(product, selectedSize, category);
+        addToCart(product, null, category);
       }
+
       closeModal();
-      openCart();
+      if (typeof openCart === 'function') openCart();
     });
   }
 
-  // FIX: the webdev "Enquire" button in the modal now opens the shared
-  // contact popup instead of the old mailto: link.
+  // The webdev "Enquire" button in the modal opens the shared contact popup.
   document.querySelector('.modal-enquire-btn')?.addEventListener('click', () => {
     openContactPopup();
   });
@@ -609,7 +752,7 @@ async function openModal(product, category) {
   const relatedContainer = document.getElementById('modalRelatedContainer');
   const related = await fetchRelatedItems(category, product.id);
   if (relatedContainer) {
-    relatedContainer.innerHTML = renderRelatedItemsHTML(related);
+    relatedContainer.innerHTML = renderRelatedItemsHTML(related, category);
     relatedContainer.querySelectorAll('.modal-related-card').forEach(cardEl => {
       cardEl.addEventListener('click', () => {
         const relatedProduct = related.find(p => String(p.id) === cardEl.dataset.id);
@@ -644,7 +787,10 @@ document.querySelectorAll('.category-section').forEach(section => {
   observer.observe(section);
 });
 
-window.JaiforeCurrency?.init().then(() => {
+// ── START ────────────────────────────────────────────
+// Wait for the currency module so prices render in the visitor's currency;
+// start regardless if it fails or isn't there.
+Promise.resolve(window.JaiforeCurrency?.init()).catch(() => {}).then(() => {
   loadWishlistedIds().then(syncWishlistHearts);
   loadRecentlyViewed();
   loadCategory('apparel');
