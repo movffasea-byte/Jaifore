@@ -163,6 +163,19 @@ function switchTab(name) {
   if (name === 'qrcodes') loadQrCodes();
   }
 
+// ── MONEY ────────────────────────────────────────────
+// Prices and revenue are USD now. Orders from the old Flutterwave period
+// carry their own currency (e.g. NGN) and are shown in it.
+const CURRENCY_SYMBOLS = { USD: '$', NGN: '₦', GBP: '£', EUR: '€' };
+
+function formatMoney(amount, currency = 'USD') {
+  const code  = String(currency || 'USD').toUpperCase();
+  const value = Number(amount);
+  const text  = (Number.isFinite(value) ? value : 0)
+    .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return CURRENCY_SYMBOLS[code] ? `${CURRENCY_SYMBOLS[code]}${text}` : `${code} ${text}`;
+}
+
 // ── AUTH HEADER ──────────────────────────────────────
 function authHeaders() {
   return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
@@ -185,7 +198,7 @@ async function loadOverview() {
     const revenue = Array.isArray(transactions)
       ? transactions.filter(t => t.status === 'success').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
       : 0;
-    document.getElementById('statRevenue').textContent = `₦${revenue.toLocaleString()}`;
+    document.getElementById('statRevenue').textContent = formatMoney(revenue, 'USD');
 
     renderLowStockBanner(Array.isArray(products) ? products : []);
   } catch (err) { console.error('Overview error:', err); }
@@ -246,9 +259,9 @@ async function loadRevenueQuickTotals() {
   try {
     const res  = await fetch(`${API}/api/orders/revenue/quick-totals`, { headers: authHeaders() });
     const data = await res.json();
-    document.getElementById('revToday').textContent = `₦${Number(data.today).toLocaleString()}`;
-    document.getElementById('revWeek').textContent   = `₦${Number(data.this_week).toLocaleString()}`;
-    document.getElementById('revMonth').textContent  = `₦${Number(data.this_month).toLocaleString()}`;
+    document.getElementById('revToday').textContent = formatMoney(data.today, 'USD');
+    document.getElementById('revWeek').textContent   = formatMoney(data.this_week, 'USD');
+    document.getElementById('revMonth').textContent  = formatMoney(data.this_month, 'USD');
   } catch (err) { console.error('Revenue quick totals error:', err); }
 }
 
@@ -269,7 +282,7 @@ async function loadRevenueChart(period = 'daily') {
       data: {
         labels,
         datasets: [{
-          label: 'Revenue (₦)',
+          label: 'Revenue (USD)',
           data: values,
           backgroundColor: 'rgba(124, 58, 237, 0.6)',
           borderColor: '#7c3aed',
@@ -281,7 +294,7 @@ async function loadRevenueChart(period = 'daily') {
         responsive: true,
         plugins: { legend: { display: false } },
         scales: {
-          y: { beginAtZero: true, ticks: { callback: v => `₦${Number(v).toLocaleString()}` } }
+          y: { beginAtZero: true, ticks: { callback: v => formatMoney(v, 'USD') } }
         }
       }
     });
@@ -559,7 +572,7 @@ async function loadOrders() {
       tr.innerHTML = `
         <td>#${o.id}</td>
         <td>${o.customer_name || '—'}<br><small style="color:var(--ink-muted)">${o.customer_email || ''}</small></td>
-        <td>₦${parseFloat(o.total).toLocaleString()}</td>
+        <td>${formatMoney(o.total, o.currency)}</td>
         <td><span class="badge badge-${o.status === 'delivered' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending'}">${o.status}</span></td>
         <td>${new Date(o.created_at).toLocaleDateString()}</td>
         <td>
@@ -569,7 +582,7 @@ async function loadOrders() {
             <option ${o.status === 'delivered'  ? 'selected' : ''}>delivered</option>
             <option ${o.status === 'cancelled'  ? 'selected' : ''}>cancelled</option>
           </select>
-          <button class="action-btn danger" onclick="refundOrder(${o.id}, ${o.total})"
+          <button class="action-btn danger" onclick="refundOrder(${o.id}, ${o.total}, '${o.currency || 'USD'}')"
             ${(o.payment_status === 'refunded' || !o.payment_ref) ? 'disabled' : ''}>
             ${o.payment_status === 'refunded' ? 'Refunded' : 'Refund'}
           </button>
@@ -579,8 +592,8 @@ async function loadOrders() {
   } catch (err) { console.error('Orders error:', err); }
 }
 
-async function refundOrder(id, total) {
-  if (!confirm(`Refund order #${id} for ₦${Number(total).toLocaleString()}? This cannot be undone from here.`)) return;
+async function refundOrder(id, total, currency = 'USD') {
+  if (!confirm(`Refund order #${id} for ${formatMoney(total, currency)}? This cannot be undone from here.`)) return;
   try {
     const res  = await fetch(`${API}/api/orders/${id}/refund`, {
       method: 'POST',
@@ -694,7 +707,7 @@ async function loadDayTransactions(dateStr, dayEl) {
       ordersEl.innerHTML = orders.map(o => `
         <div class="tx-item">
           <span class="tx-item-label">#${o.id} — ${o.customer_name || 'Guest'}</span>
-          <span class="tx-item-val">₦${parseFloat(o.total).toLocaleString()}</span>
+          <span class="tx-item-val">${formatMoney(o.total, o.currency)}</span>
         </div>`).join('');
     }
 
@@ -705,7 +718,7 @@ async function loadDayTransactions(dateStr, dayEl) {
       paymentsEl.innerHTML = payments.map(t => `
         <div class="tx-item">
           <span class="tx-item-label">${t.reference || 'N/A'}</span>
-          <span class="tx-item-val">₦${parseFloat(t.amount).toLocaleString()} <span class="badge badge-${t.status === 'success' ? 'success' : 'failed'}">${t.status}</span></span>
+          <span class="tx-item-val">${formatMoney(t.amount, 'USD')} <span class="badge badge-${t.status === 'success' ? 'success' : 'failed'}">${t.status}</span></span>
         </div>`).join('');
     }
 

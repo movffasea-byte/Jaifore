@@ -36,6 +36,7 @@ const path         = require('path');
 const rateLimit     = require('express-rate-limit');
 
 const { router: authRouter } = require('./auth');
+const stripeRoutes = require('./routes/stripe');
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use(cors({
   origin: (origin, callback) => {
     const allowed = [
       process.env.FRONTEND_URL,
+      'https://jai-fore.vercel.app',
       'https://jai-fore-website.vercel.app',
       'https://movffasea-byte.github.io',
       'http://127.0.0.1:5501',
@@ -55,7 +57,9 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  // PATCH was missing here, so the browser blocked every PATCH request:
+  // cart quantity sync, the admin stock +/- buttons and QR code edits.
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
@@ -66,6 +70,22 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
+// ── STRIPE WEBHOOK — must come BEFORE express.json() ───
+// Stripe signs the exact bytes it sends, so this one route needs the raw
+// body. If express.json() ran first, the signature check would always fail.
+app.post(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  stripeRoutes.webhookHandler
+);
+
+// ── JSON BODY PARSING ──────────────────────────────────
+// Cart, wishlist and checkout requests can carry customer-uploaded artwork
+// (as base64 text), which is far bigger than the 100kb default. Those paths
+// get a larger limit; everything else keeps the small default. The first
+// parser to run marks the body as parsed, so the global one below skips them.
+// (Uploading artwork to file storage instead is the proper long-term fix.)
+app.use(['/api/stripe', '/api/cart', '/api/wishlist'], express.json({ limit: '25mb' }));
 app.use(express.json());
 
 // ── RATE LIMITERS ──────────────────────────────────────
@@ -104,7 +124,15 @@ app.use('/api/qr', require('./routes/qr'));
 
 app.use('/api/auth', authLimiter, authRouter);
 
-app.use('/api/orders', paymentLimiter, require('./routes/orders'));
+// Orders no longer take payments (Stripe's webhook creates them), so this is
+// an ordinary route now. The strict payment limiter used to count every admin
+// dashboard load against its 20-per-15-minutes allowance.
+app.use('/api/orders', generalLimiter, require('./routes/orders'));
+
+// Starting a payment is the one place that keeps the strict limit. The quote
+// route (called on every quantity change) uses the general limit.
+app.use('/api/stripe/create-checkout-session', paymentLimiter);
+app.use('/api/stripe', generalLimiter, stripeRoutes);
 
 app.use('/api/products',      generalLimiter, require('./routes/products'));
 app.use('/api/transactions',  generalLimiter, require('./routes/transactions'));

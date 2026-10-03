@@ -468,3 +468,26 @@ body.item-modal-open { overflow: hidden; }
 
   .item-modal { padding: 1.4rem; }
 }
+
+/* ── STRIPE CHECKOUT ADDITIONS ──────────────────────── */
+.checkout-hint {
+  font-size: 0.78rem;
+  color: #888;
+  margin-top: 0.2rem;
+}
+
+.summary-hint {
+  font-size: 0.75rem;
+  color: #7b5ea7;
+  margin: -0.2rem 0 0.6rem;
+}
+
+.currency-note {
+  font-size: 0.72rem;
+  color: #888;
+  line-height: 1.5;
+  margin: 0.2rem 0 0.8rem;
+}
+
+.currency-note:empty,
+.summary-hint:empty { display: none; }

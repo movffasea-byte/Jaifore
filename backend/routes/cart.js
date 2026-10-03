@@ -62,6 +62,7 @@ function rowToCartItem(row) {
     designs:    data.designs || [],
     gender:     data.gender || null,
     printSize:  data.printSize || null,
+    notes:      data.notes || null,
   };
 }
 
@@ -92,7 +93,7 @@ router.get('/', authenticate, async (req, res) => {
 router.post('/', authenticate, async (req, res) => {
   const {
     productId, name, price, category, size,
-    qty, snapshot, designs, gender, printSize
+    qty, snapshot, designs, gender, printSize, notes
   } = req.body;
 
   if (!productId || !name || price == null) {
@@ -110,7 +111,7 @@ router.post('/', authenticate, async (req, res) => {
   const signature = configSignature({ designs, gender, printSize });
   const addQty    = Math.max(1, parseInt(qty, 10) || 1);
 
-  const snapshotData = { name, price, category, snapshot: snapshot || null, designs: designs || [], gender: gender || null, printSize: printSize || null };
+  const snapshotData = { name, price, category, snapshot: snapshot || null, designs: designs || [], gender: gender || null, printSize: printSize || null, notes: notes || null };
 
   try {
     // Two separate query paths, branched on whether this is a plain
@@ -243,7 +244,8 @@ router.post('/merge', authenticate, async (req, res) => {
       const snapshotData = {
         name: item.name, price: item.price, category: item.category || null,
         snapshot: item.snapshot || null, designs: item.designs || [],
-        gender: item.gender || null, printSize: item.printSize || null
+        gender: item.gender || null, printSize: item.printSize || null,
+        notes: item.notes || null
       };
 
       if (!existing) {

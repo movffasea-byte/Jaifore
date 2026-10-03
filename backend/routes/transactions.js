@@ -1,6 +1,12 @@
 /* ================================
    JAIFORE TRANSACTIONS ROUTE
    backend/routes/transactions.js
+
+   Read-only for admins. Transactions are recorded by the Stripe webhook
+   (routes/stripe.js) when a payment actually succeeds. The old
+   POST /api/transactions route is gone: it let any logged-in customer
+   insert a "success" transaction with any amount, and those rows feed
+   the admin revenue figures.
    ================================ */
 const express = require('express');
 const router  = express.Router();
@@ -45,20 +51,6 @@ router.get('/summary/:year/:month', authenticate, requireAdmin, async (req, res)
       GROUP BY DATE(created_at)
     `, [req.params.year, req.params.month]);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// POST create transaction (authenticated user)
-router.post('/', authenticate, async (req, res) => {
-  const { order_id, amount, reference, status, payment_method } = req.body;
-  if (!amount || !reference) return res.status(400).json({ error: 'Amount and reference are required.' });
-  try {
-    const result = await pool.query(
-      `INSERT INTO transactions (order_id, user_id, amount, reference, status, payment_method)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [order_id, req.user.id, amount, reference, status || 'success', payment_method || 'paystack']
-    );
-    res.status(201).json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

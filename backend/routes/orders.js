@@ -1,196 +1,25 @@
 /* ================================
    JAIFORE ORDERS ROUTE
    backend/routes/orders.js
+
+   Orders are created by the Stripe webhook (routes/stripe.js), never by the
+   browser. This file lists/updates orders and handles refunds through Stripe.
+   Flutterwave is gone: its verify-payment route (which trusted the price the
+   browser sent) now just answers "payments have moved".
    ================================ */
 const express = require('express');
 const router  = express.Router();
 const { pool } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
-const axios = require('axios');
 const Sentry = require('@sentry/node');
-const { sendOrderConfirmation, sendAdminOrderAlert, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert, sendLowStockAlert } = require('../mailer');
-const { cacheInvalidate } = require('../redis');
+const stripe = require('../stripeClient');
+const { sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert } = require('../mailer');
 
-// item 14 — low stock alert threshold, kept in sync with products.js
-const LOW_STOCK_THRESHOLD = 5;
-function checkLowStockTransition(oldStock, newStock) {
-  if (oldStock === null || oldStock === undefined) return false;
-  if (newStock === null || newStock === undefined) return false;
-  return oldStock > LOW_STOCK_THRESHOLD && newStock <= LOW_STOCK_THRESHOLD;
-}
-
-const FLW_SECRET = process.env.FLUTTERWAVE_SECRET_KEY;
-
-// ── VERIFY PAYMENT + CREATE ORDER (authenticated user) ─
-router.post('/verify-payment', authenticate, async (req, res) => {
-  const { transaction_id, tx_ref, items, total, shipping } = req.body;
-
-  if (!transaction_id || !tx_ref || !items || !total) {
-    return res.status(400).json({ error: 'Missing required payment fields.' });
-  }
-
-  try {
-    // 1. Verify transaction with Flutterwave
-    const flwRes = await axios.get(
-      `https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`,
-      { headers: { Authorization: `Bearer ${FLW_SECRET}` } }
-    );
-
-    const flwData = flwRes.data;
-
-    // 2. Validate response
-    if (flwData.status !== 'success') {
-      return res.status(400).json({ error: 'Payment verification failed.' });
-    }
-
-    const txData = flwData.data;
-
-    // 3. Check payment status
-    if (txData.status !== 'successful') {
-      return res.status(400).json({ error: `Payment status: ${txData.status}. Order not created.` });
-    }
-
-    // 4. Check tx_ref matches (prevents replay attacks)
-    if (txData.tx_ref !== tx_ref) {
-      return res.status(400).json({ error: 'Transaction reference mismatch.' });
-    }
-
-    // 5. Check amount matches (allow small float margin)
-    const paidAmount  = parseFloat(txData.amount);
-    const orderAmount = parseFloat(total);
-    if (Math.abs(paidAmount - orderAmount) > 1) {
-      return res.status(400).json({
-        error: `Amount mismatch. Expected ${orderAmount}, got ${paidAmount}.`
-      });
-    }
-
-    // 6. Check for duplicate — prevent double order on same transaction
-    const existing = await pool.query(
-      `SELECT id FROM orders WHERE payment_ref = $1`,
-      [tx_ref]
-    );
-    if (existing.rows.length) {
-      return res.status(409).json({ error: 'Order already created for this payment.' });
-    }
-
-    // 7. Create the order with payment details
-    const result = await pool.query(
-      `INSERT INTO orders
-         (user_id, items, total, shipping, payment_ref, payment_status, payment_method, currency)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [
-        req.user.id,
-        JSON.stringify(items),
-        total,
-        JSON.stringify(shipping || {}),
-        tx_ref,
-        'paid',
-        txData.payment_type || 'card',
-        txData.currency     || 'NGN',
-      ]
-    );
-
-    const order = result.rows[0];
-
-    // item 15 — seed the timeline with this order's starting status.
-    // Non-blocking, same reasoning as the stock decrement just below: the
-    // payment is already verified and the order already exists — a
-    // history-logging hiccup must never be reported back as a failed payment.
-    try {
-      await pool.query(
-        `INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)`,
-        [order.id, order.status]
-      );
-    } catch (historyErr) {
-      console.error('[timeline] Failed to seed history:', historyErr.message);
-      Sentry.captureException(historyErr, { tags: { area: 'order-timeline' }, extra: { orderId: order.id } });
-    }
-
-    // 7b. Decrement stock for each purchased item (item 12 — inventory management).
-    // Only affects products with a real stock count set; NULL stock means
-    // "not tracked" (e.g. print-on-demand or service items) and is left alone.
-    try {
-      for (const item of items) {
-        const productId = item.id;
-        const qty = Number(item.qty) || 1;
-        if (!productId) {
-          console.warn('[stock] Skipped — item has no product_id/id:', item);
-          continue;
-        }
-
-        // Read current stock first so we can detect a low-stock transition
-        // after the update below (item 14) — the UPDATE alone only gives us
-        // the "after" value, and the transition check needs "before" too.
-        const beforeResult = await pool.query('SELECT stock FROM products WHERE id = $1', [productId]);
-        const oldStock = beforeResult.rows.length ? beforeResult.rows[0].stock : null;
-
-        const stockResult = await pool.query(
-          `UPDATE products
-             SET stock = GREATEST(COALESCE(stock, 0) - $1, 0),
-                 in_stock = (GREATEST(COALESCE(stock, 0) - $1, 0) > 0)
-           WHERE id = $2 AND stock IS NOT NULL
-           RETURNING *`,
-          [qty, productId]
-        );
-        if (stockResult.rows.length) {
-          await cacheInvalidate(`products:single:${productId}`);
-
-          const updatedProduct = stockResult.rows[0];
-          if (checkLowStockTransition(oldStock, updatedProduct.stock)) {
-            sendLowStockAlert(updatedProduct).catch(e => {
-              console.error('[mailer] Low stock alert failed:', e.message);
-              Sentry.captureException(e, {
-                tags: { area: 'transactional-email' },
-                extra: { productId: updatedProduct.id, email: process.env.ADMIN_EMAIL },
-              });
-            });
-          }
-        }
-      }
-      await cacheInvalidate('products:list:*');
-    } catch (stockErr) {
-      console.error('[stock] Decrement failed:', stockErr.message);
-      Sentry.captureException(stockErr, { tags: { area: 'inventory' }, extra: { orderId: order.id } });
-      // Non-blocking — an inventory bookkeeping issue must not fail the order
-    }
-
-    // 8. Send transactional emails (non-blocking — don't fail the order if email fails)
-    const customerName  = req.user.name  || 'Customer';
-    const customerEmail = req.user.email || '';
-
-    Promise.allSettled([
-      sendOrderConfirmation(customerEmail, customerName, order),
-      sendAdminOrderAlert(order, customerName, customerEmail),
-    ]).then(results => {
-      results.forEach((r, i) => {
-        if (r.status === 'rejected') {
-          const label = i === 0 ? 'Order confirmation' : 'Admin order alert';
-          console.error(`[mailer] ${label} failed:`, r.reason?.message || r.reason);
-          Sentry.captureException(r.reason, {
-            tags: { area: 'transactional-email' },
-            extra: { orderId: order.id, email: i === 0 ? customerEmail : process.env.ADMIN_EMAIL },
-          });
-        }
-      });
-    });
-
-    res.status(201).json(order);
-
-  } catch (err) {
-    console.error('Flutterwave verify error:', err.response?.data || err.message);
-    Sentry.withScope((scope) => {
-      scope.setTag('area', 'payment-verification');
-      scope.setContext('payment', {
-        tx_ref,
-        transaction_id,
-        user_id: req.user?.id,
-        attempted_total: total,
-      });
-      Sentry.captureException(err);
-    });
-    res.status(500).json({ error: 'Payment verification error. Please contact support.' });
-  }
+// ── OLD FLUTTERWAVE ENDPOINT — RETIRED ────────────────
+// Kept only so a stale cached checkout page gets a clear message instead of
+// a confusing 404.
+router.post('/verify-payment', authenticate, (req, res) => {
+  res.status(410).json({ error: 'Payments have moved to Stripe. Please refresh the checkout page and try again.' });
 });
 
 // ── GET all orders (admin only) ───────────────────────
@@ -231,7 +60,13 @@ router.get('/my', authenticate, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET revenue summary (admin only) — daily/weekly/monthly series for charting ─
+// ── REVENUE (admin only) ──────────────────────────────
+// Revenue counts only Stripe orders (stripe_session_id set), all in USD.
+// Orders from the old Flutterwave test period used a different currency and
+// would distort the totals, so they are left out of these figures (they still
+// appear in the Orders list).
+const REVENUE_FILTER = `payment_status IN ('paid', 'partially_refunded') AND stripe_session_id IS NOT NULL`;
+
 router.get('/revenue/summary', authenticate, requireAdmin, async (req, res) => {
   const period = ['daily', 'weekly', 'monthly'].includes(req.query.period) ? req.query.period : 'daily';
   const bucket = period === 'daily' ? 'day' : period === 'weekly' ? 'week' : 'month';
@@ -244,7 +79,7 @@ router.get('/revenue/summary', authenticate, requireAdmin, async (req, res) => {
          COUNT(*)::int AS order_count,
          SUM(total)::float AS revenue
        FROM orders
-       WHERE payment_status = 'paid'
+       WHERE ${REVENUE_FILTER}
          AND created_at >= NOW() - $2::interval
        GROUP BY period
        ORDER BY period ASC`,
@@ -266,7 +101,6 @@ router.get('/revenue/summary', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-// ── GET revenue quick totals: today / this week / this month / all-time ─
 router.get('/revenue/quick-totals', authenticate, requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -276,7 +110,7 @@ router.get('/revenue/quick-totals', authenticate, requireAdmin, async (req, res)
         COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('month', NOW())), 0)::float  AS this_month,
         COALESCE(SUM(total), 0)::float AS all_time
       FROM orders
-      WHERE payment_status = 'paid'
+      WHERE ${REVENUE_FILTER}
     `);
     res.json(result.rows[0]);
   } catch (err) {
@@ -368,68 +202,56 @@ router.put('/:id/status', authenticate, requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── POST initiate refund (admin only) ─────────────────
-// Body: { amount, comments } — both optional. Omitting amount refunds the full total.
-// Two Flutterwave calls are needed because orders only ever stored payment_ref
-// (our own tx_ref), never Flutterwave's numeric transaction id that the refund
-// endpoint actually requires — so we resolve it fresh each time via tx_ref.
+// ── POST initiate refund (admin only) — through Stripe ─
+// Body: { amount, comments } — both optional. Omitting amount refunds the
+// full order total. Only orders paid through Stripe can be refunded here.
 router.post('/:id/refund', authenticate, requireAdmin, async (req, res) => {
-  const { amount, comments } = req.body;
+  if (!stripe) return res.status(503).json({ error: 'Stripe is not configured on the server.' });
+
+  const { amount } = req.body;
 
   try {
     const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found.' });
     const order = orderResult.rows[0];
 
-    if (!order.payment_ref) {
-      return res.status(400).json({ error: 'This order has no payment reference on file — cannot process a refund.' });
+    if (!order.stripe_payment_intent_id) {
+      return res.status(400).json({
+        error: 'This order was paid through the old Flutterwave gateway and can’t be refunded here. Refund it from the Flutterwave dashboard.'
+      });
     }
     if (order.payment_status === 'refunded') {
       return res.status(409).json({ error: 'This order has already been refunded.' });
     }
 
-    // 1. Resolve our tx_ref to Flutterwave's numeric transaction id
-    const lookupRes = await axios.get(
-      `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${encodeURIComponent(order.payment_ref)}`,
-      { headers: { Authorization: `Bearer ${FLW_SECRET}` } }
-    );
-
-    if (lookupRes.data.status !== 'success' || !lookupRes.data.data?.id) {
-      return res.status(502).json({ error: 'Could not locate this transaction with Flutterwave.' });
+    // Optional partial refund (in dollars); leave it out for a full refund
+    let refundCents = null;
+    if (amount !== undefined && amount !== null && amount !== '') {
+      const value = Number(amount);
+      if (!Number.isFinite(value) || value <= 0 || value > Number(order.total)) {
+        return res.status(400).json({ error: 'Refund amount must be more than 0 and no more than the order total.' });
+      }
+      refundCents = Math.round(value * 100);
     }
-    const flwTransactionId = lookupRes.data.data.id;
+    const isFullRefund = refundCents === null || refundCents >= Math.round(Number(order.total) * 100);
 
-    // 2. Initiate the refund against that transaction id
-    const refundBody = {};
-    if (amount) refundBody.amount = amount; // omit entirely for a full refund
-    if (comments) refundBody.comments = comments;
+    const refund = await stripe.refunds.create({
+      payment_intent: order.stripe_payment_intent_id,
+      ...(refundCents !== null && !isFullRefund ? { amount: refundCents } : {}),
+      reason: 'requested_by_customer',
+      metadata: { order_id: String(order.id) },
+    });
 
-    const refundRes = await axios.post(
-      `https://api.flutterwave.com/v3/transactions/${flwTransactionId}/refund`,
-      refundBody,
-      { headers: { Authorization: `Bearer ${FLW_SECRET}`, 'Content-Type': 'application/json' } }
-    );
-
-    if (refundRes.data.status !== 'success') {
-      return res.status(502).json({ error: refundRes.data.message || 'Refund could not be initiated.' });
-    }
-
-    // 3. Mark the order refunded on our side
     const updated = await pool.query(
-      `UPDATE orders SET payment_status = 'refunded' WHERE id = $1 RETURNING *`,
-      [order.id]
+      `UPDATE orders SET payment_status = $1 WHERE id = $2 RETURNING *`,
+      [isFullRefund ? 'refunded' : 'partially_refunded', order.id]
     );
     const refundedOrder = updated.rows[0];
 
-    // 4. Send refund notifications to both customer and admin (item 13b — non-blocking,
-    // same pattern as verify-payment: a failed email must never undo or block the refund
-    // that Flutterwave already processed).
-    const refundAmount = amount || order.total;
-
-    const customer = await pool.query(
-      `SELECT name, email FROM users WHERE id = $1`,
-      [order.user_id]
-    );
+    // Refund emails (non-blocking — a failed email must never undo or block
+    // the refund Stripe already processed).
+    const refundAmount = isFullRefund ? order.total : refundCents / 100;
+    const customer = await pool.query(`SELECT name, email FROM users WHERE id = $1`, [order.user_id]);
 
     if (customer.rows.length) {
       const { name: customerName, email: customerEmail } = customer.rows[0];
@@ -451,7 +273,6 @@ router.post('/:id/refund', authenticate, requireAdmin, async (req, res) => {
       });
     } else {
       console.warn(`Order ${order.id} refunded but no matching user (id ${order.user_id}) found — customer notification skipped.`);
-      // Still alert the admin even without customer details, since the admin's own copy doesn't need them
       sendAdminRefundAlert(refundedOrder, 'Unknown customer', '—', refundAmount)
         .catch(e => {
           console.error('[mailer] Admin refund alert failed:', e.message);
@@ -464,29 +285,31 @@ router.post('/:id/refund', authenticate, requireAdmin, async (req, res) => {
 
     res.json({
       message: 'Refund initiated.',
-      refund: refundRes.data.data,
+      refund: { id: refund.id, status: refund.status, amount: refund.amount / 100 },
       order: refundedOrder,
     });
 
   } catch (err) {
-    console.error('Refund error:', err.response?.data || err.message);
+    console.error('Refund error:', err.raw?.message || err.message);
     Sentry.withScope((scope) => {
       scope.setTag('area', 'refund');
       scope.setContext('refund', { orderId: req.params.id });
       Sentry.captureException(err);
     });
-    res.status(500).json({ error: err.response?.data?.message || 'Refund failed. Please contact support or try again.' });
+    res.status(500).json({ error: err.raw?.message || 'Refund failed. Please try again or refund it from the Stripe dashboard.' });
   }
 });
 
-// ── POST create order directly (kept for manual/admin use) ─
-router.post('/', authenticate, async (req, res) => {
-  const { items, total, shipping } = req.body;
+// ── POST create order directly (admin only, for manual orders) ─
+// This used to be open to any logged-in customer, who could create an order
+// with any total they chose. Real orders come from the Stripe webhook now.
+router.post('/', authenticate, requireAdmin, async (req, res) => {
+  const { items, total, shipping, user_id } = req.body;
   if (!items || !total) return res.status(400).json({ error: 'Items and total are required.' });
   try {
     const result = await pool.query(
       `INSERT INTO orders (user_id, items, total, shipping) VALUES ($1, $2, $3, $4) RETURNING *`,
-      [req.user.id, JSON.stringify(items), total, JSON.stringify(shipping || {})]
+      [user_id || req.user.id, JSON.stringify(items), total, JSON.stringify(shipping || {})]
     );
     const order = result.rows[0];
 

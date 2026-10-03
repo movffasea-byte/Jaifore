@@ -231,6 +231,7 @@ function addToCart(product, size, category, qty = 1) {
       designs:   incomingDesigns,
       gender:    product.gender || null,
       printSize: product.printSize || null,
+      notes:     product.notes || null,
     });
   }
 
@@ -253,6 +254,7 @@ function addToCart(product, size, category, qty = 1) {
       designs:   incomingDesigns,
       gender:    product.gender || null,
       printSize: product.printSize || null,
+      notes:     product.notes || null,
     });
   }
 
