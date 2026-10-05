@@ -607,15 +607,93 @@ document.getElementById('canvasContainer').addEventListener('pointerdown', (e) =
 });
 
 // ── LOAD GRAPHIC DESIGNS ─────────────────────────────
+// The picker used to fetch and draw all ~141 designs at full size. Now:
+// one slim request (cached for the session), 24 thumbnails at a time with
+// lazy images, search, and "more" via scroll (or the Load more button).
+const GD_PAGE      = 24;
+const GD_CACHE_KEY = 'jaifore_gd_list_v1';
+const GD_CACHE_MS  = 10 * 60 * 1000;
+
+let gdAll = [], gdFiltered = [], gdShown = 0, gdObserver = null, gdSearchTimer = null;
+
+function gdEsc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Slim list from the API (fields=lite once the backend supports it; an older
+// backend just ignores the parameter, and a failing lite request falls back
+// to the plain one), cached in sessionStorage.
+async function fetchDesignList() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(GD_CACHE_KEY) || 'null');
+    if (cached && Date.now() - cached.t < GD_CACHE_MS && Array.isArray(cached.list)) return cached.list;
+  } catch { /* unreadable cache — refetch */ }
+
+  const base = `${API}/api/products?category=Graphic%20Design`;
+  let data;
+  try {
+    data = await fetchJson(`${base}&fields=lite`);
+  } catch (err) {
+    if (err.message === 'timeout' || err instanceof TypeError) throw err; // unreachable — don't retry
+    data = await fetchJson(base);
+  }
+
+  const list = (Array.isArray(data) ? data : []).map(p => ({
+    id: p.id, name: p.name, image_url: p.image_url, thumb_url: p.thumb_url || null
+  }));
+  try { sessionStorage.setItem(GD_CACHE_KEY, JSON.stringify({ t: Date.now(), list })); } catch { /* storage full — fine */ }
+  return list;
+}
+
+function renderDesignPage() {
+  const grid     = document.getElementById('graphicGrid');
+  const moreBtn  = document.getElementById('gdLoadMore');
+  const slice    = gdFiltered.slice(gdShown, gdShown + GD_PAGE);
+
+  slice.forEach(gd => {
+    const item = document.createElement('div');
+    item.className = 'gd-item';
+    const thumb = gd.thumb_url || gd.image_url;
+    item.innerHTML = thumb
+      ? `<img src="${gdEsc(thumb)}" alt="${gdEsc(gd.name)}" width="120" height="120" loading="lazy" decoding="async"/>
+         <div class="gd-name">${gdEsc(gd.name)}</div>`
+      : `<div class="gd-placeholder">🎨</div>
+         <div class="gd-name">${gdEsc(gd.name)}</div>`;
+
+    // The full-size image is only used once a design is actually placed on the garment
+    item.addEventListener('click', () => addDesign(gd.image_url || null, gd.name, 0));
+    grid.appendChild(item);
+  });
+
+  gdShown += slice.length;
+  if (moreBtn) moreBtn.hidden = gdShown >= gdFiltered.length;
+}
+
+function applyDesignSearch() {
+  const term = (document.getElementById('gdSearch')?.value || '').trim().toLowerCase();
+  gdFiltered = term ? gdAll.filter(d => (d.name || '').toLowerCase().includes(term)) : gdAll.slice();
+  gdShown = 0;
+
+  const grid = document.getElementById('graphicGrid');
+  grid.innerHTML = '';
+  if (!gdFiltered.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;color:#888;font-size:0.8rem">No designs match "${gdEsc(term)}".</div>`;
+    document.getElementById('gdLoadMore').hidden = true;
+    return;
+  }
+  renderDesignPage();
+}
+
 async function loadGraphicDesigns() {
   const grid = document.getElementById('graphicGrid');
-  grid.innerHTML = Array(4).fill('<div class="skel skel-img"></div>').join('');
-  try {
-    const data = await fetchJson(`${API}/api/products?category=Graphic%20Design`);
-    grid.innerHTML = '';
+  grid.innerHTML = Array(6).fill('<div class="skel skel-img"></div>').join('');
+  document.getElementById('gdLoadMore').hidden = true;
 
-    if (!data.length) {
-      grid.innerHTML = `<div style="grid-column:1/-1;color:#aaa;font-size:0.8rem">No graphic designs available yet.</div>`;
+  try {
+    gdAll = await fetchDesignList();
+
+    if (!gdAll.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;color:#888;font-size:0.8rem">No graphic designs available yet.</div>`;
       return;
     }
 
@@ -623,22 +701,26 @@ async function loadGraphicDesigns() {
       `Click to upload<br/><span>PNG, JPG, SVG — max 5MB</span><br/>
        <span style="color:#7b5ea7;font-weight:600">Print fee: $${uploadFee.toFixed(2)}</span>`;
 
-    data.forEach(gd => {
-      const item = document.createElement('div');
-      item.className = 'gd-item';
-      item.innerHTML = gd.image_url
-        ? `<img src="${gd.image_url}" alt="${gd.name}"/>
-           <div class="gd-name">${gd.name}<br/>$${parseFloat(gd.price).toFixed(2)}</div>`
-        : `<div class="gd-placeholder">🎨</div>
-           <div class="gd-name">${gd.name}<br/>$${parseFloat(gd.price).toFixed(2)}</div>`;
+    applyDesignSearch();
 
-      item.addEventListener('click', () => addDesign(gd.image_url || null, gd.name, parseFloat(gd.price) || 0));
-      grid.appendChild(item);
-    });
+    // Scrolling the sentinel into view loads the next 24
+    if (gdObserver) gdObserver.disconnect();
+    if ('IntersectionObserver' in window) {
+      gdObserver = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && gdShown < gdFiltered.length) renderDesignPage();
+      }, { rootMargin: '200px' });
+      gdObserver.observe(document.getElementById('gdSentinel'));
+    }
   } catch (err) {
     showError(grid, friendlyError(err), loadGraphicDesigns);
   }
 }
+
+document.getElementById('gdSearch')?.addEventListener('input', () => {
+  clearTimeout(gdSearchTimer);
+  gdSearchTimer = setTimeout(() => { if (gdAll.length) applyDesignSearch(); }, 250);
+});
+document.getElementById('gdLoadMore')?.addEventListener('click', renderDesignPage);
 
 // ── ADD DESIGN ───────────────────────────────────────
 function addDesign(src, name, price = 0) {

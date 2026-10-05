@@ -739,3 +739,17 @@
 }
 .apply-all-btn:hover:not(:disabled) { background: #f0ecff; }
 .apply-all-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── DESIGN PICKER SEARCH ──────────────────────────── */
+.gd-search {
+  width: 100%;
+  margin-bottom: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border: 1.5px solid #d8d0c4;
+  border-radius: 8px;
+  background: #faf8f5;
+  font: inherit;
+  font-size: 0.8rem;
+}
+.gd-search:focus { outline: none; border-color: #7b5ea7; }
+#gdLoadMore[hidden] { display: none; }
