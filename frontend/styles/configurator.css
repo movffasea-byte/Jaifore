@@ -702,3 +702,40 @@
 
   .canvas-outer { max-width: 100%; }
 }
+/* ── PER-DESIGN PRINT SIZE ─────────────────────────── */
+.design-slot { cursor: pointer; }
+.design-slot.selected { border-color: #111; box-shadow: 0 0 0 2px #7b5ea7; }
+
+.design-slot .slot-size {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: #4a2d7a;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+}
+.design-slot .slot-size.unset { background: #b3261e; }
+
+.ps-hint { font-size: 0.72rem; color: #666; margin: 0 0 0.5rem; }
+
+.apply-all-btn {
+  margin-top: 0.5rem;
+  width: 100%;
+  background: transparent;
+  border: 1.5px solid #7b5ea7;
+  color: #4a2d7a;
+  border-radius: 8px;
+  padding: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.apply-all-btn:hover:not(:disabled) { background: #f0ecff; }
+.apply-all-btn:disabled { opacity: 0.45; cursor: not-allowed; }

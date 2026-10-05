@@ -18,15 +18,18 @@ function configSignature({ designs, gender, printSize }) {
   const list = designs || [];
   if (!list.length) return null; // plain product — no signature
 
+  // A design's print size is part of its identity: the same design in two
+  // sizes is two different cart lines. Legacy lines carried one line-level
+  // printSize instead, so a design without its own falls back to that.
+  const lineSize = printSize?.id ?? printSize?.size_label ?? '';
+
   const designKey = list
-    .map(d => d.name || d.src || '')
+    .map(d => `${d.name || d.src || ''}@${d.printSize?.id ?? d.printSize?.size_label ?? lineSize}`)
     .slice()
     .sort()
     .join('|');
 
-  const printSizeKey = printSize?.id ?? printSize?.size_label ?? '';
-
-  return `${designKey}::${gender || ''}::${printSizeKey}`;
+  return `${designKey}::${gender || ''}`;
 }
 
 // ── LINE VALIDATION ──────────────────────────────────
@@ -285,3 +288,4 @@ router.post('/merge', authenticate, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.configSignature = configSignature; // exported for test/signature.test.js

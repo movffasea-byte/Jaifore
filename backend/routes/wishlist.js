@@ -28,18 +28,21 @@ const { pool: db } = require('../database');
 // with no build step to share code with this backend router — see the
 // note left in the roadmap about this duplication.
 function configSignature({ customDesigns, gender, printSize }) {
-  const designs = customDesigns || [];
-  if (!designs.length) return null; // plain product — no signature
+  const list = customDesigns || [];
+  if (!list.length) return null; // plain product — no signature
 
-  const designKey = designs
-    .map(d => d.name || d.src || '')
+  // A design's print size is part of its identity: the same design in two
+  // sizes is two different cart lines. Legacy lines carried one line-level
+  // printSize instead, so a design without its own falls back to that.
+  const lineSize = printSize?.id ?? printSize?.size_label ?? '';
+
+  const designKey = list
+    .map(d => `${d.name || d.src || ''}@${d.printSize?.id ?? d.printSize?.size_label ?? lineSize}`)
     .slice()
     .sort()
     .join('|');
 
-  const printSizeKey = printSize?.id ?? printSize?.size_label ?? '';
-
-  return `${designKey}::${gender || ''}::${printSizeKey}`;
+  return `${designKey}::${gender || ''}`;
 }
 
 // ── GET /api/wishlist — list the current user's saved items ─────────
@@ -120,4 +123,5 @@ router.delete('/:id', authenticate, async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;
+module.exports.configSignature = configSignature; // exported for test/signature.test.js 

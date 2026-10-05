@@ -15,12 +15,25 @@ function formatCurrency(amount, currency = 'NGN') {
   return `${sym}${parseFloat(amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 }
 
+function escapeMailHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// "Lion — Medium" under an ordered garment, one line per design (each design has its own print size)
+function formatDesignLines(item) {
+  if (!Array.isArray(item.designs) || !item.designs.length) return '';
+  return item.designs.map(d => {
+    const size = (d.printSize || item.printSize)?.size_label;
+    return `<br><span style="color:#888;font-size:12px;">${escapeMailHtml(d.name || 'Design')}${size ? ` — ${escapeMailHtml(size)}` : ''}</span>`;
+  }).join('');
+}
+
 function formatItems(items) {
   if (!Array.isArray(items)) return '';
   return items.map(item => `
     <tr>
       <td style="padding:10px 0;border-bottom:1px solid #e8e2d6;font-size:14px;color:#333;">
-        ${item.name || 'Item'}${item.size ? ` <span style="color:#888;font-size:12px;">(${item.size})</span>` : ''}
+        ${item.name || 'Item'}${item.size ? ` <span style="color:#888;font-size:12px;">(${item.size})</span>` : ''}${formatDesignLines(item)}
       </td>
       <td style="padding:10px 0;border-bottom:1px solid #e8e2d6;font-size:14px;color:#333;text-align:center;">
         ${item.qty || 1}
@@ -199,7 +212,7 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
   const orderId  = String(order.id).padStart(5, '0');
 
   const itemSummary = Array.isArray(items)
-    ? items.map(i => `${i.qty || 1}× ${i.name || 'Item'}${i.size ? ` (${i.size})` : ''}`).join('<br>')
+    ? items.map(i => `${i.qty || 1}× ${i.name || 'Item'}${i.size ? ` (${i.size})` : ''}${formatDesignLines(i)}`).join('<br>')
     : '—';
 
   await resend.emails.send({

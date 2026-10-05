@@ -63,6 +63,17 @@ function parseItems(raw) {
 
 let ordersData = [];
 
+// "Lion — Medium" lines for the designs on an ordered garment (per-design print sizes)
+function orderDesignLines(item) {
+  if (!Array.isArray(item.designs) || !item.designs.length) return '';
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const lines = item.designs.map(d => {
+    const size = (d.printSize || item.printSize)?.size_label;
+    return `<div class="order-modal-item-meta">${esc(d.name || 'Design')}${size ? ` — ${esc(size)}` : ''}</div>`;
+  });
+  return lines.join('');
+}
+
 // ── LOAD ORDERS ──────────────────────────────────────
 async function loadOrders() {
   const list = document.getElementById('ordersList');
@@ -213,6 +224,7 @@ function openOrderDetail(orderId) {
             <div class="order-modal-item-meta">
               ${item.size ? `Size: ${item.size} · ` : ''}Qty: ${item.qty || 1}
             </div>
+            ${orderDesignLines(item)}
           </div>
           <div class="order-modal-item-price">${formatPrice((item.price || 0) * (item.qty || 1))}</div>
         </div>`).join('')

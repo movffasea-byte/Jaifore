@@ -67,15 +67,24 @@ function redirectToLogin() {
 }
 
 // ── FORMAT CONFIG META (size, gender, print size, designs) ───
+// "Medium" for a design's own print size, falling back to the old line-level size
+function designSizeLabel(design, item) {
+  const ps = design?.printSize || item?.printSize;
+  return ps?.size_label ?? ps?.id ?? null;
+}
+
 function formatConfigMeta(item) {
   const parts = [];
   if (item.size) parts.push(`Size: ${item.size}`);
   if (item.gender) parts.push(item.gender.charAt(0).toUpperCase() + item.gender.slice(1));
 
+  // Print sizes now live on each design (shown below the name and in the
+  // details modal); only legacy lines still carry one line-level size.
+  const perDesign = item.designs?.some(d => d?.printSize);
   const printSizeLabel = item.printSize?.size_label ?? item.printSize?.id ?? null;
-  if (printSizeLabel) parts.push(`Print: ${printSizeLabel}`);
+  if (printSizeLabel && !perDesign) parts.push(`Print: ${printSizeLabel}`);
 
-  if (item.designs?.length) parts.push(`${item.designs.length} design(s)`);
+  if (item.designs?.length) parts.push(`${item.designs.length} design${item.designs.length > 1 ? 's' : ''}`);
 
   return parts.join(' · ');
 }
@@ -111,7 +120,7 @@ function changeQty(index, delta) {
 let itemModalEl  = null;
 let itemModalSeq = 0; // guards against a slow description fetch landing in a newer modal
 
-function renderDesignList(designs) {
+function renderDesignList(designs, item) {
   if (!Array.isArray(designs) || !designs.length) return '';
 
   const rows = designs.map((d, i) => {
@@ -121,7 +130,9 @@ function renderDesignList(designs) {
         : `<li><span>${escapeHtml(d)}</span></li>`;
     }
 
-    const label = d?.name || d?.title || d?.label || d?.id || `Design ${i + 1}`;
+    const baseLabel = d?.name || d?.title || d?.label || d?.id || `Design ${i + 1}`;
+    const sizeLabel = designSizeLabel(d, item);
+    const label = sizeLabel ? `${baseLabel} — ${sizeLabel}` : baseLabel;
     const img   = d?.src || d?.image || d?.url || d?.preview || d?.snapshot;
     return `<li>${isImageSrc(img) ? `<img class="item-modal-thumb" src="${escapeHtml(img)}" alt="${escapeHtml(label)}"/>` : ''}<span>${escapeHtml(label)}</span></li>`;
   }).join('');
@@ -174,7 +185,7 @@ function openItemModal(index) {
   const detailRows = [
     item.size      ? ['Size', item.size]            : null,
     gender         ? ['Gender', gender]             : null,
-    printSizeLabel ? ['Print size', printSizeLabel] : null,
+    (printSizeLabel && !item.designs?.some(d => d?.printSize)) ? ['Print size', printSizeLabel] : null,
     ['Quantity', item.qty],
     ['Unit price', formatPrice(unit)],
     ['Line total', formatPrice(unit * item.qty)],
@@ -196,7 +207,7 @@ function openItemModal(index) {
       <div class="item-modal-label">Order details</div>
       ${detailRows}
     </div>
-    ${renderDesignList(item.designs)}
+    ${renderDesignList(item.designs, item)}
     ${item.notes ? `<div class="item-modal-block"><div class="item-modal-label">Your notes</div><p class="item-modal-desc">${escapeHtml(item.notes)}</p></div>` : ''}
   `;
 
