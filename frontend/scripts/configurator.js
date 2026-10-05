@@ -185,13 +185,10 @@ async function init() {
   }
 
   try {
-    const [productRes, pricingRes] = await Promise.all([
-      fetch(`${API}/api/products/${productId}`),
-      fetch(`${API}/api/print-pricing`)
+    [product, printPricing] = await Promise.all([
+      fetchJson(`${API}/api/products/${productId}`),
+      fetchJson(`${API}/api/print-pricing`)
     ]);
-
-    product      = await productRes.json();
-    printPricing = await pricingRes.json();
 
     // item 20 — recording the view here, right after the product is
     // confirmed to have actually loaded (not at the top of init(), before
@@ -273,7 +270,7 @@ async function init() {
 
   } catch (err) {
     console.error('Init error:', err);
-    document.getElementById('studioProductName').textContent = 'Product not found';
+    showError('studioProductName', friendlyError(err), () => window.location.reload());
   }
 
   updateTotal();
@@ -546,9 +543,9 @@ document.getElementById('canvasContainer').addEventListener('pointerdown', (e) =
 // ── LOAD GRAPHIC DESIGNS ─────────────────────────────
 async function loadGraphicDesigns() {
   const grid = document.getElementById('graphicGrid');
+  grid.innerHTML = Array(4).fill('<div class="skel skel-img"></div>').join('');
   try {
-    const res  = await fetch(`${API}/api/products?category=Graphic%20Design`);
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/products?category=Graphic%20Design`);
     grid.innerHTML = '';
 
     if (!data.length) {
@@ -572,8 +569,8 @@ async function loadGraphicDesigns() {
       item.addEventListener('click', () => addDesign(gd.image_url || null, gd.name, parseFloat(gd.price) || 0));
       grid.appendChild(item);
     });
-  } catch {
-    grid.innerHTML = `<div style="grid-column:1/-1;color:#aaa;font-size:0.8rem">Failed to load designs.</div>`;
+  } catch (err) {
+    showError(grid, friendlyError(err), loadGraphicDesigns);
   }
 }
 

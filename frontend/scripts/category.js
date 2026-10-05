@@ -343,6 +343,19 @@ updateHeroForCategory(currentCategory);
 configureToolbar(currentCategory);
 document.getElementById('categorySelect').value = currentCategory;
 
+// Categories whose last fetch failed — applyFilters() shows an error + Retry for these
+const failedCategories = new Set();
+
+async function retryCategory() {
+  const cat = currentCategory;
+  document.getElementById('cat-grid').innerHTML = Array(6).fill('<div class="skeleton-card"></div>').join('');
+  document.getElementById('catCount').innerHTML = '<span class="skel skel-line" style="width:90px;display:inline-block"></span>';
+  await fetchCategory(cat);
+  if (cat !== currentCategory) return; // the visitor switched category meanwhile
+  populatePrintSizeFilter();
+  applyFilters();
+}
+
 async function fetchCategory(cat) {
   // FIX: was `if (productsByCategory[cat])` — an empty array [] is truthy in JS,
   // so once a failed fetch cached [] for a category, every future call short-circuited
@@ -354,11 +367,11 @@ async function fetchCategory(cat) {
   const meta = CATEGORY_META[cat] || CATEGORY_META.apparel;
   try {
     const dbCat = encodeURIComponent(meta.dbCat);
-    const res = await fetch(`${API}/api/products?category=${dbCat}`);
-    if (!res.ok) throw new Error();
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/products?category=${dbCat}`);
     productsByCategory[cat] = Array.isArray(data) ? data : [];
+    failedCategories.delete(cat);
   } catch {
+    failedCategories.add(cat);
     // FIX: was `productsByCategory[cat] = [];` — that permanently poisoned the
     // cache on a transient failure. Now we just return [] for this one call
     // and leave the cache slot untouched, so the next call retries the real fetch.
@@ -369,6 +382,14 @@ async function fetchCategory(cat) {
 
 // ── FILTERING ────────────────────────────────────────
 function applyFilters() {
+  if (failedCategories.has(currentCategory) && productsByCategory[currentCategory] === undefined) {
+    showError('cat-grid', 'We couldn’t load these products right now.', retryCategory);
+    document.getElementById('catCount').textContent = '';
+    document.getElementById('catEmpty').classList.add('hidden');
+    document.getElementById('loadMoreWrap').classList.add('hidden');
+    return;
+  }
+
   const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
   const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
   const sort  = document.getElementById('sortSelect').value;
@@ -718,7 +739,7 @@ document.getElementById('categorySelect').addEventListener('change', async (e) =
       Array(6).fill('<div class="skeleton-card"></div>').join('');
     document.getElementById('loadMoreWrap').classList.add('hidden');
     document.getElementById('catEmpty').classList.add('hidden');
-    document.getElementById('catCount').textContent = 'Loading...';
+    document.getElementById('catCount').innerHTML = '<span class="skel skel-line" style="width:90px;display:inline-block"></span>';
   }
 
   await fetchCategory(newCat);
@@ -744,7 +765,6 @@ window.addEventListener('jaifore:currency-ready', () => {
 
 // ── START ────────────────────────────────────────────
 (async () => {
-  document.getElementById('catCount').textContent = 'Loading...';
   await Promise.all([
     fetchCategory(currentCategory),
     loadWishlistedIds(),

@@ -190,12 +190,19 @@ function authHeaders() {
 
 // ── OVERVIEW ─────────────────────────────────────────
 async function loadOverview() {
+  document.getElementById('overviewError').innerHTML = '';
+  showStatSkeleton(['statProducts', 'statOrders', 'statRevenue', 'statUsers']);
+
+  // Revenue panels load in parallel with the stat cards, each with its own skeleton
+  loadRevenueQuickTotals();
+  loadRevenueChart(currentRevenuePeriod);
+
   try {
     const [products, orders, transactions, users] = await Promise.all([
-      fetch(`${API}/api/products`,     { headers: authHeaders() }).then(r => r.json()),
-      fetch(`${API}/api/orders`,       { headers: authHeaders() }).then(r => r.json()),
-      fetch(`${API}/api/transactions`, { headers: authHeaders() }).then(r => r.json()),
-      fetch(`${API}/api/users`,        { headers: authHeaders() }).then(r => r.json()),
+      fetchJson(`${API}/api/products`,     { headers: authHeaders() }),
+      fetchJson(`${API}/api/orders`,       { headers: authHeaders() }),
+      fetchJson(`${API}/api/transactions`, { headers: authHeaders() }),
+      fetchJson(`${API}/api/users`,        { headers: authHeaders() }),
     ]);
 
     document.getElementById('statProducts').textContent = Array.isArray(products) ? products.length : '—';
@@ -208,10 +215,11 @@ async function loadOverview() {
     document.getElementById('statRevenue').textContent = formatMoney(revenue, 'USD');
 
     renderLowStockBanner(Array.isArray(products) ? products : []);
-  } catch (err) { console.error('Overview error:', err); }
-
-  loadRevenueQuickTotals();
-  loadRevenueChart(currentRevenuePeriod);
+  } catch (err) {
+    console.error('Overview error:', err);
+    ['statProducts', 'statOrders', 'statRevenue', 'statUsers'].forEach(id => { document.getElementById(id).textContent = '—'; });
+    showError('overviewError', friendlyError(err), loadOverview);
+  }
 }
 
 const LOW_STOCK_THRESHOLD = 5; // kept in sync with backend/routes/products.js
@@ -263,20 +271,31 @@ let revenueChart = null;
 let currentRevenuePeriod = 'daily';
 
 async function loadRevenueQuickTotals() {
+  showStatSkeleton(['revToday', 'revWeek', 'revMonth']);
   try {
-    const res  = await fetch(`${API}/api/orders/revenue/quick-totals`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/orders/revenue/quick-totals`, { headers: authHeaders() });
     document.getElementById('revToday').textContent = formatMoney(data.today, 'USD');
     document.getElementById('revWeek').textContent   = formatMoney(data.this_week, 'USD');
     document.getElementById('revMonth').textContent  = formatMoney(data.this_month, 'USD');
-  } catch (err) { console.error('Revenue quick totals error:', err); }
+  } catch (err) {
+    console.error('Revenue quick totals error:', err);
+    ['revToday', 'revWeek', 'revMonth'].forEach(id => { document.getElementById(id).textContent = '—'; });
+  }
 }
 
 async function loadRevenueChart(period = 'daily') {
   currentRevenuePeriod = period;
+  const canvas = document.getElementById('revenueChart');
+  const state  = document.getElementById('revenueChartState');
+  canvas.classList.add('hidden');
+  state.innerHTML = '<span class="skel skel-block chart"></span>';
+
   try {
-    const res  = await fetch(`${API}/api/orders/revenue/summary?period=${period}`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/orders/revenue/summary?period=${period}`, { headers: authHeaders() });
+    if (!Array.isArray(data.series)) throw new Error('Unexpected response from the server.');
+    if (typeof Chart === 'undefined') throw new Error('The chart library could not be loaded.');
+    state.innerHTML = '';
+    canvas.classList.remove('hidden');
 
     const labels = data.series.map(pt => formatRevenueLabel(pt.date, period));
     const values = data.series.map(pt => pt.revenue);
@@ -305,7 +324,10 @@ async function loadRevenueChart(period = 'daily') {
         }
       }
     });
-  } catch (err) { console.error('Revenue chart error:', err); }
+  } catch (err) {
+    console.error('Revenue chart error:', err);
+    showError(state, friendlyError(err), () => { loadRevenueQuickTotals(); loadRevenueChart(period); });
+  }
 }
 
 function formatRevenueLabel(dateStr, period) {
@@ -325,9 +347,9 @@ document.querySelectorAll('.period-btn').forEach(btn => {
 
 // ── PRODUCTS ─────────────────────────────────────────
 async function loadProducts() {
+  showTableSkeleton('productsBody', 5, 6);
   try {
-    const res  = await fetch(`${API}/api/products`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/products`, { headers: authHeaders() });
     const body = document.getElementById('productsBody');
     body.innerHTML = '';
 
@@ -368,7 +390,10 @@ async function loadProducts() {
         </td>`;
       body.appendChild(tr);
     });
-  } catch (err) { console.error('Products error:', err); }
+  } catch (err) {
+    console.error('Products error:', err);
+    showError('productsBody', friendlyError(err), loadProducts);
+  }
 }
 
 // p.print_sizes here is the LIVE expanded array {id, size_label, dimensions,
@@ -414,13 +439,12 @@ document.getElementById('pCategory').addEventListener('change', (e) => {
 // design that offers it automatically.
 async function loadPrintSizeCheckboxes() {
   const wrap = document.getElementById('printSizeCheckboxes');
-  wrap.innerHTML = '<p style="color:var(--ink-muted);font-size:0.82rem">Loading sizes...</p>';
+  wrap.innerHTML = skelLines(3);
 
   try {
-    const res = await fetch(`${API}/api/print-pricing`, { headers: authHeaders() });
-    availablePrintSizes = await res.json();
-  } catch {
-    wrap.innerHTML = '<p style="color:var(--danger);font-size:0.82rem">Failed to load print sizes.</p>';
+    availablePrintSizes = await fetchJson(`${API}/api/print-pricing`, { headers: authHeaders() });
+  } catch (err) {
+    showError(wrap, friendlyError(err), loadPrintSizeCheckboxes);
     return;
   }
 
@@ -566,9 +590,9 @@ async function deleteProduct(id) {
 
 // ── ORDERS ───────────────────────────────────────────
 async function loadOrders() {
+  showTableSkeleton('ordersBody', 6, 6);
   try {
-    const res  = await fetch(`${API}/api/orders`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/orders`, { headers: authHeaders() });
     const body = document.getElementById('ordersBody');
     body.innerHTML = '';
 
@@ -596,7 +620,10 @@ async function loadOrders() {
         </td>`;
       body.appendChild(tr);
     });
-  } catch (err) { console.error('Orders error:', err); }
+  } catch (err) {
+    console.error('Orders error:', err);
+    showError('ordersBody', friendlyError(err), loadOrders);
+  }
 }
 
 async function refundOrder(id, total, currency = 'USD') {
@@ -651,15 +678,20 @@ async function renderCalendar() {
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('calTitle').textContent = `${months[calMonth - 1]} ${calYear}`;
 
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = Array.from({ length: 35 }, () => '<span class="skel cal-skel"></span>').join('');
+
   let summary = [];
   try {
-    const res = await fetch(`${API}/api/transactions/summary/${calYear}/${calMonth}`, { headers: authHeaders() });
-    summary   = await res.json();
-  } catch {}
+    summary = await fetchJson(`${API}/api/transactions/summary/${calYear}/${calMonth}`, { headers: authHeaders() });
+  } catch (err) {
+    console.error('Calendar error:', err);
+    showError(grid, friendlyError(err), renderCalendar);
+    return;
+  }
 
   const datesWithData = new Set((Array.isArray(summary) ? summary : []).map(s => s.date?.slice(0, 10)));
 
-  const grid     = document.getElementById('calGrid');
   grid.innerHTML = '';
 
   ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
@@ -701,10 +733,13 @@ async function loadDayTransactions(dateStr, dayEl) {
   detail.classList.remove('hidden');
   document.getElementById('txDetailDate').textContent = new Date(dateStr + 'T00:00:00').toDateString();
 
+  document.getElementById('txOrders').innerHTML   = skelLines(3);
+  document.getElementById('txPayments').innerHTML = skelLines(3);
+
   try {
     const [orders, payments] = await Promise.all([
-      fetch(`${API}/api/orders/by-date/${dateStr}`,       { headers: authHeaders() }).then(r => r.json()),
-      fetch(`${API}/api/transactions/by-date/${dateStr}`, { headers: authHeaders() }).then(r => r.json()),
+      fetchJson(`${API}/api/orders/by-date/${dateStr}`,       { headers: authHeaders() }),
+      fetchJson(`${API}/api/transactions/by-date/${dateStr}`, { headers: authHeaders() }),
     ]);
 
     const ordersEl = document.getElementById('txOrders');
@@ -729,14 +764,18 @@ async function loadDayTransactions(dateStr, dayEl) {
         </div>`).join('');
     }
 
-  } catch (err) { console.error('Day transactions error:', err); }
+  } catch (err) {
+    console.error('Day transactions error:', err);
+    showError('txOrders', friendlyError(err), () => loadDayTransactions(dateStr, dayEl));
+    document.getElementById('txPayments').innerHTML = '';
+  }
 }
 
 // ── USERS ─────────────────────────────────────────────
 async function loadUsers() {
+  showTableSkeleton('usersBody', 5, 5);
   try {
-    const res  = await fetch(`${API}/api/users`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/users`, { headers: authHeaders() });
     const body = document.getElementById('usersBody');
     body.innerHTML = '';
 
@@ -752,14 +791,17 @@ async function loadUsers() {
         <td>${new Date(u.created_at).toLocaleDateString()}</td>`;
       body.appendChild(tr);
     });
-  } catch (err) { console.error('Users error:', err); }
+  } catch (err) {
+    console.error('Users error:', err);
+    showError('usersBody', friendlyError(err), loadUsers);
+  }
 }
 
 // ── PRINT PRICING ─────────────────────────────────────
 async function loadPrintPricing() {
+  showTableSkeleton('pricingBody', 4, 3);
   try {
-    const res  = await fetch(`${API}/api/print-pricing`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/print-pricing`, { headers: authHeaders() });
     const body = document.getElementById('pricingBody');
     body.innerHTML = '';
 
@@ -779,7 +821,10 @@ async function loadPrintPricing() {
         </td>`;
       body.appendChild(tr);
     });
-  } catch (err) { console.error('Print pricing error:', err); }
+  } catch (err) {
+    console.error('Print pricing error:', err);
+    showError('pricingBody', friendlyError(err), loadPrintPricing);
+  }
 }
 
 let editingQrId = null;
@@ -787,9 +832,9 @@ let qrStatsChart = null;
 
 // ── LOAD QR CODES LIST ───────────────────────────────
 async function loadQrCodes() {
+  showTableSkeleton('qrBody', 6, 4);
   try {
-    const res  = await fetch(`${API}/api/qr`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/qr`, { headers: authHeaders() });
     const body = document.getElementById('qrBody');
     body.innerHTML = '';
 
@@ -814,7 +859,10 @@ async function loadQrCodes() {
         </td>`;
       body.appendChild(tr);
     });
-  } catch (err) { console.error('QR codes error:', err); }
+  } catch (err) {
+    console.error('QR codes error:', err);
+    showError('qrBody', friendlyError(err), loadQrCodes);
+  }
 }
 
 // ── OPEN ADD FORM ─────────────────────────────────────
@@ -930,12 +978,17 @@ async function downloadQrImage(id, slug) {
 // ── STATS MODAL ────────────────────────────────────────
 async function openQrStats(id, title) {
   document.getElementById('qrStatsTitle').textContent = `Scan Stats — ${title}`;
-  document.getElementById('qrStatsTotal').textContent  = 'Loading...';
+  document.getElementById('qrStatsTotal').innerHTML    = '<span class="skel skel-line" style="width:35%"></span>';
+  document.getElementById('qrStatsChart').classList.add('hidden');
+  document.getElementById('qrStatsState').innerHTML    = '<span class="skel skel-block chart"></span>';
   document.getElementById('qrStatsModal').classList.remove('hidden');
 
   try {
-    const res  = await fetch(`${API}/api/qr/${id}/stats`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/qr/${id}/stats`, { headers: authHeaders() });
+    if (!Array.isArray(data.dailyScans)) throw new Error('Unexpected response from the server.');
+    if (typeof Chart === 'undefined') throw new Error('The chart library could not be loaded.');
+    document.getElementById('qrStatsState').innerHTML = '';
+    document.getElementById('qrStatsChart').classList.remove('hidden');
 
     document.getElementById('qrStatsTotal').textContent = `${data.totalScans} total scan${data.totalScans !== 1 ? 's' : ''}`;
 
@@ -966,7 +1019,8 @@ async function openQrStats(id, title) {
     });
   } catch (err) {
     console.error('QR stats error:', err);
-    document.getElementById('qrStatsTotal').textContent = 'Failed to load stats.';
+    document.getElementById('qrStatsTotal').textContent = '';
+    showError('qrStatsState', friendlyError(err), () => openQrStats(id, title));
   }
 }
 

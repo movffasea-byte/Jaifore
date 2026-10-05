@@ -274,16 +274,18 @@ async function loadRecentlyViewed() {
   const token = localStorage.getItem('jaifore_token');
   if (!token) { section.classList.add('hidden'); return; }
 
+  // Show the strip right away with placeholder cards; it hides again if there's nothing to show
+  section.classList.remove('hidden');
+  grid.innerHTML = Array(4).fill(
+    `<div class="skel-card recently-viewed-card" aria-hidden="true"><span class="skel skel-img" style="aspect-ratio:4/3"></span><span class="skel skel-line" style="width:70%;margin-top:0.7rem"></span><span class="skel skel-line short"></span></div>`).join('');
+
   try {
-    const res = await fetch(`${API}/api/recently-viewed`, {
+    const items = await fetchJson(`${API}/api/recently-viewed`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error();
-    const items = await res.json();
 
     if (!items.length) { section.classList.add('hidden'); return; }
 
-    section.classList.remove('hidden');
     grid.innerHTML = '';
     items.forEach((item, i) => {
       const category = dbCategoryToKey(item.category);
@@ -313,8 +315,8 @@ async function loadRecentlyViewed() {
     initRecentlyViewedSlider();
     // Measure after the section is visible and the cards are in place
     requestAnimationFrame(() => { grid.scrollLeft = 0; updateRecentlyViewedArrows(); });
-  } catch {
-    section.classList.add('hidden');
+  } catch (err) {
+    showError(grid, friendlyError(err), loadRecentlyViewed);
   }
 }
 
@@ -452,7 +454,7 @@ async function fetchProducts(category, limit = 3) {
   };
   try {
     const cat = encodeURIComponent(categoryMap[category] || category);
-    const res = await fetch(`${API}/api/products?category=${cat}&limit=${limit}`);
+    const res = await fetchWithTimeout(`${API}/api/products?category=${cat}&limit=${limit}`);
     if (!res.ok) throw new Error();
     const data = await res.json();
     return Array.isArray(data) ? data : data.products || [];
@@ -563,16 +565,18 @@ function renderCard(product, index, category) {
 
 async function loadCategory(category) {
   const grid     = document.getElementById(`${category}-grid`);
+  grid.innerHTML = Array(3).fill('<div class="skeleton-card"></div>').join('');
   const fetched  = await fetchProducts(category);
   const products = fetched || [];
   grid.innerHTML = '';
   loadedProducts[category] = products;
 
+  if (fetched === null) {
+    showError(grid, 'We couldn’t load these products right now.', () => loadCategory(category));
+    return;
+  }
   if (!products.length) {
-    const message = fetched === null
-      ? 'We couldn’t load these products right now. Please refresh in a moment.'
-      : 'No products found.';
-    grid.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;padding:2rem 0;grid-column:1/-1">${message}</div>`;
+    grid.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;padding:2rem 0;grid-column:1/-1">No products found.</div>`;
     return;
   }
   products.slice(0, 3).forEach((p, i) => grid.appendChild(renderCard(p, i, category)));

@@ -6,6 +6,7 @@
   <title>Jai'fore — Design Studio</title>
   <link rel="stylesheet" href="styles/services.css"/>
   <link rel="stylesheet" href="styles/configurator.css"/>
+  <link rel="stylesheet" href="styles/skeleton.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Karla:wght@300;400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
   <!-- SITE TOUR: shared styling, loaded on every page -->
   <link rel="stylesheet" href="styles/site-tour.css"/>
@@ -169,7 +170,7 @@
         </div>
       </div>
 
-      <div class="studio-product-name" id="studioProductName">Loading...</div>
+      <div class="studio-product-name" id="studioProductName"><span class="skel skel-line" style="width:160px"></span></div>
 
       <!-- id="canvasOuter" added so JS can target it for scroll on zoom -->
       <div class="canvas-outer" id="canvasOuter">
@@ -214,10 +215,10 @@
       <div class="panel-section">
         <div class="panel-label">Jaifore Graphic Designs</div>
         <div class="graphic-grid" id="graphicGrid">
-          <div class="gd-skeleton"></div>
-          <div class="gd-skeleton"></div>
-          <div class="gd-skeleton"></div>
-          <div class="gd-skeleton"></div>
+          <div class="skel skel-img"></div>
+          <div class="skel skel-img"></div>
+          <div class="skel skel-img"></div>
+          <div class="skel skel-img"></div>
         </div>
       </div>
 
@@ -289,6 +290,7 @@
 </footer>
 
 
+  <script src="scripts/skeleton.js"></script>
   <script src="scripts/currency.js"></script>
   <script src="scripts/header.js"></script>
   <script src="data/cart.js"></script>

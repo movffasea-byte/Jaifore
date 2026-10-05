@@ -426,19 +426,6 @@
 
 .gd-item:hover .gd-name { opacity: 1; }
 
-.gd-skeleton {
-  aspect-ratio: 1;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #f0ece6 25%, #e8e3da 50%, #f0ece6 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s infinite;
-}
-
-@keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
 /* ── UPLOAD ────────────────────────────────────────── */
 .upload-zone {
   display: flex;

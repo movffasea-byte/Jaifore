@@ -6,6 +6,7 @@
   <title>Jai'fore — Checkout</title>
   <link rel="stylesheet" href="styles/services.css"/>
   <link rel="stylesheet" href="styles/checkout.css"/>
+  <link rel="stylesheet" href="styles/skeleton.css"/>
   <link rel="stylesheet" href="styles/site-tour.css"/>
   <link rel="stylesheet" href="styles/contact-popup.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
@@ -39,7 +40,11 @@
       <!-- Cart Items -->
       <div class="checkout-section">
         <h2 class="checkout-section-title">Your Order</h2>
-        <div id="checkoutItems"></div>
+        <div id="checkoutItems">
+          <!-- Placeholder until checkout.js renders the cart (it waits on the currency lookup first) -->
+          <div class="skel-card skel-flex"><span class="skel skel-thumb"></span><div class="skel-grow"><span class="skel skel-line" style="width:60%"></span><span class="skel skel-line short"></span></div></div>
+          <div class="skel-card skel-flex"><span class="skel skel-thumb"></span><div class="skel-grow"><span class="skel skel-line" style="width:70%"></span><span class="skel skel-line short"></span></div></div>
+        </div>
       </div>
 
       <!-- Contact Details -->
@@ -133,6 +138,7 @@
 
   <!-- cart.js provides the shared cart (quantity changes and removals here
        sync to the server cart too). It must load before checkout.js. -->
+  <script src="scripts/skeleton.js"></script>
   <script src="scripts/currency.js"></script>
   <script src="scripts/header.js"></script>
   <script src="data/cart.js"></script>

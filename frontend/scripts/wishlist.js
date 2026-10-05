@@ -46,12 +46,11 @@ let wishlistData = [];
 // ── LOAD WISHLIST ─────────────────────────────────────
 async function loadWishlist() {
   const list = document.getElementById('wishlistList');
-  list.innerHTML = `<div class="dash-empty" style="grid-column:1/-1"><div class="dash-empty-icon">♡</div><p>Loading wishlist...</p></div>`;
+  list.innerHTML = Array(3).fill(
+    `<div class="skel-card" aria-hidden="true"><span class="skel skel-img"></span><span class="skel skel-line" style="width:70%;margin-top:0.8rem"></span><span class="skel skel-line short"></span></div>`).join('');
 
   try {
-    const res  = await fetch(`${API}/api/wishlist`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to load');
-    wishlistData = await res.json();
+    wishlistData = await fetchJson(`${API}/api/wishlist`, { headers: authHeaders() });
 
     if (!wishlistData.length) {
       list.innerHTML = `
@@ -90,8 +89,8 @@ async function loadWishlist() {
         </div>`;
       list.appendChild(card);
     });
-  } catch {
-    list.innerHTML = `<div class="dash-empty" style="grid-column:1/-1"><div class="dash-empty-icon">⚠</div><p>Failed to load wishlist.</p></div>`;
+  } catch (err) {
+    showError(list, friendlyError(err), loadWishlist);
   }
 }
 

@@ -66,11 +66,14 @@ let ordersData = [];
 // ── LOAD ORDERS ──────────────────────────────────────
 async function loadOrders() {
   const list = document.getElementById('ordersList');
-  list.innerHTML = `<div class="dash-empty"><div class="dash-empty-icon">◎</div><p>Loading orders...</p></div>`;
+  list.innerHTML = Array(3).fill(
+    `<div class="skel-card skel-flex" aria-hidden="true" style="margin-bottom:0.8rem">
+       <div class="skel-grow"><span class="skel skel-line" style="width:35%"></span><span class="skel skel-line" style="width:25%"></span><span class="skel skel-line short"></span></div>
+       <div style="width:90px"><span class="skel skel-line"></span><span class="skel skel-line"></span></div>
+     </div>`).join('');
 
   try {
-    const res  = await fetch(`${API}/api/orders/my`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/orders/my`, { headers: authHeaders() });
     ordersData = data;
 
     if (!data.length) {
@@ -101,8 +104,8 @@ async function loadOrders() {
         </div>`;
       list.appendChild(card);
     });
-  } catch {
-    list.innerHTML = `<div class="dash-empty"><div class="dash-empty-icon">⚠</div><p>Failed to load orders.</p></div>`;
+  } catch (err) {
+    showError(list, friendlyError(err), loadOrders);
   }
 }
 
@@ -174,15 +177,13 @@ function renderTimelineHTML(history) {
 
 async function loadOrderTimeline(orderId) {
   const el = document.getElementById('orderModalTimeline');
-  el.innerHTML = `<p class="timeline-loading">Loading order history...</p>`;
+  el.innerHTML = skelLines(3);
 
   try {
-    const res = await fetch(`${API}/api/orders/${orderId}/timeline`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to load timeline');
-    const history = await res.json();
+    const history = await fetchJson(`${API}/api/orders/${orderId}/timeline`, { headers: authHeaders() });
     el.innerHTML = renderTimelineHTML(history);
-  } catch {
-    el.innerHTML = `<p class="timeline-empty">Unable to load order history.</p>`;
+  } catch (err) {
+    showError(el, friendlyError(err), () => loadOrderTimeline(orderId));
   }
 }
 

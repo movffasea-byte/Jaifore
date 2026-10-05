@@ -892,6 +892,21 @@ body::before {
 .login-screen { background: transparent; }
 .stat-card { min-width: 0; }
 
+/* Skeleton kit colours for glass (see styles/skeleton.css) */
+:root {
+  --skel-base:   rgba(255, 255, 255, 0.10);
+  --skel-shine:  rgba(255, 255, 255, 0.16);
+  --skel-border: var(--glass-border);
+  --skel-radius: 12px;
+  --skel-ink:    var(--ink);
+  --skel-muted:  var(--ink-muted);
+  --skel-accent: var(--purple-lt);
+}
+.skel-row:hover td { background: transparent; }
+.load-error-retry:hover { background: var(--purple-hover); border-color: var(--purple-hover); }
+.cal-skel { aspect-ratio: 1; }
+.skel-block.chart { height: 220px; }
+
 /* Tables scroll horizontally, so: more opaque fill, no blur */
 .table-wrap {
   background: var(--glass-fill-solid);

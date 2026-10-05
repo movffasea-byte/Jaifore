@@ -6,6 +6,7 @@
   <title>Jai'fore — Category</title>
   <link rel="stylesheet" href="styles/services.css"/>
   <link rel="stylesheet" href="styles/category.css"/>
+  <link rel="stylesheet" href="styles/skeleton.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Karla:wght@300;400;500&display=swap" rel="stylesheet"/>
   <!-- SITE TOUR: shared styling, loaded on every page -->
   <link rel="stylesheet" href="styles/site-tour.css"/>
@@ -51,7 +52,7 @@
       <svg class="cat-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" class="cat-search-input" id="searchInput" placeholder="Search products..." aria-label="Search products"/>
     </div>
-    <div class="cat-count" id="catCount">Loading...</div>
+    <div class="cat-count" id="catCount"><span class="skel skel-line" style="width:90px;display:inline-block"></span></div>
     <div class="cat-filters">
       <select class="filter-select" id="categorySelect" aria-label="Filter by category">
         <option value="apparel">Apparel &amp; Merchandise</option>
@@ -120,6 +121,7 @@
   </div>
 </footer>
 
+  <script src="scripts/skeleton.js"></script>
   <script src="scripts/currency.js"></script>
   <script src="scripts/header.js"></script>
   <script src="data/cart.js"></script>

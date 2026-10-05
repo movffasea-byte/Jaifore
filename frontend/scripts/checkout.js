@@ -34,6 +34,7 @@ if (!isSignedIn) {
 let quote      = null;
 let quoteError = '';
 let quoteSeq   = 0; // ignores slow, out-of-date quote responses
+let quotePending = false; // true while the server quote is in flight (summary shows skeletons)
 
 // ── HELPERS ──────────────────────────────────────────
 function escapeHtml(str) {
@@ -46,17 +47,17 @@ function isImageSrc(value) {
   return typeof value === 'string' && /^(https?:|data:image)/i.test(value);
 }
 
-async function apiPost(path, body) {
+async function apiPost(path, body, timeoutMs = 30000) {
   try {
-    const res  = await fetch(`${API}${path}`, {
+    const res  = await fetchWithTimeout(`${API}${path}`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body:    JSON.stringify(body),
-    });
+    }, timeoutMs);
     const data = await res.json().catch(() => ({}));
     return { ok: res.ok, status: res.status, data };
-  } catch {
-    return { ok: false, status: 0, data: { error: 'Network error. Please check your connection and try again.' } };
+  } catch (err) {
+    return { ok: false, status: 0, data: { error: friendlyError(err) } };
   }
 }
 
@@ -327,8 +328,13 @@ function renderSummary() {
     // No server numbers yet (still loading, or the cart couldn't be priced)
     const localSubtotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0) * item.qty, 0);
     subtotalEl.textContent = formatPrice(localSubtotal);
-    shippingEl.textContent = '—';
-    totalEl.textContent    = formatPrice(localSubtotal);
+    if (quotePending) {
+      // The server's shipping and total are on their way
+      showStatSkeleton([shippingEl, totalEl]);
+    } else {
+      shippingEl.textContent = '—';
+      totalEl.textContent    = formatPrice(localSubtotal);
+    }
     hintEl.textContent     = '';
     noteEl.textContent     = '';
     return;
@@ -367,8 +373,12 @@ async function refreshQuote() {
     return;
   }
 
-  const res = await apiPost('/api/stripe/quote', { items: cart });
+  quotePending = true;
+  renderSummary();
+
+  const res = await apiPost('/api/stripe/quote', { items: cart }, FETCH_TIMEOUT_MS);
   if (seq !== quoteSeq) return; // a newer request has superseded this one
+  quotePending = false;
 
   if (res.status === 401 || res.status === 403) { redirectToLogin(); return; }
 
@@ -382,6 +392,17 @@ async function refreshQuote() {
 
   renderItems();
   showMsg(quoteError);
+
+  // A failed quote gets a Retry, so the summary never sits on "—" forever
+  if (quoteError) {
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'load-error-retry';
+    retry.textContent = 'Retry';
+    retry.style.marginLeft = '0.6rem';
+    retry.addEventListener('click', () => { retry.disabled = true; refreshQuote(); });
+    document.getElementById('checkoutMsg').appendChild(retry);
+  }
 }
 
 // ── PREFILL USER INFO ─────────────────────────────────

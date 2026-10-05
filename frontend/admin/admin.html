@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Jai'fore — Admin</title>
+  <link rel="stylesheet" href="../styles/skeleton.css"/>
   <link rel="stylesheet" href="admin.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet"/>
 </head>
@@ -115,6 +116,7 @@
 
       <!-- ── OVERVIEW TAB ── -->
       <section class="tab active" id="tab-overview">
+        <div id="overviewError"></div>
         <div class="stats-grid">
           <div class="stat-card" data-tab="products">
             <div class="stat-label">Total Products</div>
@@ -160,6 +162,7 @@
             </div>
           </div>
           <div class="revenue-chart-wrap">
+            <div id="revenueChartState"></div>
             <canvas id="revenueChart" height="90"></canvas>
           </div>
         </div>
@@ -370,6 +373,7 @@
   <div class="forgot-box" style="max-width:480px">
     <h3 id="qrStatsTitle">Scan Stats</h3>
     <p id="qrStatsTotal" style="color:var(--ink-muted);font-size:0.9rem;margin-bottom:1rem"></p>
+    <div id="qrStatsState"></div>
     <canvas id="qrStatsChart" height="180"></canvas>
     <div class="form-actions" style="margin-top:1rem">
       <button class="btn-ghost small" id="closeQrStatsBtn">Close</button>
@@ -378,6 +382,7 @@
 </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="../scripts/skeleton.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>
