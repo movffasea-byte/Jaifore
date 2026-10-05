@@ -49,7 +49,13 @@ app.use(cors({
       'https://jai-fore-website.vercel.app',
       'https://movffasea-byte.github.io',
       'http://127.0.0.1:5501',
-      'http://localhost:5501'
+      'http://localhost:5501',
+      // Capacitor mobile app (mobile/): Android serves the bundled site from
+      // https://localhost, iOS from capacitor://localhost; http://localhost covers
+      // older Android configs. Not live until the backend is redeployed.
+      'capacitor://localhost',
+      'http://localhost',
+      'https://localhost'
     ];
     if (!origin || allowed.includes(origin)) {
       callback(null, true);

@@ -1,0 +1,8 @@
+{
+  "appId": "com.jaifore.app",
+  "appName": "Jai'fore",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}

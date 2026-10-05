@@ -1,0 +1,50 @@
+# Builds a debug APK in the cloud so no Android Studio/SDK is needed locally.
+# Manual only: GitHub -> Actions -> "Android debug APK" -> Run workflow.
+# The APK is attached to the run as an artifact (Actions run page -> Artifacts).
+name: Android debug APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the web bundle
+        run: npm run build:web
+
+      # The android/ project is not committed — it is generated fresh here.
+      - name: Add and sync the Android platform
+        run: |
+          CAP_VERSION=$(node -p "require('@capacitor/core/package.json').version")
+          npm install --no-save @capacitor/android@$CAP_VERSION
+          npx cap add android
+          npx cap sync android
+
+      - name: Build debug APK
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jaifore-debug-apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
