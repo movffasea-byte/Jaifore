@@ -5,6 +5,13 @@
 
 const API = 'https://jai-fore-production.up.railway.app';
 
+// Chart.js glass-theme defaults — the CDN script can fail to load, so guard it
+if (typeof Chart !== 'undefined') {
+  Chart.defaults.color       = '#c9c5d8';
+  Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.10)';
+  Chart.defaults.font.family = "'DM Sans', sans-serif";
+}
+
 // ── STATE ───────────────────────────────────────────
 let token       = localStorage.getItem('jaifore_admin_token');
 let adminUser   = JSON.parse(localStorage.getItem('jaifore_admin_user') || 'null');
@@ -284,8 +291,8 @@ async function loadRevenueChart(period = 'daily') {
         datasets: [{
           label: 'Revenue (USD)',
           data: values,
-          backgroundColor: 'rgba(124, 58, 237, 0.6)',
-          borderColor: '#7c3aed',
+          backgroundColor: 'rgba(159, 103, 255, 0.55)',
+          borderColor: '#b794ff',
           borderWidth: 1,
           borderRadius: 4,
         }]
@@ -945,8 +952,8 @@ async function openQrStats(id, title) {
         datasets: [{
           label: 'Scans',
           data: values.length ? values : [0],
-          borderColor: '#7c3aed',
-          backgroundColor: 'rgba(124, 58, 237, 0.15)',
+          borderColor: '#b794ff',
+          backgroundColor: 'rgba(159, 103, 255, 0.2)',
           fill: true,
           tension: 0.3,
         }]
