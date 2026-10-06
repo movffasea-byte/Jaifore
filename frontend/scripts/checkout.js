@@ -198,7 +198,7 @@ function openItemModal(index) {
   content.innerHTML = `
     <div class="item-modal-head">
       <div class="item-modal-img">
-        ${isImageSrc(item.snapshot) ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}"/>` : '🛍'}
+        ${isImageSrc(item.snapshot) ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async"/>` : '🛍'}
       </div>
       <h3 class="item-modal-title" id="itemModalTitle">${escapeHtml(item.name)}</h3>
     </div>
@@ -290,7 +290,7 @@ function renderItems() {
     <div class="checkout-item checkout-item-clickable" data-index="${index}" tabindex="0" role="button" aria-label="View details for ${escapeHtml(item.name)}">
       <div class="checkout-item-img">
         ${isImageSrc(item.snapshot)
-          ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}"/>`
+          ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async"/>`
           : '🛍'}
       </div>
       <div class="checkout-item-info">

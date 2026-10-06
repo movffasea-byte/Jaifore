@@ -84,7 +84,7 @@ async function loadWishlist() {
       card.className = 'wl-card';
       card.innerHTML = `
         <div class="wl-card-img">
-          ${data.snapshot ? `<img src="${data.snapshot}" alt="${data.name}"/>` : '🛍'}
+          ${data.snapshot ? `<img src="${data.snapshot}" alt="${data.name}" loading="lazy" decoding="async"/>` : '🛍'}
           ${isConfigured ? '<span class="wl-card-badge">Your Design</span>' : ''}
         </div>
         <div class="wl-card-info">

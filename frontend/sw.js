@@ -12,7 +12,7 @@
    - Images / fonts: cache first.
    Bump CACHE_VERSION to drop old caches after a change here.
    ================================ */
-const CACHE_VERSION = 'jaifore-v2';
+const CACHE_VERSION = 'jaifore-v3';
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const ASSET_CACHE   = `${CACHE_VERSION}-assets`;
 

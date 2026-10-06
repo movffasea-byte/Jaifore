@@ -217,7 +217,7 @@ function openOrderDetail(orderId) {
     ? items.map(item => `
         <div class="order-modal-item">
           <div class="order-modal-item-img">
-            ${item.snapshot ? `<img src="${item.snapshot}" alt="${item.name}"/>` : '🛍'}
+            ${item.snapshot ? `<img src="${item.snapshot}" alt="${item.name}" loading="lazy" decoding="async"/>` : '🛍'}
           </div>
           <div class="order-modal-item-info">
             <div class="order-modal-item-name">${item.name || 'Item'}</div>
@@ -267,7 +267,7 @@ function loadDesigns() {
     card.className = 'design-card';
     card.innerHTML = `
       <div class="design-card-img">
-        ${design.preview ? `<img src="${design.preview}" alt="${design.name}"/>` : '🎨'}
+        ${design.preview ? `<img src="${design.preview}" alt="${design.name}" loading="lazy" decoding="async"/>` : '🎨'}
       </div>
       <div class="design-card-info">
         <div class="design-card-name">${design.name || 'Custom Design'}</div>

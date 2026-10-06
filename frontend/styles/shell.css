@@ -181,3 +181,7 @@ main:focus { outline: none; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Performance ───────────────────────────────────── */
+/* Skip layout/paint work for the footer until it nears the viewport */
+.footer { content-visibility: auto; contain-intrinsic-size: auto 320px; }
