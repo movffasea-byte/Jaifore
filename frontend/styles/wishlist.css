@@ -128,3 +128,8 @@ border-color: var(--purple);
   opacity: 0.5; 
   cursor: not-allowed; 
 }
+
+/* Buttons line up across cards of different heights */
+.wl-card-info { flex: 1; display: flex; flex-direction: column; }
+.wl-card-actions { margin-top: auto; padding-top: 0.6rem; }
+.wl-action-btn.primary { background: var(--ink); border-color: var(--ink); color: var(--bg); }

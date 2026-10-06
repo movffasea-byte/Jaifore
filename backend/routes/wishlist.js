@@ -48,13 +48,26 @@ function configSignature({ customDesigns, gender, printSize }) {
 // ── GET /api/wishlist — list the current user's saved items ─────────
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { rows } = await db.query(
-      `SELECT id, product_id, config_signature, snapshot_data, created_at
-       FROM wishlist_items
-       WHERE user_id = $1
-       ORDER BY created_at DESC`,
-      [req.user.id]
-    );
+    let rows;
+    try {
+      // print_size_id comes from sql/002_wishlist_print_size.sql
+      ({ rows } = await db.query(
+        `SELECT id, product_id, config_signature, print_size_id, snapshot_data, created_at
+         FROM wishlist_items
+         WHERE user_id = $1
+         ORDER BY created_at DESC`,
+        [req.user.id]
+      ));
+    } catch (err) {
+      if (err.code !== '42703') throw err; // column not added yet — fall back to the old shape
+      ({ rows } = await db.query(
+        `SELECT id, product_id, config_signature, snapshot_data, created_at
+         FROM wishlist_items
+         WHERE user_id = $1
+         ORDER BY created_at DESC`,
+        [req.user.id]
+      ));
+    }
     res.json(rows);
   } catch (err) {
     console.error('[wishlist] GET failed:', err.message);
@@ -67,11 +80,14 @@ router.get('/', authenticate, async (req, res) => {
 // plus the plain-product case from services.js/category.js.
 //
 // Plain product:   { productId, name, price, snapshot }
+// Graphic design:  { productId, name, price, snapshot, category: 'design', printSize }
+//                  — the print size is stored in its own column, so the same
+//                  design saved in two sizes is two wishlist rows.
 // Configured item: { productId, name, price, snapshot, gender, printSize,
 //                     customDesigns, selectedSize, notes }
 router.post('/', authenticate, async (req, res) => {
   const {
-    productId, name, price, snapshot,
+    productId, name, price, snapshot, category,
     gender, printSize, customDesigns, selectedSize, notes
   } = req.body;
 
@@ -81,24 +97,49 @@ router.post('/', authenticate, async (req, res) => {
 
   const signature = configSignature({ customDesigns, gender, printSize });
 
+  // A plain item (no custom designs) may carry a print size — graphics need one
+  const plainSizeId = Number(printSize?.id);
+  const printSizeId = !signature && Number.isInteger(plainSizeId) ? plainSizeId : null;
+
   const snapshotData = {
     name, price, snapshot: snapshot || null,
+    ...(category ? { category } : {}),
+    ...(printSizeId ? { printSize } : {}),
     ...(signature ? { gender, printSize, customDesigns, selectedSize, notes } : {})
   };
 
+  // The original insert (no print_size_id) — used for configured items and
+  // as the fallback until sql/002_wishlist_print_size.sql has been run.
+  // ON CONFLICT matches wishlist_unique_configured / wishlist_unique_plain.
+  const insertOriginal = () => db.query(
+    `INSERT INTO wishlist_items (user_id, product_id, config_signature, snapshot_data)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (user_id, product_id, config_signature)
+     DO UPDATE SET snapshot_data = EXCLUDED.snapshot_data
+     RETURNING id, product_id, config_signature, snapshot_data, created_at`,
+    [req.user.id, productId, signature, JSON.stringify(snapshotData)]
+  );
+
   try {
-    // ON CONFLICT matches the two unique constraints from the migration:
-    // wishlist_unique_configured (signature present) and wishlist_unique_plain
-    // (signature NULL, via the partial index). Postgres picks the right one
-    // automatically based on whether config_signature is NULL here.
-    const { rows } = await db.query(
-      `INSERT INTO wishlist_items (user_id, product_id, config_signature, snapshot_data)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (user_id, product_id, config_signature)
-       DO UPDATE SET snapshot_data = EXCLUDED.snapshot_data
-       RETURNING id, product_id, config_signature, snapshot_data, created_at`,
-      [req.user.id, productId, signature, JSON.stringify(snapshotData)]
-    );
+    let rows;
+    if (signature) {
+      ({ rows } = await insertOriginal());
+    } else {
+      try {
+        ({ rows } = await db.query(
+          `INSERT INTO wishlist_items (user_id, product_id, config_signature, print_size_id, snapshot_data)
+           VALUES ($1, $2, NULL, $3, $4)
+           ON CONFLICT (user_id, product_id, (COALESCE(print_size_id, 0))) WHERE config_signature IS NULL
+           DO UPDATE SET snapshot_data = EXCLUDED.snapshot_data
+           RETURNING id, product_id, config_signature, print_size_id, snapshot_data, created_at`,
+          [req.user.id, productId, printSizeId, JSON.stringify(snapshotData)]
+        ));
+      } catch (err) {
+        // 42703 = column missing, 42P10 = no matching unique index: migration not applied yet
+        if (err.code !== '42703' && err.code !== '42P10') throw err;
+        ({ rows } = await insertOriginal());
+      }
+    }
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('[wishlist] POST failed:', err.message);

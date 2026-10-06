@@ -404,11 +404,11 @@ body.item-modal-open { overflow: hidden; }
 
 .place-order-btn {
   width: 100%;
-  background: #111;
-  color: #fff;
+  background: var(--ink);
+  color: var(--bg);
   border: none;
   border-radius: 10px;
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 0.95rem;
   font-weight: 700;
   padding: 1rem;
@@ -491,3 +491,19 @@ body.item-modal-open { overflow: hidden; }
 
 .currency-note:empty,
 .summary-hint:empty { display: none; }
+
+/* Shared pieces this page was missing: hidden state (the button spinner was always showing) and the back link */
+.hidden { display: none !important; }
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-size: var(--text-sm);
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color var(--speed-fast);
+}
+.back-link:hover { color: var(--ink); }
+
+.checkout-msg .load-error-retry { margin-left: 0.6rem; padding: 0.3rem 0.9rem; }

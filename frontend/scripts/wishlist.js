@@ -43,6 +43,17 @@ function formatPrice(amount) {
 
 let wishlistData = [];
 
+// A saved graphic design (or an old row saved with no price) can only be bought
+// once a print size is chosen. Returns the saved size, or null when none yet.
+function savedPrintSize(item) {
+  return item.snapshot_data?.printSize || null;
+}
+function needsPrintSize(item) {
+  if (item.config_signature) return false;
+  const data = item.snapshot_data || {};
+  return data.category === 'design' || Boolean(item.print_size_id) || !(Number(data.price) > 0);
+}
+
 // ── LOAD WISHLIST ─────────────────────────────────────
 async function loadWishlist() {
   const list = document.getElementById('wishlistList');
@@ -66,6 +77,8 @@ async function loadWishlist() {
     wishlistData.forEach(item => {
       const data         = item.snapshot_data;
       const isConfigured = Boolean(item.config_signature);
+      const plainSize    = !isConfigured ? savedPrintSize(item) : null;
+      const chooseSize   = needsPrintSize(item) && !plainSize;
 
       const card = document.createElement('div');
       card.className = 'wl-card';
@@ -78,11 +91,11 @@ async function loadWishlist() {
           <div class="wl-card-name">${data.name}</div>
           ${isConfigured
             ? `<div class="wl-card-meta">${data.selectedSize ? `Size: ${data.selectedSize} · ` : ''}${data.customDesigns?.length || 0} design${data.customDesigns?.length !== 1 ? 's' : ''}</div>`
-            : ''}
-          <div class="wl-card-price">${formatPrice(data.price)}</div>
+            : plainSize ? `<div class="wl-card-meta">Print size: ${plainSize.size_label}</div>` : ''}
+          <div class="wl-card-price">${chooseSize ? 'Choose a size' : formatPrice(data.price)}</div>
           <div class="wl-card-actions">
             <button class="wl-action-btn primary" data-action="move" data-id="${item.id}">
-              ${isConfigured ? 'Continue Design' : 'Move to Cart'}
+              ${isConfigured ? 'Continue Design' : chooseSize ? 'Choose a size' : 'Move to Cart'}
             </button>
             <button class="wl-action-btn" data-action="remove" data-id="${item.id}">Remove</button>
           </div>
@@ -113,6 +126,29 @@ function moveToCart(id) {
   }
 
   const data = item.snapshot_data;
+
+  // Graphic designs: needs a print size. Saved size -> straight to cart as a
+  // design line; no size yet -> open the design's modal to pick one.
+  if (needsPrintSize(item)) {
+    const size = savedPrintSize(item);
+    if (!size) {
+      window.location.href = `category.html?cat=design&product=${item.product_id}`;
+      return;
+    }
+    const basePrice = Math.max(0, Number(data.price) - parseFloat(size.price));
+    const added = addToCart({
+      id:            item.product_id,
+      name:          data.name,
+      price:         Number(data.price),
+      image_url:     data.snapshot,
+      snapshot:      data.snapshot,
+      customDesigns: [{ name: data.name, src: data.snapshot || '', price: basePrice }],
+      printSize:     size
+    }, null, 'design', 1);
+    if (added) goToCheckout();
+    return;
+  }
+
   addToCart(
     { id: item.product_id, name: data.name, price: data.price, snapshot: data.snapshot },
     null,

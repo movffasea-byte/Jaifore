@@ -210,13 +210,19 @@ document.addEventListener('click', async (e) => {
   const alreadySaved = wishlistedProductIds.has(String(productId));
   btn.disabled = true;
 
+  // Graphics are bought by print size, so the heart in the modal saves the size
+  // picked there (a card heart has no size yet — the wishlist asks for one later).
+  const isDesignItem = currentCategory === 'design';
+  const sizeToSave   = (isDesignItem && btn.classList.contains('modal-wishlist-heart-btn')) ? selectedPrintSize : null;
+
   try {
     if (alreadySaved) {
       const listRes = await fetch(`${API}/api/wishlist`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const items = await listRes.json();
-      const match = items.find(i => !i.config_signature && String(i.product_id) === String(productId));
+      const plain = items.filter(i => !i.config_signature && String(i.product_id) === String(productId));
+      const match = (sizeToSave && plain.find(i => String(i.print_size_id) === String(sizeToSave.id))) || plain[0];
       if (match) {
         await fetch(`${API}/api/wishlist/${match.id}`, {
           method: 'DELETE',
@@ -231,8 +237,9 @@ document.addEventListener('click', async (e) => {
         body: JSON.stringify({
           productId: product.id,
           name: product.name,
-          price: product.price ?? 0,
-          snapshot: product.image_url || null
+          price: sizeToSave ? getDesignBasePrice(product) + parseFloat(sizeToSave.price) : (product.price ?? 0),
+          snapshot: product.image_url || null,
+          ...(isDesignItem ? { category: 'design', printSize: sizeToSave } : {})
         })
       });
       wishlistedProductIds.add(String(productId));
@@ -686,4 +693,11 @@ window.addEventListener('jaifore:currency-ready', () => {
   ]);
   populatePrintSizeFilter();
   applyFilters();
+
+  // ?product=<id> opens that item's modal (e.g. from the wishlist's "Choose a size")
+  const openId = new URLSearchParams(location.search).get('product');
+  if (openId) {
+    const target = (productsByCategory[currentCategory] || []).find(p => String(p.id) === String(openId));
+    if (target) openModal(target);
+  }
 })();

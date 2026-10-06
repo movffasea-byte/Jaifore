@@ -35,7 +35,13 @@ async function fetchJson(url, opts = {}, ms = FETCH_TIMEOUT_MS) {
 // Turns a thrown error into a sentence a person can act on
 function friendlyError(err) {
   if (err && err.message === 'timeout') return 'The server took too long to respond.';
-  if (err instanceof TypeError)         return "Can't reach the server. Check your connection.";
+  // Browsers report a failed network request as a TypeError ("Failed to fetch",
+  // "NetworkError…", "Load failed"). Any other TypeError is a bug in our code,
+  // not a connection problem — don't blame the network for it.
+  if (err instanceof TypeError && /fetch|network|load failed/i.test(err.message)) {
+    return "Can't reach the server. Check your connection.";
+  }
+  if (err instanceof TypeError) { console.error(err); return 'Something went wrong showing this. Please try again.'; }
   return (err && err.message) || 'Something went wrong.';
 }
 

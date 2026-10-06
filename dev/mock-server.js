@@ -290,7 +290,21 @@ function api(req, url, body, send) {
 
   // wishlist
   if (p === '/wishlist' && m === 'GET')  { if (!need()) return; return send(200, wishlist); }
-  if (p === '/wishlist' && m === 'POST') { if (!need()) return; const w = { id: nextId++, created_at: new Date().toISOString(), ...body }; wishlist.unshift(w); return send(201, w); }
+  if (p === '/wishlist' && m === 'POST') {
+    if (!need()) return;
+    // Same row shape as the real API: print size in its own column, details in snapshot_data
+    const configured = Array.isArray(body.customDesigns) && body.customDesigns.length > 0;
+    const w = {
+      id: nextId++, product_id: body.productId, config_signature: configured ? 'mock-sig' : null,
+      print_size_id: !configured && body.printSize ? body.printSize.id : null,
+      created_at: new Date().toISOString(),
+      snapshot_data: { name: body.name, price: body.price, snapshot: body.snapshot || null,
+        ...(body.category ? { category: body.category } : {}),
+        ...(body.printSize ? { printSize: body.printSize } : {}),
+        ...(configured ? { gender: body.gender, customDesigns: body.customDesigns, selectedSize: body.selectedSize, notes: body.notes } : {}) },
+    };
+    wishlist.unshift(w); return send(201, w);
+  }
   if ((r = p.match(/^\/wishlist\/(\d+)$/))) { wishlist = wishlist.filter(w => w.id !== +r[1]); return send(200, { success: true }); }
 
   // recently viewed
