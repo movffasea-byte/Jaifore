@@ -17,7 +17,7 @@
 
 .wl-card {
   background: #fff;
-  border: 1px solid #e8e3da;
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   overflow: hidden;
   transition: border-color 0.2s, transform 0.15s;
@@ -25,12 +25,12 @@
   flex-direction: column;
 }
 
-.wl-card:hover { border-color: #7b5ea7; transform: translateY(-2px); }
+.wl-card:hover { border-color: var(--purple); transform: translateY(-2px); }
 
 .wl-card-img {
   width: 100%;
   aspect-ratio: 1;
-  background: #f5f0e8;
+  background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -70,7 +70,7 @@
 }
 
 .wl-card-name {
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font-display);
   font-size: 0.9rem;
   font-weight: 700;
   color: #111;
@@ -78,14 +78,14 @@
 
 .wl-card-meta {
   font-size: 0.72rem;
-  color: #888;
+  color: var(--muted);
 }
 
 .wl-card-price {
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font-display);
   font-size: 0.95rem;
   font-weight: 700;
-  color: #7b5ea7;
+  color: var(--purple);
   margin-top: 0.2rem;
 }
 
@@ -103,7 +103,7 @@
   padding: 0.5rem 0;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s, color 0.2s;
-  border: 1px solid #e8e3da;
+  border: 1px solid var(--border-soft);
   background: transparent;
   color: #555;
 }
@@ -115,13 +115,13 @@
 }
 
 .wl-action-btn.primary:hover { 
-background: #7b5ea7; 
-border-color: #7b5ea7; 
+background: var(--purple); 
+border-color: var(--purple); 
 }
 
 .wl-action-btn:not(.primary):hover { 
-  border-color: #c0392b; 
-  color: #c0392b; 
+  border-color: var(--danger); 
+  color: var(--danger); 
 }
 
 .wl-card-loading-actions .wl-action-btn { 

@@ -1,0 +1,181 @@
+/* ================================
+   JAIFORE DESIGN TOKENS
+   frontend/styles/tokens.css
+
+   The one place to change the brand. Load this FIRST on every page.
+   Colours come from the logo (logo/rooted2.jpg): anchor purple, glow teal,
+   anchor blue, rope sage. Teal and sage are decoration only — they do not
+   pass contrast as text on white.
+
+   Dark mode: the full dark set is defined below under [data-theme="dark"].
+   It is only switched on by that attribute (the toggle ships in Phase 6);
+   the prefers-color-scheme block applies only to data-theme="auto" so pages
+   don't half-flip to dark before every stylesheet uses these tokens.
+   ================================ */
+:root {
+  /* ── Brand ─────────────────────────────────────── */
+  --purple:        #6b4ea8;   /* primary: buttons, links, accents */
+  --purple-dark:   #4b3585;   /* pressed / strong accents / text on tint */
+  --purple-hover:  #573d91;
+  --purple-soft:   #a58cd6;   /* links on dark backgrounds */
+  --purple-tint:   #efeafb;   /* selected / highlighted backgrounds */
+  --purple-light:  var(--purple-hover);  /* legacy name used by services.css */
+  --purple-dim:    rgba(107, 78, 168, 0.08);
+  --purple-glow:   rgba(107, 78, 168, 0.20);
+  --teal:          #3fb8b4;
+  --blue:          #3b6fd0;
+  --sage:          #8dbba0;
+  --on-purple:     #ffffff;   /* text on --purple */
+
+  /* ── Surfaces ──────────────────────────────────── */
+  --bg:            #ffffff;
+  --bg-soft:       #f6f4fb;
+  --bg-card:       #f6f4fb;
+  --bg-panel:      #faf9fd;
+  --bg-tint:       #faf9ff;
+  --surface:       #ffffff;   /* cards, modals, inputs */
+  --nav-bg:        rgba(255, 255, 255, 0.94);
+  --footer-bg:     #17142b;   /* deep indigo, from the logo's dark tones */
+  --footer-ink:    #cfcce0;
+  --footer-muted:  #8c88a0;
+
+  /* ── Text ──────────────────────────────────────── */
+  --ink:           #14121c;
+  --ink-soft:      #26233a;
+  --ink-2:         #4a4659;
+  --muted:         #6b6779;   /* >= 4.5:1 on white */
+  --muted2:        #9a96a8;   /* placeholders, disabled — not for body text */
+  --muted-2:       var(--muted2);
+
+  /* ── Lines ─────────────────────────────────────── */
+  --border:        #ddd8ea;
+  --border-soft:   #eceaf3;
+  --border-hover:  var(--purple-dark);
+
+  /* ── Status ────────────────────────────────────── */
+  --error:         #b03030;
+  --danger:        #c0392b;
+  --success:       #2a7a4a;
+  --warning:       #b7791f;
+
+  /* ── Fonts (two families; change here) ─────────── */
+  --font-display:  'Playfair Display', Georgia, serif;
+  --font-body:     'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* ── Type scale ────────────────────────────────── */
+  --text-xs:   0.72rem;
+  --text-sm:   0.85rem;
+  --text-base: 1rem;
+  --text-lg:   1.25rem;
+  --text-xl:   1.75rem;
+  --text-2xl:  2.5rem;
+  --text-hero: clamp(2.4rem, 6vw, 4.2rem);
+
+  /* ── Spacing scale ─────────────────────────────── */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+
+  /* ── Shape ─────────────────────────────────────── */
+  --radius:       2px;        /* editorial default: near-square */
+  --radius-sm:    6px;
+  --radius-md:    10px;
+  --radius-lg:    16px;
+  --radius-pill:  20px;       /* "Hi, name" pill, sign-in, CTAs */
+
+  /* ── Shadows ───────────────────────────────────── */
+  --shadow-sm:    0 1px 3px rgba(20, 18, 28, 0.08);
+  --shadow-md:    0 4px 18px rgba(20, 18, 28, 0.10);
+  --shadow-lg:    0 12px 40px rgba(20, 18, 28, 0.18);
+  --shadow-nav:   0 4px 24px rgba(107, 78, 168, 0.12);
+  --shadow-hard:  4px 4px 0 var(--ink);   /* editorial card hover */
+
+  /* ── Layers ────────────────────────────────────── */
+  --z-nav:     100;
+  --z-sticky:  150;
+  --z-drawer:  200;
+  --z-modal:   1000;
+  --z-toast:   1100;
+  --z-tour:    9000;
+
+  /* ── Motion ────────────────────────────────────── */
+  --speed-fast: 0.15s;
+  --speed-med:  0.3s;
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Site tour (styles/site-tour.css) ──────────── */
+  --tour-accent:      var(--purple);
+  --tour-accent-ink:  #fff;
+  --tour-overlay:     rgba(20, 18, 28, 0.72);
+  --tour-card-bg:     var(--surface);
+  --tour-card-ink:    var(--ink);
+}
+
+/* ── Dark theme (switched on by data-theme="dark") ── */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --purple:        #8a6fcb;
+  --purple-dark:   #b9a3e3;
+  --purple-hover:  #9c84d8;
+  --purple-soft:   #b9a3e3;
+  --purple-tint:   #241f3d;
+  --purple-dim:    rgba(138, 111, 203, 0.14);
+  --purple-glow:   rgba(138, 111, 203, 0.30);
+  --bg:            #0f0d1a;
+  --bg-soft:       #171428;
+  --bg-card:       #171428;
+  --bg-panel:      #1b1830;
+  --bg-tint:       #1b1830;
+  --surface:       #171428;
+  --nav-bg:        rgba(15, 13, 26, 0.94);
+  --footer-bg:     #0a0914;
+  --ink:           #edebf5;
+  --ink-soft:      #d8d5e6;
+  --ink-2:         #bdb9cf;
+  --muted:         #a29eb5;
+  --muted2:        #6d6980;
+  --border:        #2e2a45;
+  --border-soft:   #232038;
+  --shadow-hard:   4px 4px 0 var(--purple);
+  --tour-overlay:  rgba(0, 0, 0, 0.78);
+}
+
+/* Follow the OS only when a page opts in with data-theme="auto" */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    color-scheme: dark;
+    --purple:        #8a6fcb;
+    --purple-dark:   #b9a3e3;
+    --purple-hover:  #9c84d8;
+    --purple-soft:   #b9a3e3;
+    --purple-tint:   #241f3d;
+    --purple-dim:    rgba(138, 111, 203, 0.14);
+    --purple-glow:   rgba(138, 111, 203, 0.30);
+    --bg:            #0f0d1a;
+    --bg-soft:       #171428;
+    --bg-card:       #171428;
+    --bg-panel:      #1b1830;
+    --bg-tint:       #1b1830;
+    --surface:       #171428;
+    --nav-bg:        rgba(15, 13, 26, 0.94);
+    --footer-bg:     #0a0914;
+    --ink:           #edebf5;
+    --ink-soft:      #d8d5e6;
+    --ink-2:         #bdb9cf;
+    --muted:         #a29eb5;
+    --muted2:        #6d6980;
+    --border:        #2e2a45;
+    --border-soft:   #232038;
+    --shadow-hard:   4px 4px 0 var(--purple);
+    --tour-overlay:  rgba(0, 0, 0, 0.78);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --speed-fast: 0s; --speed-med: 0s; --transition: 0s; }
+}

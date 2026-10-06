@@ -24,7 +24,7 @@
       transform: translateY(0);
     }
     .gender-modal-title {
-      font-family: 'Syne', sans-serif;
+      font-family: var(--font-display);
       font-size: 1.35rem;
       font-weight: 700;
       color: #1a1a2e;
@@ -32,7 +32,7 @@
     }
     .gender-modal-sub {
       font-size: 0.85rem;
-      color: #888;
+      color: var(--muted);
       margin-bottom: 2rem;
     }
     .gender-modal-options {
@@ -51,11 +51,11 @@
       background: #fafafa;
       cursor: pointer;
       transition: all 0.2s ease;
-      font-family: 'Karla', sans-serif;
+      font-family: var(--font-body);
     }
     .gender-opt:hover {
-      border-color: #7b5ea7;
-      background: #f3eeff;
+      border-color: var(--purple);
+      background: var(--purple-tint);
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(123,94,167,0.15);
     }
@@ -75,7 +75,7 @@
       border: none;
       border-radius: 8px;
       background: transparent;
-      font-family: 'Karla', sans-serif;
+      font-family: var(--font-body);
       font-size: 0.8rem;
       font-weight: 600;
       color: #666;
@@ -83,7 +83,7 @@
       transition: all 0.18s ease;
     }
     .gender-btn.active {
-      background: #7b5ea7;
+      background: var(--purple);
       color: #fff;
       box-shadow: 0 2px 8px rgba(123,94,167,0.3);
     }

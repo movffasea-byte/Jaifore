@@ -8,13 +8,13 @@
    background-position animation, so it stays cheap on slow machines.
    ================================ */
 :root {
-  --skel-base:   #e4ddd1;
+  --skel-base:   #e9e5f2;
   --skel-shine:  rgba(255, 255, 255, 0.55);
-  --skel-border: #d8d0c4;
+  --skel-border: var(--border, #ddd8ea);
   --skel-radius: 8px;
-  --skel-ink:    #111111;
-  --skel-muted:  #666666;
-  --skel-accent: #4a2d7a;
+  --skel-ink:    var(--ink, #14121c);
+  --skel-muted:  var(--muted, #6b6779);
+  --skel-accent: var(--purple-dark, #4b3585);
 }
 
 .skel {

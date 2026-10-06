@@ -1,0 +1,143 @@
+/* ================================
+   JAIFORE SHELL — shared nav + footer
+   frontend/styles/shell.css
+
+   One definition of the top bar (incl. the "Hi, name" pill) and the footer,
+   used by every page. Load right after tokens.css. Page stylesheets must not
+   redefine these. Colours come from tokens.css.
+   ================================ */
+
+/* ── NAV BAR ───────────────────────────────────────── */
+/* .nav is the markup on inner pages; .navbar is the Home page's wrapper.
+   Same look either way. */
+.nav,
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: var(--z-nav);
+  background: var(--nav-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 2px solid var(--ink);
+  transition: box-shadow var(--speed-med) ease;
+}
+.nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 3rem;
+}
+.navbar .nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 1200px; margin: 0 auto;
+  padding: 1rem 3rem;
+}
+.navbar.scrolled { box-shadow: var(--shadow-nav); }
+
+.nav-logo img {
+  height: 40px; width: 40px;
+  object-fit: cover; border-radius: 50%;
+  border: 1px solid var(--border);
+  background: #fff; /* the logo file has a white background; keeps the badge clean in dark mode */
+}
+
+.nav-links { display: flex; align-items: center; gap: 2rem; }
+.nav-links > a,
+.nav-link {
+  color: var(--muted); text-decoration: none;
+  font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase;
+  transition: color var(--transition);
+}
+.nav-links > a:hover, .nav-links > a.active, .nav-link:hover { color: var(--ink); }
+
+.nav-cta {
+  background: var(--purple) !important;
+  color: var(--on-purple) !important;
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.72rem !important;
+}
+.nav-cta:hover { background: var(--purple-hover) !important; }
+
+/* Right-hand cluster: account pill + cart */
+.nav-right { display: flex; align-items: center; gap: 0.8rem; }
+.nav-user  { display: flex; align-items: center; gap: 0.6rem; }
+
+/* "Hi, name" pill — 20px radius everywhere */
+.nav-profile {
+  display: flex; align-items: center; gap: 0.5rem;
+  text-decoration: none; color: var(--ink);
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  transition: border-color var(--transition), background var(--transition);
+}
+.nav-profile:hover { border-color: var(--purple); background: var(--bg-tint); }
+
+.nav-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--purple); color: var(--on-purple);
+  font-family: var(--font-display); font-size: 0.7rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.nav-username { font-size: var(--text-xs); letter-spacing: 0.05em; color: var(--ink); }
+
+.nav-signin-btn,
+.nav-pill {
+  background: var(--purple); color: var(--on-purple);
+  border: none; border-radius: var(--radius-pill);
+  font-family: var(--font-body); font-size: var(--text-xs); font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 0.45rem 1.1rem; text-decoration: none; cursor: pointer;
+  transition: background var(--transition), transform var(--speed-fast);
+}
+.nav-signin-btn:hover,
+.nav-pill:hover { background: var(--purple-hover); transform: translateY(-1px); }
+
+.nav-logout-btn {
+  background: transparent; border: 1px solid var(--border); border-radius: var(--radius-pill);
+  font-family: var(--font-body); font-size: var(--text-xs); color: var(--muted);
+  padding: 0.3rem 0.8rem; cursor: pointer;
+  transition: border-color var(--speed-fast), color var(--speed-fast);
+}
+.nav-logout-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+@media (max-width: 768px) {
+  .nav { padding: 1rem 1.5rem; }
+  .navbar .nav-inner { padding: 0.9rem 1.5rem; }
+  .nav-links { display: none; }
+}
+
+/* ── FOOTER ────────────────────────────────────────── */
+.footer {
+  background: var(--footer-bg);
+  padding: 2rem 3rem;
+  border-top: none;
+}
+.footer-inner {
+  max-width: 1100px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 0.8rem;
+}
+.footer-brand {
+  height: 40px; width: 40px;
+  object-fit: cover; border-radius: 50% !important;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+.footer-copy {
+  font-family: var(--font-body); font-size: 11px; font-weight: 300;
+  letter-spacing: 0.5px; color: var(--footer-ink);
+}
+.footer-legal {
+  display: flex; align-items: center; gap: 0.6rem;
+  flex-wrap: wrap; justify-content: center;
+}
+.footer-legal a {
+  font-family: var(--font-body); font-size: 0.75rem;
+  color: var(--footer-muted); text-decoration: none;
+  transition: color var(--speed-fast);
+}
+.footer-legal a:hover { color: var(--purple-soft); }
+.footer-legal span { color: var(--footer-muted); opacity: 0.6; font-size: 0.7rem; }
+
+@media (max-width: 768px) {
+  .footer { padding: 1.6rem 1.5rem; }
+  .footer-inner { flex-direction: column; text-align: center; }
+}

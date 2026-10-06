@@ -3,88 +3,6 @@
    styles/category.css
    ================================ */
 
-/* ── NAV RIGHT ─────────────────────────────────────── */
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-.nav-user {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.nav-profile {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-decoration: none;
-  color: inherit;
-  padding: 0.3rem 0.6rem;
-  border-radius: 20px;
-  border: 1px solid #d8d0c4;
-  transition: border-color 0.2s, background 0.2s;
-}
-
-.nav-profile:hover {
-  border-color: #7b5ea7;
-  background: #faf8ff;
-}
-
-.nav-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #7b5ea7;
-  color: #fff;
-  font-family: 'Syne', sans-serif;
-  font-size: 0.72rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.nav-username {
-  font-size: 0.82rem;
-  color: #333;
-}
-
-.nav-logout-btn {
-  background: transparent;
-  border: 1px solid #d8d0c4;
-  border-radius: 20px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.78rem;
-  color: #888;
-  padding: 0.3rem 0.8rem;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
-}
-
-.nav-logout-btn:hover {
-  border-color: #c0392b;
-  color: #c0392b;
-}
-
-.nav-signin-btn {
-  background: #111;
-  color: #fff;
-  border-radius: 20px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 500;
-  padding: 0.4rem 1rem;
-  text-decoration: none;
-  transition: background 0.2s;
-}
-
-.nav-signin-btn:hover { background: #7b5ea7; }
-
-
 .cat-page-hero {
   padding: 6rem 2rem 3rem;
   max-width: 1200px;
@@ -99,7 +17,7 @@
 
 .back-link {
   font-size: 0.82rem;
-  color: var(--muted, #888);
+  color: var(--muted, var(--muted));
   text-decoration: none;
   letter-spacing: 0.05em;
   transition: color 0.2s;
@@ -119,12 +37,12 @@
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  border-bottom: 1px solid #e8e3da;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .cat-count {
   font-size: 0.82rem;
-  color: #888;
+  color: var(--muted);
   letter-spacing: 0.04em;
 }
 
@@ -136,10 +54,10 @@
 
 .filter-select {
   background: #fff;
-  border: 1px solid #d8d0c4;
+  border: 1px solid var(--border);
   border-radius: 6px;
   color: #111;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   font-size: 0.82rem;
   padding: 0.5rem 0.9rem;
   cursor: pointer;
@@ -147,7 +65,7 @@
   transition: border-color 0.2s;
 }
 
-.filter-select:focus { border-color: #7b5ea7; }
+.filter-select:focus { border-color: var(--purple); }
 
 /* ── MAIN GRID ─────────────────────────────────────── */
 .cat-main {
@@ -188,11 +106,11 @@
 
 .empty-icon {
   font-size: 3rem;
-  color: #d8d0c4;
+  color: var(--border);
 }
 
 .cat-empty p {
-  color: #888;
+  color: var(--muted);
   font-size: 0.95rem;
 }
 

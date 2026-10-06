@@ -7,22 +7,7 @@
   margin:0;
   padding:0
 }
-:root{
-  --bg:#f5f0e8;
-  --bg-soft:#ede8df;
-  --ink:#111111;
-  --purple:#4a2d7a;
-  --purple-light:#7b5ea7;
-  --purple-dim:rgba(74,45,122,0.08);
-  --muted:#888888;
-  --border:#d8d0c4;
-  --error:#b03030;
-  --success:#2a7a4a;
-  --font-display:'Playfair Display',serif;
-  --font-body:'Karla',sans-serif;
-  --radius:2px;
-  --transition:0.3s cubic-bezier(0.4,0,0.2,1);
-}
+/* Colours, fonts, radius and motion come from tokens.css (loaded first). */
 
 html,body{
   height:100%;
