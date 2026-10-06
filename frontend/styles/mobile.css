@@ -34,7 +34,7 @@
   .tab-badge {
     position: absolute; top: -5px; right: -9px;
     min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
-    background: var(--purple); color: var(--on-purple);
+    background: var(--purple-fill); color: var(--on-purple);
     font-size: 0.6rem; font-weight: 700; line-height: 16px; text-align: center;
   }
 
@@ -135,7 +135,7 @@ body.cd-lock { overflow: hidden; }
 .cd-note { margin: 0.3rem 0 0.9rem; color: var(--muted); font-size: var(--text-xs); }
 .cd-checkout {
   width: 100%; min-height: 48px; border: 0; cursor: pointer;
-  background: var(--purple); color: var(--on-purple); border-radius: var(--radius-pill);
+  background: var(--purple-fill); color: var(--on-purple); border-radius: var(--radius-pill);
   font-family: var(--font-body); font-size: var(--text-base); font-weight: 600;
   transition: background 0.2s ease;
 }

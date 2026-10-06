@@ -258,7 +258,7 @@ input:focus{
 }
 
 .btn-primary{
-  background:var(--purple);
+  background: var(--purple-fill);
   border:2px solid var(--purple);
   color:#fff;cursor:pointer;
   font-family:var(--font-body);

@@ -90,7 +90,7 @@
   line-height: 1;
 }
 
-.zoom-btn:hover { background: var(--purple); color: #fff; }
+.zoom-btn:hover { background: var(--purple-fill); color: #fff; }
 
 /* Reset button variant — was inline-styled (font-size, width, padding) */
 .zoom-btn--reset {
@@ -125,7 +125,7 @@
 
 .canvas-outer::-webkit-scrollbar       { width: 6px; height: 6px; }
 .canvas-outer::-webkit-scrollbar-track { background: var(--bg-soft); border-radius: 4px; }
-.canvas-outer::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 4px; }
+.canvas-outer::-webkit-scrollbar-thumb { background: var(--purple-fill); border-radius: 4px; }
 
 /* ── CANVAS CONTAINER ──────────────────────────────── */
 .canvas-container {
@@ -203,7 +203,7 @@
   right: -6px;
   width: 14px;
   height: 14px;
-  background: var(--purple);
+  background: var(--purple-fill);
   border-radius: 50%;
   cursor: se-resize;
   border: 2px solid #fff;
@@ -532,7 +532,7 @@
 }
 
 .sz-btn:hover    { border-color: var(--purple); color: var(--purple); }
-.sz-btn.selected { background: var(--purple); border-color: var(--purple); color: #fff; }
+.sz-btn.selected { background: var(--purple-fill); border-color: var(--purple); color: #fff; }
 
 /* ── QUANTITY (item 18) ────────────────────────────── */
 .quantity-row {
@@ -622,7 +622,7 @@
   width: calc(100% - 3rem);
 }
 
-.add-to-cart-btn:hover    { background: var(--purple); transform: translateY(-1px); }
+.add-to-cart-btn:hover    { background: var(--purple-fill); transform: translateY(-1px); }
 .add-to-cart-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .studio-msg {
@@ -671,7 +671,7 @@
 }
  
 .save-for-later-btn.saved {
-  background: var(--purple);
+  background: var(--purple-fill);
   border-color: var(--purple);
   color: #fff;
 }

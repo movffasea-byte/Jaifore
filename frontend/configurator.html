@@ -6,6 +6,7 @@
   <title>Jai'fore — Design Studio</title>
   <link rel="stylesheet" href="styles/tokens.css"/>
   <script src="scripts/theme.js"></script>
+  <script src="scripts/a11y.js" defer></script>
   <link rel="stylesheet" href="styles/shell.css"/>
   <link rel="stylesheet" href="styles/mobile.css"/>
   <link rel="stylesheet" href="styles/services.css"/>
@@ -119,7 +120,7 @@
       transition: all 0.18s ease;
     }
     .gender-btn.active {
-      background: var(--purple);
+      background: var(--purple-fill);
       color: #fff;
       box-shadow: 0 2px 8px rgba(123,94,167,0.3);
     }
@@ -146,7 +147,7 @@
   <div class="noise"></div>
 
   <!-- NAV -->
-  <nav class="nav">
+  <nav class="nav" aria-label="Main">
     <a href="index.html" class="nav-logo">
       <img src="logo/rooted2.jpg" alt="Jai'fore"/>
     </a>

@@ -47,7 +47,7 @@
 .nav-links > a:hover, .nav-links > a.active, .nav-link:hover { color: var(--ink); }
 
 .nav-cta {
-  background: var(--purple) !important;
+  background: var(--purple-fill) !important;
   color: var(--on-purple) !important;
   padding: 0.4rem 1rem;
   border-radius: var(--radius);
@@ -72,7 +72,7 @@
 
 .nav-avatar {
   width: 28px; height: 28px; border-radius: 50%;
-  background: var(--purple); color: var(--on-purple);
+  background: var(--purple-fill); color: var(--on-purple);
   font-family: var(--font-display); font-size: 0.7rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
@@ -80,7 +80,7 @@
 
 .nav-signin-btn,
 .nav-pill {
-  background: var(--purple); color: var(--on-purple);
+  background: var(--purple-fill); color: var(--on-purple);
   border: none; border-radius: var(--radius-pill);
   font-family: var(--font-body); font-size: var(--text-xs); font-weight: 500;
   letter-spacing: 0.08em; text-transform: uppercase;
@@ -153,3 +153,31 @@
 }
 .theme-toggle:hover { border-color: var(--purple); color: var(--purple); }
 .theme-toggle--float { position: fixed; top: 0.8rem; right: 0.8rem; z-index: var(--z-sticky); background: var(--surface); }
+
+/* ── Accessibility ─────────────────────────────────── */
+.skip-link {
+  position: fixed; top: 0.5rem; left: 0.5rem; z-index: calc(var(--z-tour) + 1);
+  padding: 0.6rem 1rem; background: var(--purple-fill); color: var(--on-purple);
+  border-radius: var(--radius-sm); font-size: var(--text-sm); text-decoration: none;
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: none; }
+main:focus { outline: none; }
+
+/* Visible keyboard focus everywhere; mouse clicks stay clean */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+[data-theme="dark"] :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline-color: var(--purple-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

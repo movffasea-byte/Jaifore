@@ -115,7 +115,7 @@
 }
 
 .wl-action-btn.primary:hover { 
-background: var(--purple); 
+background: var(--purple-fill); 
 border-color: var(--purple); 
 }
 

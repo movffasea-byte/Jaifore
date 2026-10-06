@@ -38,7 +38,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: var(--purple);
+  background: var(--purple-fill);
   color: #fff;
   font-family: var(--font-display);
   font-size: 1rem;
@@ -231,7 +231,7 @@
   transition: background 0.2s;
 }
 
-.dash-empty a:hover { background: var(--purple); }
+.dash-empty a:hover { background: var(--purple-fill); }
 
 /* ── DESIGNS ───────────────────────────────────────── */
 .designs-grid {
@@ -378,7 +378,7 @@
   transition: background 0.2s;
 }
 
-.pf-save-btn:hover { background: var(--purple); }
+.pf-save-btn:hover { background: var(--purple-fill); }
 
 /* ── RESPONSIVE ────────────────────────────────────── */
 @media (max-width: 768px) {
@@ -509,8 +509,8 @@
   margin: 4px 0;
 }
 
-.timeline-step.completed .timeline-marker { background: var(--purple); border-color: var(--purple); }
-.timeline-step.completed .timeline-line   { background: var(--purple); }
+.timeline-step.completed .timeline-marker { background: var(--purple-fill); border-color: var(--purple); }
+.timeline-step.completed .timeline-line   { background: var(--purple-fill); }
 .timeline-step.cancelled .timeline-marker { background: var(--danger); border-color: var(--danger); }
 
 .timeline-content { flex: 1; padding-bottom: 1.1rem; }

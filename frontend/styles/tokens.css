@@ -25,6 +25,7 @@
   --blue:          #3b6fd0;
   --sage:          #8dbba0;
   --on-purple:     #ffffff;   /* text on --purple */
+  --purple-fill:   var(--purple);   /* button fills; darker in dark mode so white text passes 4.5:1 */
   --inverse-bg:     #111111;   /* dark buttons that flip to light in dark mode */
   --inverse-ink:    #ffffff;
   --status-processing-bg: #fff8e1;
@@ -124,9 +125,10 @@
 /* ── Dark theme (switched on by data-theme="dark") ── */
 [data-theme="dark"] {
   color-scheme: dark;
+  --purple-fill:   #7457bd;
   --purple:        #8a6fcb;
   --purple-dark:   #b9a3e3;
-  --purple-hover:  #9c84d8;
+  --purple-hover:  #654aa8;
   --purple-soft:   #b9a3e3;
   --purple-tint:   #241f3d;
   --purple-dim:    rgba(138, 111, 203, 0.14);

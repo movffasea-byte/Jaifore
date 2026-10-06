@@ -83,7 +83,7 @@
       transition: all 0.18s ease;
     }
     .gender-btn.active {
-      background: var(--purple);
+      background: var(--purple-fill);
       color: #fff;
       box-shadow: 0 2px 8px rgba(123,94,167,0.3);
     }

@@ -421,7 +421,7 @@ body.item-modal-open { overflow: hidden; }
   margin-bottom: 1rem;
 }
 
-.place-order-btn:hover { background: var(--purple); transform: translateY(-1px); }
+.place-order-btn:hover { background: var(--purple-fill); transform: translateY(-1px); }
 .place-order-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .checkout-secure {
