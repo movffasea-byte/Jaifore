@@ -4,7 +4,7 @@
    ================================ */
 
 .cat-page-hero {
-  padding: 6rem 2rem 3rem;
+  padding: 5.5rem 2rem 1.75rem;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -79,8 +79,8 @@
 
 .cat-main .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 2rem 1.5rem;
 }
 
 /* ── EMPTY STATE ───────────────────────────────────── */
@@ -120,4 +120,9 @@
   .cat-toolbar   { padding: 0 1.2rem 1.5rem; }
   .cat-main      { padding: 2rem 1.2rem 3rem; }
   .cat-toolbar   { flex-direction: column; align-items: flex-start; }
+}
+
+/* Phones: two photos per row, like a catalogue */
+@media (max-width: 768px) {
+  .cat-main .products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.4rem 0.75rem; }
 }

@@ -70,7 +70,7 @@ img {
 /* ---------- HERO ---------- */
 .hero {
   position: relative;
-  min-height: 100vh;
+  min-height: min(82vh, 760px);
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -160,9 +160,9 @@ img {
 }
 
 .htitle {
-  font-size: 58px;
+  font-size: clamp(2.2rem, 4.6vw, 3.4rem);
   font-weight: 800;
-  line-height: 1.0;
+  line-height: 1.05;
   color: var(--ink);
   margin-bottom: 1.2rem;
   opacity: 0;
@@ -460,9 +460,9 @@ img {
 .cta-inner {
   max-width: 1100px;
   margin: 0 auto;
-  background: linear-gradient(135deg, #2d1b4e, #0d2a4a);
+  background: var(--footer-bg);
   border-radius: 20px;
-  padding: 3rem;
+  padding: 2.5rem 3rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -574,3 +574,25 @@ img {
 /* Headings use the display font (tokens.css); body copy uses the body font */
 h1, h2, h3,
 .htitle, .fcard-title, .about-title, .astat-val, .cta-title { font-family: var(--font-display); }
+
+/* Home contact links (rendered from window.JAIFORE_CONTACT, see jaifore.js) */
+.cta-links {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+.cta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-pill);
+  color: var(--footer-ink);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  text-decoration: none;
+  transition: border-color var(--speed-fast), color var(--speed-fast);
+}
+.cta-link:hover { border-color: var(--purple-soft); color: #fff; }

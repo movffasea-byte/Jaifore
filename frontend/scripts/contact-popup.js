@@ -22,6 +22,9 @@
     facebookUrl: 'https://www.facebook.com/share/1FjZ6rmotV/?mibexid=wwXlfr'
   };
 
+  // Shared with the Home page's contact section (scripts/jaifore.js)
+  window.JAIFORE_CONTACT = CONTACT;
+
   let overlay, modal;
 
   function buildPopup() {

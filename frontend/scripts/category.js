@@ -450,100 +450,14 @@ function loadNextPage() {
 // ── PRODUCT CARD ─────────────────────────────────────
 function renderCard(product, index) {
   const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
-  const card = document.createElement('div');
-  card.className = 'product-card';
-  card.style.animationDelay = `${(index % PAGE_SIZE) * 0.05}s`;
-
-  const isWebdev  = currentCategory === 'webdev';
-  const isApparel = currentCategory === 'apparel';
-  const isDesign  = currentCategory === 'design';
-  const placeholder = PLACEHOLDERS[currentCategory]?.[index % 7] || '📦';
-
-  const imgHTML = product.image_url
-    ? `<img src="${product.thumb_url || product.image_url}" alt="${product.name}" width="400" height="300" loading="lazy" decoding="async"/>`
-    : `<div class="card-img-placeholder">${placeholder}</div>`;
-
-  const printSizes = getPrintSizes(product);
-  const hasPrintSizes = printSizes.length > 0;
-
-  let sizeHTML = '';
-  if (isApparel) {
-    const sizes = getSizes(product);
-    sizeHTML = `<div class="size-chips">
-        ${sizes.slice(0, 4).map(s => `<span class="size-chip">${s}</span>`).join('')}
-        ${sizes.length > 4 ? `<span class="size-chip">+${sizes.length - 4}</span>` : ''}
-       </div>`;
-  } else if (isDesign && hasPrintSizes) {
-    sizeHTML = `<div class="size-chips">
-        ${printSizes.map(s => `<span class="size-chip">${s.size_label}</span>`).join('')}
-       </div>`;
-  }
-
-  const domainHTML = isWebdev && product.live_link
-    ? `<div class="site-domain">↗ ${product.live_link}</div>` : '';
-
-  // "Out of stock" only ever applies to apparel
-  const stockBadge = (isApparel && !product.in_stock)
-    ? `<span class="card-badge out-of-stock">Out of Stock</span>`
-    : `<span class="card-badge">${meta.tag}</span>`;
-
-  const wishlistHeartHTML = renderWishlistHeart(product.id, currentCategory);
-  const priceLabel = getPriceLabel(product, currentCategory);
-
-  let footerHTML;
-  if (isApparel) {
-    footerHTML = `<div class="card-price">${priceLabel}</div>
-       <div style="display:flex;gap:0.4rem">
-         ${wishlistHeartHTML}
-         <button class="configure-btn" data-id="${product.id}">🎨 Design</button>
-         <button class="card-action" data-id="${product.id}" ${!product.in_stock ? 'disabled' : ''}>Add to Cart</button>
-       </div>`;
-  } else if (isDesign) {
-    footerHTML = `<div class="card-price">${priceLabel || 'Not available yet'}</div>
-       <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-         ${wishlistHeartHTML}
-         <button class="card-action" data-id="${product.id}" ${hasPrintSizes ? '' : 'disabled'}>Order Now</button>
-       </div>`;
-  } else {
-    footerHTML = `<button class="card-action" data-id="${product.id}">Enquire</button>`;
-  }
-
-  card.innerHTML = `
-    <div class="card-img">
-      ${imgHTML}
-      ${stockBadge}
-    </div>
-    <div class="card-body">
-      ${domainHTML}
-      <div class="card-name">${product.name}</div>
-      <div class="card-desc">${product.description || ''}</div>
-      ${sizeHTML}
-      <div class="card-footer">${footerHTML}</div>
-    </div>
-  `;
-
-  card.addEventListener('click', (e) => {
-    if (!e.target.classList.contains('card-action') &&
-        !e.target.classList.contains('configure-btn') &&
-        !e.target.closest('.qty-stepper') &&
-        !e.target.closest('.wishlist-heart-btn')) {
-      openModal(product);
-    }
+  return buildProductCard(product, {
+    category:    currentCategory,
+    tag:         meta.tag,
+    placeholder: PLACEHOLDERS[currentCategory]?.[index % 7] || '📦',
+    delay:       (index % PAGE_SIZE) * 0.05,
+    getSizes, getPrintSizes, getPriceLabel, renderWishlistHeart,
+    open:        () => openModal(product),
   });
-
-  // Every "add" button opens the modal: apparel needs a size chosen, graphic
-  // designs need a print size chosen, web development is an enquiry.
-  card.querySelector('.card-action')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openModal(product);
-  });
-
-  card.querySelector('.configure-btn')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    window.location.href = `configurator.html?product=${product.id}`;
-  });
-
-  return card;
 }
 
 // ── PRODUCT MODAL ────────────────────────────────────
