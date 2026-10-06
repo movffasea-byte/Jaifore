@@ -13,7 +13,7 @@ const API = 'https://jai-fore-production.up.railway.app';
 // The products table has no `sizes` column, so apparel uses this list unless a
 // product ever comes back with its own `sizes` array.
 // KEEP IN SYNC with category.js and the size buttons (.sz-btn) in configurator.html.
-const APPAREL_SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
+const APPAREL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
 let selectedSize         = null;
 let selectedPrintSize    = null;

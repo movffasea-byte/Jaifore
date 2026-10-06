@@ -229,10 +229,7 @@ async function init() {
 
     document.getElementById('studioProductName').textContent = product.name;
     document.getElementById('panelMerchName').textContent    = product.name;
-    document.getElementById('panelMerchPrice').textContent   =
-      window.JaiforeCurrency?.isReady()
-        ? window.JaiforeCurrency.format(product.price)
-        : `$${parseFloat(product.price).toFixed(2)}`;
+    document.getElementById('panelMerchPrice').textContent   = formatPrice(product.price);
     document.title = `Design — ${product.name} | Jai'fore`;
 
     if (printPricing.length) {
@@ -478,7 +475,7 @@ function renderPrintSizes() {
     btn.innerHTML = `
       <span class="ps-label">${p.size_label}</span>
       <span class="ps-dim">${p.dimensions}</span>
-      <span class="ps-price">+$${parseFloat(p.price).toFixed(2)}</span>
+      <span class="ps-price">+${formatPrice(parseFloat(p.price))}</span>
     `;
     btn.addEventListener('click', () => {
       lastPrintSize = p;
@@ -699,7 +696,7 @@ async function loadGraphicDesigns() {
 
     document.querySelector('.upload-text').innerHTML =
       `Click to upload<br/><span>PNG, JPG, SVG — max 5MB</span><br/>
-       <span style="color:#7b5ea7;font-weight:600">Print fee: $${uploadFee.toFixed(2)}</span>`;
+       <span style="color:#7b5ea7;font-weight:600">Print fee: ${formatPrice(uploadFee)}</span>`;
 
     applyDesignSearch();
 
@@ -841,10 +838,7 @@ function updateTotal() {
   // base garment + Σ(design fee + that design's own print price), then x quantity
   const total = unitTotal() * quantity;
 
-  const formatted = window.JaiforeCurrency?.isReady()
-    ? window.JaiforeCurrency.format(total)
-    : `$${total.toFixed(2)}`;
-  document.getElementById('cartBtnPrice').textContent = formatted;
+  document.getElementById('cartBtnPrice').textContent = formatPrice(total);
 }
 
 // ── QUANTITY (item 18) ───────────────────────────────
@@ -1086,9 +1080,8 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
     isCustom:     true
   };
 
-  for (let i = 0; i < quantity; i++) {
-    addToCart(cartProduct, selectedSize, 'apparel');
-  }
+  // One call with the quantity — cart.js accumulates qty on the matching line
+  addToCart(cartProduct, selectedSize, 'apparel', quantity);
 
   // item 20 — once added to cart, this design is no longer "in progress";
   // clear the draft so it doesn't linger and incorrectly prompt to
@@ -1209,3 +1202,17 @@ document.getElementById('merchMockup').style.transition = 'opacity 0.2s ease';
 window.JaiforeCurrency?.init().then(() => {
   init();
 }).catch(() => init());
+
+// ── MOBILE BOTTOM SHEET ──────────────────────────────
+// On phones the control panel is a bottom sheet: collapsed it shows the
+// price + Add to Cart; the handle expands it to the full controls.
+(function () {
+  const panel  = document.querySelector('.studio-panel');
+  const handle = document.getElementById('sheetHandle');
+  if (!panel || !handle) return;
+
+  handle.addEventListener('click', () => {
+    const open = panel.classList.toggle('expanded');
+    handle.setAttribute('aria-expanded', String(open));
+  });
+})();

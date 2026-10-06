@@ -753,3 +753,92 @@
 }
 .gd-search:focus { outline: none; border-color: var(--purple); }
 #gdLoadMore[hidden] { display: none; }
+
+/* ── IMMERSIVE VIEWER (Phase 2) ────────────────────────
+   Desktop: big preview filling the stage, controls in a floating card.
+   Phones: the same controls become a bottom sheet (see the end of configurator.js). */
+.sheet-handle { display: none; }
+
+@media (min-width: 769px) {
+  .studio {
+    display: block;
+    position: relative;
+    height: 100vh;
+    min-height: 700px;
+    padding-top: 70px;
+  }
+
+  .studio-canvas-wrap {
+    position: relative;
+    top: 0;
+    height: 100%;
+    padding: 1.5rem 430px 1.5rem 2rem;
+    justify-content: center;
+    background: radial-gradient(ellipse at 40% 45%, var(--purple-tint), var(--bg) 72%);
+  }
+
+  .canvas-outer {
+    max-width: min(660px, 100%);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .studio-panel {
+    position: absolute;
+    top: calc(70px + 1rem);
+    right: 1.25rem;
+    bottom: 1.25rem;
+    width: 380px;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    background: var(--surface);
+  }
+}
+
+@media (max-width: 768px) {
+  .studio-canvas-wrap { padding-bottom: 180px; }
+
+  .studio-panel {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: auto;
+    max-height: 74vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -10px 30px rgba(20, 18, 28, 0.18);
+    z-index: var(--z-drawer);
+    background: var(--surface);
+  }
+
+  .sheet-handle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.6rem 1rem 0.4rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .sheet-grip { width: 44px; height: 4px; border-radius: 2px; background: var(--border); }
+  .studio-panel.expanded .sheet-handle-text::after { content: " ▾"; }
+  .studio-panel:not(.expanded) .sheet-handle-text::after { content: " ▴"; }
+
+  /* Collapsed: just the price + Add to Cart */
+  .studio-panel:not(.expanded) .panel-section { display: none; }
+
+  .studio ~ .footer { margin-bottom: 170px; }
+}
