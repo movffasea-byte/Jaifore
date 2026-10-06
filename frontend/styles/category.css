@@ -25,7 +25,7 @@
   display: inline-block;
 }
 
-.back-link:hover { color: var(--ink, #111); }
+.back-link:hover { color: var(--ink); }
 
 /* ── TOOLBAR ───────────────────────────────────────── */
 .cat-toolbar {
@@ -53,10 +53,10 @@
 }
 
 .filter-select {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  color: #111;
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 0.82rem;
   padding: 0.5rem 0.9rem;

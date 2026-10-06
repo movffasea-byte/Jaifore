@@ -15,7 +15,7 @@
     #genderModal.fade-out { opacity: 0; }
 
     .gender-modal-box {
-      background: #fff;
+      background: var(--surface);
       border-radius: 20px;
       padding: 2.5rem 2rem;
       text-align: center;
@@ -27,7 +27,7 @@
       font-family: var(--font-display);
       font-size: 1.35rem;
       font-weight: 700;
-      color: #1a1a2e;
+      color: var(--ink);
       margin-bottom: 0.4rem;
     }
     .gender-modal-sub {
@@ -46,9 +46,9 @@
       align-items: center;
       gap: 0.5rem;
       padding: 1.2rem 2rem;
-      border: 2px solid #e8e8e8;
+      border: 2px solid var(--border);
       border-radius: 14px;
-      background: #fafafa;
+      background: var(--bg-soft);
       cursor: pointer;
       transition: all 0.2s ease;
       font-family: var(--font-body);
@@ -60,13 +60,13 @@
       box-shadow: 0 8px 24px rgba(123,94,167,0.15);
     }
     .gender-icon  { font-size: 2rem; }
-    .gender-label { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; }
+    .gender-label { font-size: 0.9rem; font-weight: 600; color: var(--ink); }
 
     /* ── GENDER TOGGLE (in studio) ───────────────── */
     .gender-toggle {
       display: flex;
       gap: 0.4rem;
-      background: #f0f0f0;
+      background: var(--bg-soft);
       border-radius: 10px;
       padding: 3px;
     }
@@ -78,7 +78,7 @@
       font-family: var(--font-body);
       font-size: 0.8rem;
       font-weight: 600;
-      color: #666;
+      color: var(--muted);
       cursor: pointer;
       transition: all 0.18s ease;
     }
@@ -87,7 +87,7 @@
       color: #fff;
       box-shadow: 0 2px 8px rgba(123,94,167,0.3);
     }
-    .gender-btn:hover:not(.active) { background: #e0e0e0; color: #333; }
+    .gender-btn:hover:not(.active) { background: var(--border); color: var(--ink-soft); }
 
     /* ── TOGGLE ROW ──────────────────────────────── */
     .toggle-row {

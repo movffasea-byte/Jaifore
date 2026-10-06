@@ -16,7 +16,7 @@ html {
 
 body {
   font-family: var(--font-body);
-  background: #ffffff;
+  background: var(--bg);
   color: var(--ink);
   overflow-x: hidden;
 }
@@ -80,7 +80,7 @@ img {
 .hero-bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, var(--purple-tint) 0%, #e8f4ff 50%, #e2f7ee 100%);
+  background: linear-gradient(135deg, var(--purple-tint) 0%, var(--bg-soft) 50%, var(--bg-tint) 100%);
   z-index: 0;
 }
 
@@ -186,7 +186,7 @@ img {
   font-family: var(--font-body);
   font-size: 15px;
   font-weight: 300;
-  color: #666;
+  color: var(--muted);
   line-height: 1.85;
   margin-bottom: 2rem;
   max-width: 340px;
@@ -367,7 +367,7 @@ img {
 .fcard-text {
   font-family: var(--font-body);
   font-size: 13px;
-  color: #999;
+  color: var(--muted2);
   line-height: 1.75;
   font-weight: 300;
 }
@@ -396,7 +396,7 @@ img {
   width: 280px;
   height: 280px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--purple-tint), #e8f4ff, #e2f7ee);
+  background: linear-gradient(135deg, var(--purple-tint), var(--bg-soft), var(--bg-tint));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -420,7 +420,7 @@ img {
 .about-desc {
   font-family: var(--font-body);
   font-size: 14px;
-  color: #777;
+  color: var(--muted);
   line-height: 1.9;
   font-weight: 300;
   margin-bottom: 1rem;
@@ -447,7 +447,7 @@ img {
   font-size: 10px;
   letter-spacing: 3px;
   text-transform: uppercase;
-  color: #bbb;
+  color: var(--muted2);
   margin-top: 3px;
 }
 

@@ -30,7 +30,7 @@
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 700;
-  color: #111;
+  color: var(--ink);
   letter-spacing: 0.02em;
 }
 
@@ -57,8 +57,8 @@
 }
 
 .view-btn.active {
-  background: #fff;
-  color: #111;
+  background: var(--surface);
+  color: var(--ink);
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
@@ -77,8 +77,8 @@
   height: 28px;
   border: none;
   border-radius: 6px;
-  background: #fff;
-  color: #333;
+  background: var(--surface);
+  color: var(--ink-soft);
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
@@ -103,7 +103,7 @@
   font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 600;
-  color: #555;
+  color: var(--ink-2);
   min-width: 36px;
   text-align: center;
 }
@@ -225,12 +225,12 @@
 }
 
 .ca-btn {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   font-family: var(--font-body);
   font-size: 0.78rem;
-  color: #555;
+  color: var(--ink-2);
   padding: 0.45rem 0.9rem;
   cursor: pointer;
   transition: border-color 0.2s, color 0.2s, opacity 0.2s;
@@ -247,7 +247,7 @@
 
 /* ── PANEL SIDE ────────────────────────────────────── */
 .studio-panel {
-  background: #fff;
+  background: var(--surface);
   border-left: 1px solid var(--border-soft);
   display: flex;
   flex-direction: column;
@@ -312,7 +312,7 @@
   font-family: var(--font-display);
   font-size: 0.95rem;
   font-weight: 700;
-  color: #111;
+  color: var(--ink);
 }
 
 .panel-merch-price {
@@ -338,7 +338,7 @@
   align-items: center;
   justify-content: center;
   font-size: 0.65rem;
-  color: #bbb;
+  color: var(--muted2);
   overflow: hidden;
   position: relative;
 }
@@ -460,7 +460,7 @@
 
 .upload-text {
   font-size: 0.82rem;
-  color: #555;
+  color: var(--ink-2);
   line-height: 1.5;
 }
 
@@ -493,7 +493,7 @@
   font-family: var(--font-display);
   font-size: 0.85rem;
   font-weight: 700;
-  color: #111;
+  color: var(--ink);
   min-width: 55px;
   text-align: left;
 }
@@ -525,7 +525,7 @@
   font-family: var(--font-body);
   font-size: 0.8rem;
   font-weight: 600;
-  color: #555;
+  color: var(--ink-2);
   padding: 0.45rem 0.7rem;
   cursor: pointer;
   transition: all 0.15s;
@@ -547,7 +547,7 @@
   border: 1.5px solid var(--border);
   border-radius: 8px;
   background: var(--bg-panel);
-  color: #555;
+  color: var(--ink-2);
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
@@ -572,7 +572,7 @@
   font-family: var(--font-body);
   font-size: 0.9rem;
   font-weight: 600;
-  color: #111;
+  color: var(--ink);
   outline: none;
   transition: border-color 0.2s;
   /* Hide native spinner arrows — the qty-btn pair replaces them */
@@ -596,7 +596,7 @@
   border-radius: 8px;
   font-family: var(--font-body);
   font-size: 0.85rem;
-  color: #333;
+  color: var(--ink-soft);
   padding: 0.7rem 0.9rem;
   resize: vertical;
   outline: none;
@@ -609,8 +609,8 @@
 /* ── ADD TO CART ───────────────────────────────────── */
 .add-to-cart-btn {
   margin: 1.2rem 1.5rem;
-  background: #111;
-  color: #fff;
+  background: var(--inverse-bg);
+  color: var(--inverse-ink);
   border: none;
   border-radius: 10px;
   font-family: var(--font-display);
@@ -650,7 +650,7 @@
 }
  
 .save-for-later-btn {
-  background: #fff;
+  background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 10px;
   font-family: var(--font-display);
@@ -704,7 +704,7 @@
 }
 /* ── PER-DESIGN PRINT SIZE ─────────────────────────── */
 .design-slot { cursor: pointer; }
-.design-slot.selected { border-color: #111; box-shadow: 0 0 0 2px var(--purple); }
+.design-slot.selected { border-color: var(--ink); box-shadow: 0 0 0 2px var(--purple); }
 
 .design-slot .slot-size {
   position: absolute;
@@ -723,7 +723,7 @@
 }
 .design-slot .slot-size.unset { background: #b3261e; }
 
-.ps-hint { font-size: 0.72rem; color: #666; margin: 0 0 0.5rem; }
+.ps-hint { font-size: 0.72rem; color: var(--muted); margin: 0 0 0.5rem; }
 
 .apply-all-btn {
   margin-top: 0.5rem;

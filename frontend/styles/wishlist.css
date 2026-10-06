@@ -16,7 +16,7 @@
 }
 
 .wl-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   overflow: hidden;
@@ -73,7 +73,7 @@
   font-family: var(--font-display);
   font-size: 0.9rem;
   font-weight: 700;
-  color: #111;
+  color: var(--ink);
 }
 
 .wl-card-meta {
@@ -105,13 +105,13 @@
   transition: background 0.2s, border-color 0.2s, color 0.2s;
   border: 1px solid var(--border-soft);
   background: transparent;
-  color: #555;
+  color: var(--ink-2);
 }
 
 .wl-action-btn.primary {
-  background: #111;
-  border-color: #111;
-  color: #fff;
+  background: var(--inverse-bg);
+  border-color: var(--inverse-bg);
+  color: var(--inverse-ink);
 }
 
 .wl-action-btn.primary:hover { 

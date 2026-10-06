@@ -60,7 +60,7 @@
   font-family: var(--font-display);
   font-size: 0.95rem;
   font-weight: 700;
-  color: #111;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -98,7 +98,7 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.dash-nav-item:hover { background: var(--bg); color: #111; }
+.dash-nav-item:hover { background: var(--bg); color: var(--ink); }
 .dash-nav-item.active { background: var(--purple-tint); color: var(--purple); font-weight: 600; }
 
 /* ── LOGOUT ────────────────────────────────────────── */
@@ -135,7 +135,7 @@
   font-family: var(--font-display);
   font-size: 1.4rem;
   font-weight: 800;
-  color: #111;
+  color: var(--ink);
   margin-bottom: 0.3rem;
 }
 
@@ -146,7 +146,7 @@
 
 /* ── ORDERS ────────────────────────────────────────── */
 .order-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 1.2rem 1.5rem;
@@ -165,7 +165,7 @@
   font-family: var(--font-display);
   font-size: 0.85rem;
   font-weight: 700;
-  color: #111;
+  color: var(--ink);
 }
 
 .order-date {
@@ -196,10 +196,10 @@
    (same meaning: in progress vs. fully done); shipped gets its own color
    since "in transit" is a meaningfully distinct, more reassuring state for
    a customer to see than "still processing". */
-.status-processing { background: #fff8e1; color: #f59e0b; border: 1px solid #f59e0b44; }
-.status-shipped     { background: #ebf4fb; color: #3182ce; border: 1px solid #3182ce44; }
-.status-delivered   { background: #e8f5e9; color: var(--success); border: 1px solid #38a16944; }
-.status-cancelled   { background: #fdecea; color: var(--danger); border: 1px solid #e53e3e44; }
+.status-processing { background: var(--status-processing-bg); color: #f59e0b; border: 1px solid #f59e0b44; }
+.status-shipped     { background: var(--status-shipped-bg); color: #3182ce; border: 1px solid #3182ce44; }
+.status-delivered   { background: var(--status-delivered-bg); color: var(--success); border: 1px solid #38a16944; }
+.status-cancelled   { background: var(--status-cancelled-bg); color: var(--danger); border: 1px solid #e53e3e44; }
 
 .order-items {
   font-size: 0.78rem;
@@ -221,8 +221,8 @@
 .dash-empty-icon { font-size: 2.5rem; }
 
 .dash-empty a {
-  background: #111;
-  color: #fff;
+  background: var(--inverse-bg);
+  color: var(--inverse-ink);
   border-radius: 8px;
   padding: 0.6rem 1.4rem;
   font-size: 0.85rem;
@@ -241,7 +241,7 @@
 }
 
 .design-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   overflow: hidden;
@@ -276,7 +276,7 @@
   font-family: var(--font-display);
   font-size: 0.85rem;
   font-weight: 700;
-  color: #111;
+  color: var(--ink);
   margin-bottom: 0.2rem;
 }
 
@@ -297,7 +297,7 @@
   border: 1px solid var(--border-soft);
   border-radius: 6px;
   font-size: 0.72rem;
-  color: #555;
+  color: var(--ink-2);
   padding: 0.35rem 0;
   cursor: pointer;
   transition: border-color 0.2s, color 0.2s;
@@ -308,7 +308,7 @@
 
 /* ── PROFILE FORM ──────────────────────────────────── */
 .profile-form {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 1.8rem;
@@ -338,7 +338,7 @@
   border-radius: 8px;
   font-family: var(--font-body);
   font-size: 0.9rem;
-  color: #111;
+  color: var(--ink);
   padding: 0.7rem 1rem;
   outline: none;
   transition: border-color 0.2s;
@@ -352,7 +352,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #bbb;
+  color: var(--muted2);
   padding-top: 0.5rem;
   border-top: 1px solid var(--border-soft);
 }
@@ -366,8 +366,8 @@
 .pf-msg.error   { color: var(--danger); }
 
 .pf-save-btn {
-  background: #111;
-  color: #fff;
+  background: var(--inverse-bg);
+  color: var(--inverse-ink);
   border: none;
   border-radius: 8px;
   font-family: var(--font-display);
@@ -419,7 +419,7 @@
 
 .order-modal-box {
   position: relative;
-  background: #fff;
+  background: var(--surface);
   border-radius: 14px;
   padding: 2rem;
   max-width: 480px;
@@ -441,7 +441,7 @@
   line-height: 1;
 }
 
-.order-modal-close:hover { color: #111; }
+.order-modal-close:hover { color: var(--ink); }
 
 .order-modal-header {
   display: flex;
@@ -456,7 +456,7 @@
   font-family: var(--font-display);
   font-size: 1.1rem;
   font-weight: 800;
-  color: #111;
+  color: var(--ink);
 }
 
 .order-modal-date {
@@ -520,7 +520,7 @@
   font-family: var(--font-display);
   font-size: 0.85rem;
   font-weight: 700;
-  color: #111;
+  color: var(--ink);
 }
 
 .timeline-step.upcoming .timeline-label  { color: var(--muted2); }
@@ -532,7 +532,7 @@
   margin-top: 0.15rem;
 }
 
-.timeline-step.upcoming .timeline-date { color: #bbb; }
+.timeline-step.upcoming .timeline-date { color: var(--muted2); }
 
 .timeline-loading, .timeline-empty {
   font-size: 0.82rem;
@@ -579,7 +579,7 @@
   font-family: var(--font-display);
   font-size: 0.85rem;
   font-weight: 700;
-  color: #111;
+  color: var(--ink);
 }
 
 .order-modal-item-meta {
@@ -609,7 +609,7 @@
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 800;
-  color: #111;
+  color: var(--ink);
   padding-top: 1rem;
   border-top: 1px solid var(--border-soft);
 }

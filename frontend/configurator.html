@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Jai'fore — Design Studio</title>
   <link rel="stylesheet" href="styles/tokens.css"/>
+  <script src="scripts/theme.js"></script>
   <link rel="stylesheet" href="styles/shell.css"/>
   <link rel="stylesheet" href="styles/mobile.css"/>
   <link rel="stylesheet" href="styles/services.css"/>
@@ -50,7 +51,7 @@
     #draftPromptModal.fade-out { opacity: 0; }
 
     .gender-modal-box {
-      background: #fff;
+      background: var(--surface);
       border-radius: 20px;
       padding: 2.5rem 2rem;
       text-align: center;
@@ -62,12 +63,12 @@
       font-family: 'Syne', sans-serif;
       font-size: 1.35rem;
       font-weight: 700;
-      color: #1a1a2e;
+      color: var(--ink);
       margin-bottom: 0.4rem;
     }
     .gender-modal-sub {
       font-size: 0.85rem;
-      color: #888;
+      color: var(--muted);
       margin-bottom: 2rem;
     }
     .gender-modal-options {
@@ -81,27 +82,27 @@
       align-items: center;
       gap: 0.5rem;
       padding: 1.2rem 2rem;
-      border: 2px solid #e8e8e8;
+      border: 2px solid var(--border);
       border-radius: 14px;
-      background: #fafafa;
+      background: var(--bg-soft);
       cursor: pointer;
       transition: all 0.2s ease;
       font-family: 'Karla', sans-serif;
     }
     .gender-opt:hover {
-      border-color: #7b5ea7;
-      background: #f3eeff;
+      border-color: var(--purple);
+      background: var(--purple-tint);
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(123,94,167,0.15);
     }
     .gender-icon  { font-size: 2rem; }
-    .gender-label { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; }
+    .gender-label { font-size: 0.9rem; font-weight: 600; color: var(--ink); }
 
     /* ── GENDER TOGGLE (in studio) ───────────────── */
     .gender-toggle {
       display: flex;
       gap: 0.4rem;
-      background: #f0f0f0;
+      background: var(--bg-soft);
       border-radius: 10px;
       padding: 3px;
     }
@@ -113,16 +114,16 @@
       font-family: 'Karla', sans-serif;
       font-size: 0.8rem;
       font-weight: 600;
-      color: #666;
+      color: var(--muted);
       cursor: pointer;
       transition: all 0.18s ease;
     }
     .gender-btn.active {
-      background: #7b5ea7;
+      background: var(--purple);
       color: #fff;
       box-shadow: 0 2px 8px rgba(123,94,167,0.3);
     }
-    .gender-btn:hover:not(.active) { background: #e0e0e0; color: #333; }
+    .gender-btn:hover:not(.active) { background: var(--border); color: var(--ink-soft); }
 
     /* ── TOGGLE ROW ──────────────────────────────── */
     .toggle-row {

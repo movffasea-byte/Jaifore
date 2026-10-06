@@ -8,9 +8,8 @@
    pass contrast as text on white.
 
    Dark mode: the full dark set is defined below under [data-theme="dark"].
-   It is only switched on by that attribute (the toggle ships in Phase 6);
-   the prefers-color-scheme block applies only to data-theme="auto" so pages
-   don't half-flip to dark before every stylesheet uses these tokens.
+   scripts/theme.js sets data-theme on <html> from the 3-way toggle
+   (light / dark / auto); "auto" is resolved to light or dark there.
    ================================ */
 :root {
   /* ── Brand ─────────────────────────────────────── */
@@ -26,6 +25,12 @@
   --blue:          #3b6fd0;
   --sage:          #8dbba0;
   --on-purple:     #ffffff;   /* text on --purple */
+  --inverse-bg:     #111111;   /* dark buttons that flip to light in dark mode */
+  --inverse-ink:    #ffffff;
+  --status-processing-bg: #fff8e1;
+  --status-shipped-bg:    #ebf4fb;
+  --status-delivered-bg:  #e8f5e9;
+  --status-cancelled-bg:  #fdecea;
 
   /* ── Surfaces ──────────────────────────────────── */
   --bg:            #ffffff;
@@ -143,37 +148,12 @@
   --border-soft:   #232038;
   --shadow-hard:   4px 4px 0 var(--purple);
   --tour-overlay:  rgba(0, 0, 0, 0.78);
-}
-
-/* Follow the OS only when a page opts in with data-theme="auto" */
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="auto"] {
-    color-scheme: dark;
-    --purple:        #8a6fcb;
-    --purple-dark:   #b9a3e3;
-    --purple-hover:  #9c84d8;
-    --purple-soft:   #b9a3e3;
-    --purple-tint:   #241f3d;
-    --purple-dim:    rgba(138, 111, 203, 0.14);
-    --purple-glow:   rgba(138, 111, 203, 0.30);
-    --bg:            #0f0d1a;
-    --bg-soft:       #171428;
-    --bg-card:       #171428;
-    --bg-panel:      #1b1830;
-    --bg-tint:       #1b1830;
-    --surface:       #171428;
-    --nav-bg:        rgba(15, 13, 26, 0.94);
-    --footer-bg:     #0a0914;
-    --ink:           #edebf5;
-    --ink-soft:      #d8d5e6;
-    --ink-2:         #bdb9cf;
-    --muted:         #a29eb5;
-    --muted2:        #6d6980;
-    --border:        #2e2a45;
-    --border-soft:   #232038;
-    --shadow-hard:   4px 4px 0 var(--purple);
-    --tour-overlay:  rgba(0, 0, 0, 0.78);
-  }
+  --inverse-bg:    #edebf5;
+  --inverse-ink:   #0f0d1a;
+  --status-processing-bg: #3a2f12;
+  --status-shipped-bg:    #14283d;
+  --status-delivered-bg:  #12301f;
+  --status-cancelled-bg:  #3d1a18;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -205,7 +205,7 @@ input{background:transparent;
 }
 
 input::placeholder{
-  color:#ccc
+  color:var(--muted2)
 }
 
 input:focus{

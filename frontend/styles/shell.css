@@ -141,3 +141,15 @@
   .footer { padding: 1.6rem 1.5rem; }
   .footer-inner { flex-direction: column; text-align: center; }
 }
+
+/* ── Theme toggle (scripts/theme.js) ───────────────── */
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; padding: 0;
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--border); border-radius: 50%;
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+}
+.theme-toggle:hover { border-color: var(--purple); color: var(--purple); }
+.theme-toggle--float { position: fixed; top: 0.8rem; right: 0.8rem; z-index: var(--z-sticky); background: var(--surface); }

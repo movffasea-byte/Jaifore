@@ -8,7 +8,7 @@
    background-position animation, so it stays cheap on slow machines.
    ================================ */
 :root {
-  --skel-base:   #e9e5f2;
+  --skel-base:   var(--purple-tint, #e9e5f2);
   --skel-shine:  rgba(255, 255, 255, 0.55);
   --skel-border: var(--border, #ddd8ea);
   --skel-radius: 8px;
@@ -82,3 +82,5 @@
 @media (prefers-reduced-motion: reduce) {
   .skel::after { animation: none; display: none; }
 }
+
+[data-theme="dark"] { --skel-shine: rgba(255, 255, 255, 0.07); }
