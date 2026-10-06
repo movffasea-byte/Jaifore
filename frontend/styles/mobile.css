@@ -1,0 +1,157 @@
+/* ================================
+   JAIFORE — MOBILE APP LAYER
+   frontend/styles/mobile.css
+
+   Styles for scripts/mobile-app.js: the bottom tab bar (phones only) and the
+   cart drawer (bottom sheet on phones, right-hand panel on desktop).
+   Uses tokens.css only. Load after shell.css.
+   ================================ */
+
+/* ── Tab bar ───────────────────────────────────────── */
+.tabbar { display: none; }
+
+@media (max-width: 768px) {
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-sticky);
+    background: var(--nav-bg);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border-soft);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  body.has-tabbar { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+
+  .tab {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; min-height: 56px; padding: 6px 0;
+    color: var(--muted); text-decoration: none;
+    font-family: var(--font-body); font-size: 0.66rem; letter-spacing: 0.03em;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab[aria-current="page"] { color: var(--purple); font-weight: 600; }
+  .tab:active .tab-icon { transform: scale(0.9); }
+  .tab-icon { position: relative; display: inline-flex; transition: transform 0.15s ease; }
+  .tab-badge {
+    position: absolute; top: -5px; right: -9px;
+    min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+    background: var(--purple); color: var(--on-purple);
+    font-size: 0.6rem; font-weight: 700; line-height: 16px; text-align: center;
+  }
+
+  /* Cart toast sits above the tab bar */
+  body.has-tabbar #cart-toast {
+    bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+    right: 1rem !important; left: 1rem; text-align: center;
+  }
+
+  /* Services: product rows swipe sideways */
+  .products-grid {
+    display: flex; overflow-x: auto; gap: 0.9rem;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.6rem; scrollbar-width: none;
+  }
+  .products-grid::-webkit-scrollbar { display: none; }
+  .products-grid > .product-card { flex: 0 0 72%; scroll-snap-align: start; }
+  /* Category keeps its two-per-row catalogue grid */
+  .cat-main .products-grid { display: grid; overflow: visible; }
+  .cat-main .products-grid > .product-card { flex: initial; }
+}
+
+/* ── Cart drawer ───────────────────────────────────── */
+body.cd-lock { overflow: hidden; }
+
+.cd-backdrop {
+  position: fixed; inset: 0; z-index: var(--z-drawer);
+  background: rgba(20, 18, 28, 0.45);
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s;
+}
+.cd-backdrop.open { opacity: 1; visibility: visible; }
+
+.cd-drawer {
+  position: fixed; z-index: calc(var(--z-drawer) + 1);
+  top: 0; right: 0; bottom: 0; width: min(420px, 100%);
+  display: flex; flex-direction: column;
+  background: var(--surface); color: var(--ink);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(100%); visibility: hidden;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0.3s;
+}
+.cd-drawer.open { transform: none; visibility: visible; }
+
+.cd-grip { display: none; }
+.cd-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border-soft);
+}
+.cd-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; }
+.cd-close {
+  background: none; border: 0; cursor: pointer; color: var(--ink);
+  font-size: 1.8rem; line-height: 1; width: 44px; height: 44px; margin: -8px -10px -8px 0;
+}
+.cd-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+
+.cd-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
+  padding: 3rem 1.5rem; color: var(--muted); text-align: center;
+}
+.cd-empty a { color: var(--purple); font-weight: 600; }
+
+.cd-line { position: relative; overflow: hidden; border-bottom: 1px solid var(--border-soft); }
+.cd-remove-hint {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 1.5rem; background: var(--danger); color: #fff;
+  font-size: var(--text-sm); font-weight: 600;
+}
+.cd-line-inner {
+  position: relative; display: flex; gap: 0.9rem; align-items: flex-start;
+  padding: 1rem 1.25rem; background: var(--surface);
+  transition: transform 0.2s ease;
+}
+.cd-img {
+  flex: 0 0 64px; height: 64px; border-radius: var(--radius-sm); overflow: hidden;
+  background: var(--bg-soft); display: flex; align-items: center; justify-content: center;
+}
+.cd-img img { width: 100%; height: 100%; object-fit: cover; }
+.cd-info { flex: 1; min-width: 0; }
+.cd-name { font-weight: 600; font-size: var(--text-sm); }
+.cd-meta { color: var(--muted); font-size: var(--text-xs); margin-top: 2px; }
+.cd-price { font-weight: 600; font-size: var(--text-sm); white-space: nowrap; }
+
+.cd-qty { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.6rem; }
+.cd-qty button {
+  width: 32px; height: 32px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--ink); border-radius: var(--radius-sm); cursor: pointer; font-size: 1rem;
+}
+.cd-qty span { min-width: 1.6rem; text-align: center; font-size: var(--text-sm); }
+.cd-qty .cd-rm {
+  width: auto; padding: 0 0.4rem; margin-left: 0.4rem; border: 0;
+  background: none; color: var(--muted); font-size: var(--text-xs); text-decoration: underline;
+}
+
+.cd-foot { padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--border-soft); }
+.cd-foot:empty { display: none; }
+.cd-sub { display: flex; justify-content: space-between; font-size: var(--text-base); }
+.cd-note { margin: 0.3rem 0 0.9rem; color: var(--muted); font-size: var(--text-xs); }
+.cd-checkout {
+  width: 100%; min-height: 48px; border: 0; cursor: pointer;
+  background: var(--purple); color: var(--on-purple); border-radius: var(--radius-pill);
+  font-family: var(--font-body); font-size: var(--text-base); font-weight: 600;
+  transition: background 0.2s ease;
+}
+.cd-checkout:hover { background: var(--purple-hover); }
+
+/* Phones: bottom sheet */
+@media (max-width: 768px) {
+  .cd-drawer {
+    top: auto; left: 0; right: 0; width: 100%; max-height: 85vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transform: translateY(100%);
+  }
+  .cd-grip { display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 8px auto 0; }
+  .cd-head { padding-top: 0.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cd-drawer, .cd-backdrop, .tab-icon, .cd-line-inner { transition: none; }
+}
