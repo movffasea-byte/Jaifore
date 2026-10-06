@@ -6,18 +6,22 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #0d0d0d;
-  --surface:   #141414;
-  --surface2:  #1c1c1c;
-  --border:    #2a2a2a;
-  --purple:    #7c3aed;
-  --purple-lt: #9f67ff;
-  --ink:       #f0ede8;
-  --ink-muted: #888;
-  --danger:    #e53e3e;
-  --success:   #38a169;
-  --font-head: 'Syne', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+  /* Admin palette comes from the rooted1 logo: black, violet, teal, blue, sage */
+  --bg:        #08070f;
+  --surface:   #12101f;
+  --surface2:  #1a1730;
+  --border:    #2c2745;
+  --purple:    #7a63a1;   /* logo violet — white text on it is >= 4.5:1 */
+  --purple-lt: #b9a3e3;   /* links / accents on dark */
+  --teal:      #5cc8c4;
+  --blue:      #6b8fe0;
+  --sage:      #8dbba0;
+  --ink:       #edebf5;
+  --ink-muted: #b4b0c4;
+  --danger:    #f06a6a;
+  --success:   #4ec38a;
+  --font-head: var(--font-display, 'Playfair Display', Georgia, serif);
+  --font-body: 'DM Sans', system-ui, sans-serif;
 }
 
 body {
@@ -393,7 +397,7 @@ body {
 .badge-pending  { background: #78350f22; color: #f59e0b; border: 1px solid #f59e0b44; }
 .badge-success  { background: #14532d22; color: #4ade80; border: 1px solid #4ade8044; }
 .badge-failed   { background: #7f1d1d22; color: #f87171; border: 1px solid #f8717144; }
-.badge-admin    { background: #4c1d9522; color: var(--purple-lt); border: 1px solid #7c3aed44; }
+.badge-admin    { background: rgba(122, 99, 161, 0.2); color: var(--purple-lt); border: 1px solid rgba(185, 163, 227, 0.35); }
 .badge-user     { background: var(--surface2); color: var(--ink-muted); border: 1px solid var(--border); }
 
 .action-btn {
@@ -826,16 +830,16 @@ body {
    ===================================================================== */
 :root {
   /* page */
-  --glass-bg-1:       #0b0a14;
-  --glass-bg-2:       #151030;
-  --glass-bg-3:       #0d1424;
-  --blob-purple:      rgba(124, 58, 237, 0.42);
-  --blob-blue:        rgba(56, 120, 237, 0.30);
-  --blob-pink:        rgba(190, 70, 200, 0.26);
+  --glass-bg-1:       #06050c;
+  --glass-bg-2:       #14102a;
+  --glass-bg-3:       #07161a;
+  --blob-purple:      rgba(122, 99, 161, 0.48);
+  --blob-blue:        rgba(59, 111, 208, 0.30);
+  --blob-pink:        rgba(92, 200, 196, 0.22);   /* teal glow from the logo (var name kept) */
 
   /* panels */
-  --glass-fill:       rgba(26, 20, 52, 0.55);
-  --glass-fill-solid: rgba(24, 20, 44, 0.78);   /* tables + no-blur fallback */
+  --glass-fill:       rgba(26, 22, 48, 0.58);
+  --glass-fill-solid: rgba(22, 19, 40, 0.80);   /* tables + no-blur fallback */
   --glass-fill-input: rgba(8, 6, 20, 0.55);
   --glass-border:     rgba(255, 255, 255, 0.14);
   --glass-shadow:     0 8px 32px rgba(0, 0, 0, 0.35);
@@ -845,7 +849,7 @@ body {
 
   /* text — raised from #888 so it stays >= 4.5:1 on glass */
   --ink-muted:        #b4b0c4;
-  --purple-hover:     #6d28d9;                   /* white text stays >= 4.5:1 */
+  --purple-hover:     #6a5391;                   /* white text stays >= 4.5:1 */
 }
 
 body {
@@ -928,7 +932,7 @@ body::before {
 .field-group input::placeholder, .field-group textarea::placeholder { color: #9a96ad; }
 .field-group input:focus, .field-group textarea:focus, .field-group select:focus {
   border-color: var(--purple-lt);
-  box-shadow: 0 0 0 3px rgba(159, 103, 255, 0.25);
+  box-shadow: 0 0 0 3px rgba(185, 163, 227, 0.28);
 }
 
 .nav-item:hover, .nav-item.active { background: rgba(255, 255, 255, 0.1); }
@@ -945,7 +949,7 @@ body::before {
 .badge-pending  { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); }
 .badge-success  { background: rgba(74, 222, 128, 0.14); color: #6ee7a0; border-color: rgba(110, 231, 160, 0.4); }
 .badge-failed   { background: rgba(248, 113, 113, 0.16); color: #fca5a5; border-color: rgba(252, 165, 165, 0.4); }
-.badge-admin    { background: rgba(159, 103, 255, 0.2);  color: #d4bbff; border-color: rgba(212, 187, 255, 0.4); }
+.badge-admin    { background: rgba(122, 99, 161, 0.22); color: #d9cdf3; border-color: rgba(217, 205, 243, 0.4); }
 .badge-user     { background: rgba(255, 255, 255, 0.08); color: var(--ink-muted); border-color: var(--glass-border); }
 .badge-lowstock { background: rgba(245, 158, 11, 0.16);  color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); }
 

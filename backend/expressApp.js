@@ -154,6 +154,15 @@ app.use('/images', express.static(path.join(__dirname, 'images')));
 
 app.use('/admin', express.static(path.join(__dirname, '../frontend/admin')));
 
+// admin.html is served from here (Railway) but shares a few files with the
+// storefront (../styles, ../scripts, /logo). Serve exactly those — not whole
+// folders — so the admin page works on this host as well as on Vercel.
+const FRONTEND_DIR = path.join(__dirname, '../frontend');
+['styles/tokens.css', 'styles/skeleton.css', 'scripts/skeleton.js'].forEach(file => {
+  app.get('/' + file, (req, res) => res.sendFile(path.join(FRONTEND_DIR, file)));
+});
+app.use('/logo', express.static(path.join(FRONTEND_DIR, 'logo')));
+
 Sentry.setupExpressErrorHandler(app);
 
 app.use((req, res) => {

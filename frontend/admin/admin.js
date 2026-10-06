@@ -310,8 +310,8 @@ async function loadRevenueChart(period = 'daily') {
         datasets: [{
           label: 'Revenue (USD)',
           data: values,
-          backgroundColor: 'rgba(159, 103, 255, 0.55)',
-          borderColor: '#b794ff',
+          backgroundColor: 'rgba(185, 163, 227, 0.55)',
+          borderColor: '#b9a3e3',
           borderWidth: 1,
           borderRadius: 4,
         }]
@@ -1005,8 +1005,8 @@ async function openQrStats(id, title) {
         datasets: [{
           label: 'Scans',
           data: values.length ? values : [0],
-          borderColor: '#b794ff',
-          backgroundColor: 'rgba(159, 103, 255, 0.2)',
+          borderColor: '#5cc8c4',
+          backgroundColor: 'rgba(92, 200, 196, 0.18)',
           fill: true,
           tension: 0.3,
         }]
