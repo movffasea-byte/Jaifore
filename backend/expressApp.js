@@ -23,9 +23,9 @@ require('dotenv').config();
 const Sentry = require('@sentry/node');
 
 Sentry.init({
-  dsn: 'https://749ed2ea232dfaeeed46e8b711acf4fc@o4511594226253824.ingest.us.sentry.io/4511594359226368',
+  dsn: process.env.SENTRY_DSN, // unset = Sentry stays off (e.g. in tests)
   environment: process.env.NODE_ENV || 'production',
-  tracesSampleRate: 1.0,
+  tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0.1),
   sendDefaultPii: false,
 });
 
@@ -86,6 +86,7 @@ app.post(
 // parser to run marks the body as parsed, so the global one below skips them.
 // (Uploading artwork to file storage instead is the proper long-term fix.)
 app.use(['/api/stripe', '/api/cart', '/api/wishlist'], express.json({ limit: '25mb' }));
+app.use('/api/uploads', express.json({ limit: '8mb' }));
 app.use(express.json());
 
 // ── RATE LIMITERS ──────────────────────────────────────
@@ -143,6 +144,7 @@ app.use('/api/backup',        generalLimiter, require('./routes/backup'));
 app.use('/api/wishlist', generalLimiter, require('./routes/wishlist'));
 app.use('/api/recently-viewed', generalLimiter, require('./routes/recently-viewed'));
 app.use('/api/cart', generalLimiter, require('./routes/cart'));
+app.use('/api/uploads', generalLimiter, require('./routes/uploads'));
 
 app.use('/images', express.static(path.join(__dirname, 'images')));
 

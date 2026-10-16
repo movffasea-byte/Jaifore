@@ -902,8 +902,26 @@ document.getElementById('uploadInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) { showMsg('File too large. Max 5MB.'); return; }
+  const token = localStorage.getItem('jaifore_token');
+  if (!token) { showMsg('Please log in to upload your own artwork.'); e.target.value = ''; return; }
   const reader = new FileReader();
-  reader.onload = (ev) => addDesign(ev.target.result, file.name, uploadFee);
+  reader.onload = async (ev) => {
+    showMsg('Uploading…');
+    try {
+      // Stored in Supabase Storage; the cart/checkout carry the short URL, not the image bytes.
+      const res  = await fetch(`${API}/api/uploads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ dataUrl: ev.target.result, name: file.name })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { showMsg(data.error || 'Upload failed. Please try again.'); return; }
+      showMsg('');
+      addDesign(data.url, file.name, uploadFee);
+    } catch {
+      showMsg('Upload failed. Check your connection and try again.');
+    }
+  };
   reader.readAsDataURL(file);
   e.target.value = '';
 });
