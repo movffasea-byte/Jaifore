@@ -18,10 +18,12 @@
   --success:   #38a169;
   --font-head: 'Syne', sans-serif;
   --font-body: 'DM Sans', sans-serif;
+  --glass-fill:   rgba(255,255,255,0.055);
+  --glass-border: rgba(255,255,255,0.12);
 }
 
 body {
-  background: var(--bg);
+  background: var(--bg) linear-gradient(160deg, #1b1b1d 0%, #151516 55%, #1a1a1c 100%) fixed;
   color: var(--ink);
   font-family: var(--font-body);
   min-height: 100vh;
@@ -813,3 +815,25 @@ body {
   width: auto;
   cursor: pointer;
 }
+/* ── DASHBOARD DEPTH + GLASS ───────────────────────── */
+.dashboard::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(520px circle at 72% 18%, rgba(255,255,255,0.07), transparent 70%),
+    radial-gradient(640px circle at 30% 85%, rgba(159,103,255,0.06), transparent 70%);
+  filter: blur(40px);
+}
+
+.stat-card, .table-wrap, .form-panel, .calendar-wrap,
+.tx-detail, .quick-stat, .revenue-chart-wrap {
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.data-table th { background: rgba(20,20,20,0.55); }
