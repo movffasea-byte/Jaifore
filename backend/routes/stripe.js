@@ -296,6 +296,8 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
     }
 
     const priced = await priceCart(req.body.items);
+    // The mobile app sends source:'mobile' so Stripe returns to its deep link.
+    const isMobile = req.body.source === 'mobile';
 
     const lineItems = priced.lines.map(l => ({
       quantity: l.qty,
@@ -328,8 +330,12 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
       client_reference_id: String(req.user.id),
       metadata:            { user_id: String(req.user.id) },
       expires_at:          Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour
-      success_url: `${FRONTEND_URL}/checkout.html?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${FRONTEND_URL}/checkout.html?payment=cancelled`,
+      success_url: isMobile
+        ? 'jaifore://order/{CHECKOUT_SESSION_ID}'
+        : `${FRONTEND_URL}/checkout.html?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  isMobile
+        ? 'jaifore://cart'
+        : `${FRONTEND_URL}/checkout.html?payment=cancelled`,
     });
 
     // Keep the exact priced cart so the webhook can build the order from it
