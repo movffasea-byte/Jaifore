@@ -82,24 +82,34 @@ async function attachPrintSizes(products) {
   return products;
 }
 
-// GET all products (public) — supports ?category=&search=&limit=
+// GET all products (public) — supports ?category=&search=&limit=&offset=&fields=lite
 // item 17: `search` matches against name OR description, case-insensitive,
 // and composes with the existing category filter (both can be present at once).
 router.get('/', async (req, res) => {
   try {
     const { category, search, limit } = req.query;
 
+    // Paging + slim rows, used by the configurator's design picker.
+    // Without `offset` / `fields=lite` the response is exactly what it was
+    // before, so existing callers are unaffected.
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const lite   = req.query.fields === 'lite';
+
     // Cache key folds in every query dimension so different combinations
     // (e.g. same category, different search term) never collide with each other
     // or serve stale results from a different filter combo.
-    const cacheKey = `products:list:${category || 'all'}:${search || 'nosearch'}:${limit || 'nolimit'}`;
+    const cacheKey = `products:list:${category || 'all'}:${search || 'nosearch'}:${limit || 'nolimit'}:${offset}:${lite ? 'lite' : 'full'}`;
 
     const cached = await cacheGet(cacheKey);
     if (cached) {
       return res.json(cached);
     }
 
-    let query  = 'SELECT * FROM products';
+    // lite = just what a picker thumbnail grid needs (needs the thumb_url
+    // column from sql/001_add_thumb_url.sql)
+    let query  = lite
+      ? 'SELECT id, name, image_url, thumb_url, print_size_ids FROM products'
+      : 'SELECT * FROM products';
     const conditions = [];
     const params = [];
 
@@ -126,8 +136,14 @@ router.get('/', async (req, res) => {
       query += ` LIMIT $${params.length}`;
     }
 
+    if (offset) {
+      params.push(offset);
+      query += ` OFFSET $${params.length}`;
+    }
+
     const result = await pool.query(query, params);
-    const products = await attachPrintSizes(result.rows);
+    // Lite rows only carry print_size_ids; the full print-size join is skipped
+    const products = lite ? result.rows : await attachPrintSizes(result.rows);
     await cacheSet(cacheKey, products, CACHE_TTL);
     res.json(products);
   } catch (err) { res.status(500).json({ error: err.message }); }

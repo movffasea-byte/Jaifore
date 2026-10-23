@@ -28,6 +28,7 @@ const { authenticate } = require('../middleware');
 const { cacheInvalidate } = require('../redis');
 const stripe = require('../stripeClient');
 const { sendOrderConfirmation, sendAdminOrderAlert, sendLowStockAlert } = require('../mailer');
+const { PricingError, priceApparelDesigns, toCents, cleanText } = require('../pricing');
 
 const router = express.Router();
 
@@ -42,7 +43,6 @@ const SHIPPING_FEE_CENTS            = 15 * 100;
 
 const MAX_LINES              = 50;
 const MAX_LINE_QTY           = 99;
-const MAX_DESIGNS_PER_LINE   = 20;
 const LOW_STOCK_THRESHOLD    = 5;
 
 const FRONTEND_URL  = (process.env.FRONTEND_URL || 'https://jai-fore.vercel.app').replace(/\/$/, '');
@@ -60,26 +60,13 @@ const SHIPPING_COUNTRIES = (process.env.STRIPE_SHIPPING_COUNTRIES || DEFAULT_SHI
   .split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
 
 // ── HELPERS ──────────────────────────────────────────
-class CartError extends Error {
-  constructor(message, status = 400) {
-    super(message);
-    this.status = status;
-  }
-}
-
-function toCents(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return Math.round(n * 100);
-}
+// Pricing errors from backend/pricing.js are customer-facing cart errors too
+const CartError = PricingError;
 
 function isHttpsUrl(value) {
   return typeof value === 'string' && /^https:\/\//i.test(value) && value.length <= 2000;
 }
 
-function cleanText(value, max) {
-  return typeof value === 'string' ? value.trim().slice(0, max) : '';
-}
 
 // ── SERVER-SIDE PRICING ──────────────────────────────
 // Turns whatever cart the browser sent into trusted priced lines. Product
@@ -146,41 +133,25 @@ async function priceCart(rawItems) {
       const baseCents = toCents(product.price);
       if (!baseCents) throw new CartError(`"${product.name}" can't be purchased right now.`);
 
-      const rawDesigns = Array.isArray(raw.designs) ? raw.designs : [];
-      if (rawDesigns.length > MAX_DESIGNS_PER_LINE) {
-        throw new CartError(`"${product.name}" has too many designs on it.`);
-      }
+      // Each design carries its own print size (a legacy line-level size is
+      // still honoured for designs that don't have one) — see pricing.js.
+      const priced = priceApparelDesigns({
+        productName:    product.name,
+        baseCents,
+        rawDesigns:     raw.designs,
+        lineLevelPrint: raw.printSize,
+        prints,
+        catalogDesigns,
+        uploadFeeCents,
+      });
+      unitCents = priced.unitCents;
+      designs   = priced.designs;
 
-      if (!rawDesigns.length) {
-        unitCents = baseCents;
-      } else {
-        const print = prints.get(Number(raw.printSize?.id));
-        if (!print) throw new CartError(`Please choose a print size for "${product.name}".`);
-        printSize = { id: print.id, size_label: print.size_label, dimensions: print.dimensions, price: print.cents / 100 };
-
-        let designsCents = 0;
-        designs = rawDesigns.map(d => {
-          const src = typeof d.src === 'string' ? d.src : '';
-          const feeCents = (src && !src.startsWith('data:') && catalogDesigns.has(src))
-            ? catalogDesigns.get(src)
-            : uploadFeeCents;
-          designsCents += feeCents;
-          return {
-            name:    cleanText(d.name, 200),
-            src,
-            price:   feeCents / 100,
-            viewKey: cleanText(d.viewKey, 30),
-            x: Number(d.x) || 0, y: Number(d.y) || 0,
-            w: Number(d.w) || 0, h: Number(d.h) || 0,
-          };
-        });
-
-        unitCents = baseCents + designsCents + print.cents * designs.length;
-
+      if (designs.length) {
         const g = String(raw.gender || '').toLowerCase();
         gender = (g === 'male' || g === 'female') ? g : null;
         if (gender) detailParts.push(gender === 'male' ? 'Male' : 'Female');
-        detailParts.push(`Print ${print.size_label}`, `${designs.length} design${designs.length > 1 ? 's' : ''}`);
+        detailParts.push(designs.map(d => `${d.name || 'Design'} (${d.printSize.size_label})`).join(', '));
       }
 
       // Stock only exists for apparel. NULL stock = not tracked.

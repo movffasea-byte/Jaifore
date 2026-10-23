@@ -4,9 +4,15 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Jai'fore — Design Studio</title>
+  <link rel="stylesheet" href="styles/tokens.css"/>
+  <script src="scripts/theme.js"></script>
+  <script src="scripts/a11y.js" defer></script>
+  <link rel="stylesheet" href="styles/shell.css"/>
+  <link rel="stylesheet" href="styles/mobile.css"/>
   <link rel="stylesheet" href="styles/services.css"/>
   <link rel="stylesheet" href="styles/configurator.css"/>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Karla:wght@300;400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="styles/skeleton.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,400&family=Playfair+Display:ital,wght@0,400..900;1,400..700&display=swap" rel="stylesheet"/>
   <!-- SITE TOUR: shared styling, loaded on every page -->
   <link rel="stylesheet" href="styles/site-tour.css"/>
 
@@ -46,7 +52,7 @@
     #draftPromptModal.fade-out { opacity: 0; }
 
     .gender-modal-box {
-      background: #fff;
+      background: var(--surface);
       border-radius: 20px;
       padding: 2.5rem 2rem;
       text-align: center;
@@ -58,12 +64,12 @@
       font-family: 'Syne', sans-serif;
       font-size: 1.35rem;
       font-weight: 700;
-      color: #1a1a2e;
+      color: var(--ink);
       margin-bottom: 0.4rem;
     }
     .gender-modal-sub {
       font-size: 0.85rem;
-      color: #888;
+      color: var(--muted);
       margin-bottom: 2rem;
     }
     .gender-modal-options {
@@ -77,27 +83,27 @@
       align-items: center;
       gap: 0.5rem;
       padding: 1.2rem 2rem;
-      border: 2px solid #e8e8e8;
+      border: 2px solid var(--border);
       border-radius: 14px;
-      background: #fafafa;
+      background: var(--bg-soft);
       cursor: pointer;
       transition: all 0.2s ease;
       font-family: 'Karla', sans-serif;
     }
     .gender-opt:hover {
-      border-color: #7b5ea7;
-      background: #f3eeff;
+      border-color: var(--purple);
+      background: var(--purple-tint);
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(123,94,167,0.15);
     }
     .gender-icon  { font-size: 2rem; }
-    .gender-label { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; }
+    .gender-label { font-size: 0.9rem; font-weight: 600; color: var(--ink); }
 
     /* ── GENDER TOGGLE (in studio) ───────────────── */
     .gender-toggle {
       display: flex;
       gap: 0.4rem;
-      background: #f0f0f0;
+      background: var(--bg-soft);
       border-radius: 10px;
       padding: 3px;
     }
@@ -109,16 +115,16 @@
       font-family: 'Karla', sans-serif;
       font-size: 0.8rem;
       font-weight: 600;
-      color: #666;
+      color: var(--muted);
       cursor: pointer;
       transition: all 0.18s ease;
     }
     .gender-btn.active {
-      background: #7b5ea7;
+      background: var(--purple-fill);
       color: #fff;
       box-shadow: 0 2px 8px rgba(123,94,167,0.3);
     }
-    .gender-btn:hover:not(.active) { background: #e0e0e0; color: #333; }
+    .gender-btn:hover:not(.active) { background: var(--border); color: var(--ink-soft); }
 
     /* ── TOGGLE ROW ──────────────────────────────── */
     .toggle-row {
@@ -129,15 +135,21 @@
       flex-wrap: wrap;
     }
   </style>
+  <meta name="theme-color" content="#4a2d7a"/>
+  <link rel="manifest" href="manifest.webmanifest"/>
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="Jai'fore"/>
 </head>
 <body>
 
   <div class="noise"></div>
 
   <!-- NAV -->
-  <nav class="nav">
+  <nav class="nav" aria-label="Main">
     <a href="index.html" class="nav-logo">
-      <img src="logo/rooted2.jpg" alt="Jai'fore"/>
+      <img src="logo/rooted2.jpg" alt="Jai'fore" width="40" height="40" decoding="async"/>
     </a>
     <div class="nav-links">
       <a href="index.html">Home</a>
@@ -169,7 +181,7 @@
         </div>
       </div>
 
-      <div class="studio-product-name" id="studioProductName">Loading...</div>
+      <div class="studio-product-name" id="studioProductName"><span class="skel skel-line" style="width:160px"></span></div>
 
       <!-- id="canvasOuter" added so JS can target it for scroll on zoom -->
       <div class="canvas-outer" id="canvasOuter">
@@ -198,6 +210,12 @@
     <!-- RIGHT: PANEL -->
     <div class="studio-panel">
 
+      <!-- Phones: handle that expands/collapses the bottom sheet -->
+      <button type="button" class="sheet-handle" id="sheetHandle" aria-expanded="false" aria-controls="studioPanelBody">
+        <span class="sheet-grip"></span>
+        <span class="sheet-handle-text">Design options</span>
+      </button>
+
       <div class="panel-section">
         <div class="panel-label">Selected Merch</div>
         <div class="panel-merch-info">
@@ -207,18 +225,21 @@
       </div>
 
       <div class="panel-section">
-        <div class="panel-label">Designs Applied <span class="design-count" id="designCount">0 / 5</span></div>
+        <div class="panel-label">Designs Applied <span class="design-count" id="designCount">0 / 2</span></div>
         <div class="design-slots" id="designSlots"></div>
       </div>
 
       <div class="panel-section">
         <div class="panel-label">Jaifore Graphic Designs</div>
+        <input type="search" class="gd-search" id="gdSearch" placeholder="Search designs…" aria-label="Search designs" autocomplete="off"/>
         <div class="graphic-grid" id="graphicGrid">
-          <div class="gd-skeleton"></div>
-          <div class="gd-skeleton"></div>
-          <div class="gd-skeleton"></div>
-          <div class="gd-skeleton"></div>
+          <div class="skel skel-img"></div>
+          <div class="skel skel-img"></div>
+          <div class="skel skel-img"></div>
+          <div class="skel skel-img"></div>
         </div>
+        <div id="gdSentinel"></div>
+        <button type="button" class="apply-all-btn" id="gdLoadMore" hidden>Load more designs</button>
       </div>
 
       <div class="panel-section">
@@ -231,8 +252,10 @@
       </div>
 
       <div class="panel-section">
-        <div class="panel-label">Print Size <span class="panel-label-note">(price per design)</span></div>
+        <div class="panel-label">Print Size <span class="panel-label-note">(each design has its own)</span></div>
+        <p class="ps-hint" id="printSizeHint"></p>
         <div class="print-size-row" id="printSizeRow"></div>
+        <button type="button" class="apply-all-btn" id="applySizeAllBtn" disabled>Apply to all designs</button>
       </div>
 
       <div class="panel-section">
@@ -276,7 +299,7 @@
 
 <footer class="footer">
   <div class="footer-inner">
-    <img class="footer-brand" src="logo/rooted2.jpg" alt="Jai'fore"/>
+    <img class="footer-brand" src="logo/rooted2.jpg" alt="Jai'fore" width="40" height="40" loading="lazy" decoding="async"/>
     <div class="footer-copy">© 2026 Jai'fore Media. Worldwide. By Design.</div>
     <div class="footer-legal">
       <a href="privacy-policy.html">Privacy Policy</a>
@@ -289,6 +312,7 @@
 </footer>
 
 
+  <script src="scripts/skeleton.js"></script>
   <script src="scripts/currency.js"></script>
   <script src="scripts/header.js"></script>
   <script src="data/cart.js"></script>
@@ -323,5 +347,7 @@
     ];
   </script>
   <script src="scripts/site-tour.js"></script>
+  <script src="scripts/mobile-app.js"></script>
+  <script src="scripts/pwa.js"></script>
 </body>
 </html>

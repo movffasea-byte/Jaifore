@@ -56,7 +56,7 @@
   right: 1rem;
   background: none;
   border: none;
-  color: var(--muted, #888);
+  color: var(--muted, var(--muted));
   font-size: 1rem;
   cursor: pointer;
   transition: color 0.2s;
@@ -73,7 +73,7 @@
 
 .contact-popup-sub {
   font-size: 0.85rem;
-  color: var(--muted, #888);
+  color: var(--muted, var(--muted));
   line-height: 1.5;
   margin-bottom: 1.5rem;
 }
@@ -88,8 +88,8 @@
   display: flex;
   align-items: center;
   gap: 0.9rem;
-  background: var(--bg-soft, #f5f0e8);
-  border: 1px solid var(--border, #d8d0c4);
+  background: var(--bg-soft, var(--bg));
+  border: 1px solid var(--border, var(--border));
   border-radius: var(--radius, 2px);
   padding: 0.8rem 1rem;
   text-decoration: none;
@@ -98,7 +98,7 @@
 }
 
 .contact-popup-link:hover {
-  border-color: var(--purple, #4a2d7a);
+  border-color: var(--purple, var(--purple-dark));
   background: var(--purple-dim, rgba(74,45,122,0.08));
   transform: translateX(2px);
 }
@@ -107,7 +107,7 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: var(--purple, #4a2d7a);
+  background: var(--purple, var(--purple-dark));
   color: #fff;
   display: flex;
   align-items: center;
@@ -126,7 +126,7 @@
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted, #888);
+  color: var(--muted, var(--muted));
 }
 
 .contact-popup-link-value {

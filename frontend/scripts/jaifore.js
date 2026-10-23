@@ -89,15 +89,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const ctaBtn = document.getElementById('ctaBtn');
   if (ctaBtn) {
-    ctaBtn.addEventListener('click', () => scrollTo('#work'));
+    // "Get in Touch" opens the same contact popup as the other pages
+    ctaBtn.addEventListener('click', () => {
+      if (typeof openContactPopup === 'function') openContactPopup();
+      else scrollTo('#work');
+    });
   }
 
   const ctaBannerBtn = document.getElementById('ctaBannerBtn');
   if (ctaBannerBtn) {
     ctaBannerBtn.addEventListener('click', () => {
-      // Replace with your actual contact link or modal trigger
-      alert('Contact form coming soon!');
+      if (typeof openContactPopup === 'function') openContactPopup();
     });
+  }
+
+  // Direct links under the banner, from the shared contact details
+  const contactLinks = document.getElementById('homeContactLinks');
+  const c = window.JAIFORE_CONTACT;
+  if (contactLinks && c) {
+    contactLinks.innerHTML = `
+      <a class="cta-link" href="mailto:${c.email}">✉ ${c.email}</a>
+      <a class="cta-link" href="https://wa.me/${c.phoneIntl}" target="_blank" rel="noopener">💬 WhatsApp</a>
+      <a class="cta-link" href="${c.facebookUrl}" target="_blank" rel="noopener">📘 Facebook</a>`;
   }
 
 

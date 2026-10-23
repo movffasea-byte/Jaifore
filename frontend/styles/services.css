@@ -1,41 +1,10 @@
 /* ================================
-   JAIFORE SERVICES — UNIFIED (CREAM)
+   JAIFORE SERVICES — SHARED STOREFRONT STYLES
    ================================ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
-  --bg:           #f5f0e8;
-  --bg-soft:      #ede8df;
-  --bg-card:      #eee9e0;
-  --ink:          #111111;
-  --ink-soft:     #222222;
-  --purple:       #4a2d7a;
-  --purple-light: #453c53;
-  --purple-dim:   rgba(74,45,122,0.08);
-  --purple-glow:  rgba(74,45,122,0.2);
-  --muted:        #888888;
-  --muted2:       #aaaaaa;
-  --border:       #d8d0c4;
-  --border-hover: #4a2d7a;
-  --error:        #b03030;
-  --success:      #2a7a4a;
-  --font-display: 'Playfair Display', serif;
-  --font-body:    'Karla', sans-serif;
-  --radius:       2px;
-  --transition:   0.3s cubic-bezier(0.4,0,0.2,1);
-
-  /* ================================
-     SITE TOUR — shared palette (used by styles/site-tour.css)
-     Kept here as variables, not hardcoded in the tour stylesheet, so the
-     tour automatically stays on-brand if these values ever change.
-     ================================ */
-  --tour-accent:      var(--purple);
-  --tour-accent-ink:  #fff;
-  --tour-overlay:     rgba(17, 17, 17, 0.72);
-  --tour-card-bg:     #fff;
-  --tour-card-ink:    var(--ink);
-}
+/* Colours, fonts, radius and motion live in tokens.css (loaded first). */
 
 html { scroll-behavior: smooth; }
 
@@ -52,105 +21,7 @@ img {
   max-width: 100%;
 }
 
-/* ================================
-   NAV
-   ================================ */
-.nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 1rem 3rem;
-  background: rgba(245,240,232,0.95);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border-bottom: 2px solid var(--ink);
-}
-
-.nav-logo img {
-  height: 40px; width: 40px;
-  object-fit: cover; border-radius: 50%;
-  border: 1px solid var(--border);
-}
-
-.nav-links { display: flex; align-items: center; gap: 2rem; }
-
-.nav-links a {
-  color: var(--muted); text-decoration: none;
-  font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase;
-  transition: color var(--transition);
-}
-.nav-links a:hover, .nav-links a.active { color: var(--ink); }
-
-.nav-cta {
-  background: var(--purple) !important;
-  color: #fff !important;
-  padding: 0.4rem 1rem;
-  border-radius: var(--radius);
-  font-size: 0.72rem !important;
-}
-.nav-cta:hover { background: var(--purple-light) !important; }
-
-/* ── NAV RIGHT ─────────────────────────────────────── */
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-.nav-user {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.nav-profile {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-decoration: none;
-  color: var(--ink);
-  padding: 0.3rem 0.8rem;
-  border-radius: 20px; /* was var(--radius) (2px) — now matches Home's rounded pill */
-  border: 1px solid var(--border);
-  transition: border-color var(--transition);
-}
-
-.nav-profile:hover { border-color: var(--purple); }
-
-.nav-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--purple);
-  color: #fff;
-  font-family: var(--font-display);
-  font-size: 0.7rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.nav-username {
-  font-size: 0.72rem;
-  letter-spacing: 0.05em;
-  color: var(--ink);
-}
-
-.nav-signin-btn {
-  background: var(--purple);
-  color: #fff;
-  border-radius: var(--radius);
-  font-family: var(--font-body);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.4rem 1rem;
-  text-decoration: none;
-  transition: background var(--transition);
-}
-.nav-signin-btn:hover { background: var(--ink); }
+/* Nav + footer: see shell.css */
 
 .cart-btn {
   position: relative;
@@ -164,7 +35,7 @@ img {
 .cart-btn:hover { border-color: var(--purple); color: var(--purple); }
 
 .cart-count {
-  background: var(--purple); color: #fff;
+  background: var(--purple-fill); color: #fff;
   font-size: 0.6rem; font-weight: 700;
   width: 16px; height: 16px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -175,7 +46,7 @@ img {
    HERO
    ================================ */
 .hero {
-  padding: 7.5rem 3rem 3rem;
+  padding: 6.25rem 3rem 2.25rem;
   position: relative; z-index: 1;
   border-bottom: 2px solid var(--ink);
   overflow: hidden;
@@ -191,9 +62,9 @@ img {
 
 .hero-title {
   font-family: var(--font-display);
-  font-size: clamp(2.1rem, 4.5vw, 3.3rem);
-  font-weight: 900; line-height: 1.08;
-  letter-spacing: -0.03em; margin-bottom: 1rem;
+  font-size: clamp(1.8rem, 3.4vw, 2.5rem);
+  font-weight: 800; line-height: 1.1;
+  letter-spacing: -0.02em; margin-bottom: 0.75rem;
   opacity: 0; animation: fadeUp 0.8s 0.35s forwards;
 }
 
@@ -206,10 +77,7 @@ img {
   opacity: 0; animation: fadeUp 0.8s 0.5s forwards;
 }
 
-.hero-scroll-line {
-  position: absolute; bottom: 0; left: 3rem;
-  width: 1px; height: 60px; background: var(--ink); opacity: 0.3;
-}
+.hero-scroll-line { display: none; } /* decorative line removed in the editorial pass */
 
 /* ================================
    SERVICES MAIN
@@ -223,7 +91,7 @@ img {
 /* ================================
    CATEGORY SECTION
    ================================ */
-.category-section { padding: 3.25rem 0 2.25rem; }
+.category-section { padding: 2.5rem 0 1.75rem; }
 
 .cat-header {
   display: grid;
@@ -236,7 +104,7 @@ img {
 
 .cat-label {
   font-family: var(--font-display);
-  font-size: 2.6rem; font-weight: 900;
+  font-size: 1.9rem; font-weight: 800;
   color: var(--muted2); line-height: 1;
   letter-spacing: -0.04em; opacity: 0.4;
   padding-top: 0.25rem;
@@ -246,7 +114,7 @@ img {
 
 .cat-title {
   font-family: var(--font-display);
-  font-size: 1.45rem; font-weight: 700;
+  font-size: 1.3rem; font-weight: 700;
   letter-spacing: -0.02em; margin-bottom: 0.4rem;
 }
 
@@ -267,7 +135,12 @@ img {
 /* ================================
    PRODUCTS GRID
    ================================ */
-.products-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; }
+/* Editorial product card: photo first, text on the page, actions underneath */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 2rem 1.5rem;
+}
 
 .skeleton-card {
   background: var(--bg-card); border: 1px solid var(--border);
@@ -281,20 +154,17 @@ img {
 }
 
 .product-card {
-  background: #fff; border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden; cursor: pointer;
-  transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  background: transparent; border: none;
+  border-radius: var(--radius); cursor: pointer;
+  transition: transform var(--transition);
   opacity: 0; animation: fadeUp 0.6s forwards;
 }
-.product-card:hover {
-  border-color: var(--ink);
-  transform: translateY(-4px);
-  box-shadow: 4px 4px 0 var(--ink);
-}
+.product-card:hover { transform: translateY(-3px); }
 
 .card-img {
-  width: 100%; aspect-ratio: 4/3;
+  width: 100%; aspect-ratio: 4/5;
   background: var(--bg-soft); overflow: hidden; position: relative;
+  border-radius: var(--radius);
 }
 .card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; border-radius: 0; }
 .product-card:hover .card-img img { transform: scale(1.04); }
@@ -303,48 +173,57 @@ img {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
   font-size: 3rem;
-  background: linear-gradient(135deg, var(--bg-soft), var(--bg-card));
+  background: linear-gradient(135deg, var(--bg-soft), var(--purple-tint));
 }
 
 .card-badge {
-  position: absolute; top: 0.75rem; left: 0.75rem;
-  background: var(--ink); color: var(--bg);
+  position: absolute; top: 0.7rem; left: 0.7rem;
+  background: var(--surface); color: var(--ink);
   font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase;
   padding: 0.2rem 0.5rem; border-radius: 1px;
+  box-shadow: var(--shadow-sm);
 }
-
 .card-badge.out-of-stock { background: var(--error); color: #fff; }
 
-.card-body { padding: 1.25rem; }
+/* Wishlist heart lives on the photo (still the same button, same behaviour) */
+.card-img .wishlist-heart-btn {
+  position: absolute; top: 0.6rem; right: 0.6rem; z-index: 2;
+  width: 36px; height: 36px; border: none; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92); color: var(--ink-2);
+  box-shadow: var(--shadow-sm);
+}
+.card-img .wishlist-heart-btn.saved { background: #fff; }
+
+.card-body { padding: 0.85rem 0.1rem 0; }
 
 .card-name {
   font-family: var(--font-display);
-  font-size: 1rem; font-weight: 700; margin-bottom: 0.35rem;
+  font-size: 1rem; font-weight: 600; margin-bottom: 0.2rem;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .card-desc {
   font-size: 0.78rem; color: var(--muted);
-  line-height: 1.5; margin-bottom: 1rem;
+  line-height: 1.5; margin-bottom: 0.75rem;
   display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2;
   -webkit-box-orient: vertical; overflow: hidden;
 }
 
-.card-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
-
-.card-price { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; }
+.card-price { font-family: var(--font-body); font-size: 0.9rem; font-weight: 500; color: var(--ink-2); margin-bottom: 0.65rem; }
 .card-price .currency { font-size: 0.75rem; color: var(--muted); font-weight: 400; margin-right: 1px; }
 
+.card-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
 .card-action {
-  background: var(--purple); border: none; color: #fff;
-  font-family: var(--font-body); font-size: 0.72rem;
+  background: var(--purple-fill); border: none; color: var(--on-purple);
+  font-family: var(--font-body); font-size: 0.7rem;
   font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
-  padding: 0.5rem 0.9rem; border-radius: var(--radius);
+  padding: 0.55rem 1rem; border-radius: var(--radius);
   cursor: pointer; transition: background var(--transition); white-space: nowrap;
 }
 .card-action:hover { background: var(--ink); }
 .card-action:disabled { opacity: 0.45; cursor: not-allowed; }
-.card-action:disabled:hover { background: var(--purple); }
+.card-action:disabled:hover { background: var(--purple-fill); }
 
 .configure-btn {
   display: flex; align-items: center; gap: 0.4rem;
@@ -352,16 +231,16 @@ img {
   color: var(--purple);
   font-family: var(--font-body); font-size: 0.7rem;
   font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
-  padding: 0.45rem 0.8rem; border-radius: var(--radius);
+  padding: 0.5rem 0.85rem; border-radius: var(--radius);
   cursor: pointer; white-space: nowrap;
   transition: background var(--transition), color var(--transition);
 }
-.configure-btn:hover { background: var(--purple); color: #fff; }
+.configure-btn:hover { background: var(--purple-fill); color: var(--on-purple); }
 
 .webdev-grid .product-card .card-img { aspect-ratio: 16/9; }
 .site-domain { font-size: 0.65rem; letter-spacing: 0.1em; color: var(--purple); margin-bottom: 0.25rem; }
 
-.size-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.size-chips { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
 .size-chip {
   font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
   border: 1px solid var(--border); padding: 0.15rem 0.4rem;
@@ -390,7 +269,7 @@ img {
 .section-divider span { flex: 1; height: 1px; background: var(--border); }
 .divider-dot {
   flex: none !important; width: 6px; height: 6px; border-radius: 50%;
-  background: var(--purple); box-shadow: 0 0 8px var(--purple-glow);
+  background: var(--purple-fill); box-shadow: 0 0 8px var(--purple-glow);
 }
 
 /* ================================
@@ -435,7 +314,7 @@ img {
   padding: 0.9rem; border-radius: var(--radius);
   cursor: pointer; transition: background var(--transition);
 }
-.checkout-btn:hover { background: var(--purple); }
+.checkout-btn:hover { background: var(--purple-fill); }
 
 /* ================================
    PRODUCT MODAL
@@ -481,10 +360,10 @@ img {
 .print-opt { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; flex: 1 1 100%; text-align: left; }
 
 .modal-configure-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: none; border: 1px solid var(--purple); color: var(--purple); font-family: var(--font-body); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.65rem; border-radius: var(--radius); cursor: pointer; transition: background var(--transition), color var(--transition); }
-.modal-configure-btn:hover { background: var(--purple); color: #fff; }
+.modal-configure-btn:hover { background: var(--purple-fill); color: #fff; }
 
 .modal-add-btn { background: var(--ink); border: none; color: var(--bg); font-family: var(--font-body); font-size: 0.8rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.75rem; border-radius: var(--radius); cursor: pointer; transition: background var(--transition); margin-top: auto; }
-.modal-add-btn:hover { background: var(--purple); }
+.modal-add-btn:hover { background: var(--purple-fill); }
 .modal-add-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .modal-add-btn:disabled:hover { background: var(--ink); }
 
@@ -551,7 +430,7 @@ img {
   cursor: pointer; transition: all var(--transition);
 }
 .size-guide-tab:hover  { border-color: var(--purple); color: var(--purple); }
-.size-guide-tab.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+.size-guide-tab.active { background: var(--purple-fill); border-color: var(--purple); color: #fff; }
 
 .size-guide-table {
   width: 100%;
@@ -948,64 +827,6 @@ img {
 }
 
 /* ================================
-   FOOTER
-   ================================
-   FIX: previously a separate light-cream footer (border-top only, --muted
-   text) that visually mismatched the homepage's dark navy footer, even
-   though the HTML markup is identical on every page. Now matches
-   jaifore.css's footer exactly, so Home/Services/Category/Dashboard/
-   Configurator all render the same footer regardless of which stylesheet
-   loads it. */
-.footer {
-  background: #1a0d2e;
-  padding: 2rem 3rem;
-  border-top: none;
-}
-.footer-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-}
-.footer-brand {
-  height: 40px;
-  width: 40px;
-  object-fit: cover;
-  border-radius: 50% !important;
-  border: 1px solid rgba(255,255,255,0.15);
-  flex-shrink: 0;
-}
-.footer-copy {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  color: #ccc;
-  font-weight: 300;
-  letter-spacing: 0.5px;
-}
-.footer-legal {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-.footer-legal a {
-  font-family: 'Inter', sans-serif;
-  font-size: 0.72rem;
-  color: #888;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-.footer-legal a:hover { color: #9b6fd4; }
-.footer-legal span {
-  color: #444;
-  font-size: 0.7rem;
-}
-
-/* ================================
    BACK TO TOP BUTTON (new)
    Shared by services.html and category.html via scripts/back-to-top.js,
    which injects the button markup and toggles ".visible" on scroll — no
@@ -1040,7 +861,7 @@ img {
 }
 
 .back-to-top-btn:hover {
-  background: var(--purple);
+  background: var(--purple-fill);
 }
 
 .back-to-top-btn svg {
@@ -1086,7 +907,7 @@ img {
   .nav-links { display: none; }
   .hero { padding: 6rem 1.5rem 2rem; }
   .services-main { padding: 0 1.5rem 4rem; }
-  .products-grid { grid-template-columns: 1fr; }
+  .products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.4rem 0.75rem; }
   .cat-header { grid-template-columns: auto 1fr; }
   .cat-view-all { grid-column: 1/-1; }
   .cart-sidebar { width: 100%; }

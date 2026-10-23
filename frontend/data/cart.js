@@ -48,28 +48,34 @@ function formatPrice(amount) {
 // ── CONFIG SIGNATURE (item 18) ────────────────────────────
 // Plain products (no designs) have no signature — they match purely on
 // id + size, exactly as before. Configured items get a signature built from
-// WHICH designs are used (by name, sorted so order doesn't matter) plus
-// gender and print size — deliberately excluding x/y position and w/h, since
+// each design's name AND its own print size id (sorted so order doesn't
+// matter) plus gender — deliberately excluding x/y position and w/h, since
 // dragging/resizing the same designs should still count as the same cart line.
 //
-// Graphic-design lines carry their one design + chosen print size, so the
-// same design in Small and in Large are different lines.
+// The same design in Small and in Large is therefore two different lines.
+// Legacy lines carried one line-level printSize instead of one per design,
+// so a design without its own size falls back to that.
 //
-// Kept identical to the backend's copy in routes/cart.js — no shared build
-// step between frontend and backend, so both copies must stay in sync by hand.
+// Kept identical to the backend copies in routes/cart.js and
+// routes/wishlist.js (test/signature.test.js checks all three agree) — there
+// is no shared build step between frontend and backend.
 function configSignature(item) {
   const designs = item.designs || [];
   if (!designs.length) return null; // not a custom item — no signature needed
 
-  const designKey = designs
-    .map(d => d.name || d.src || '')
+  const list = designs;
+  const printSize = item.printSize;
+  const gender = item.gender;
+
+  const lineSize = printSize?.id ?? printSize?.size_label ?? '';
+
+  const designKey = list
+    .map(d => `${d.name || d.src || ''}@${d.printSize?.id ?? d.printSize?.size_label ?? lineSize}`)
     .slice()
     .sort()
     .join('|');
 
-  const printSizeKey = item.printSize?.id ?? item.printSize?.size_label ?? '';
-
-  return `${designKey}::${item.gender || ''}::${printSizeKey}`;
+  return `${designKey}::${gender || ''}`;
 }
 
 // ── VALIDATION ─────────────────────────────────────────────

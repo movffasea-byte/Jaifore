@@ -13,7 +13,7 @@ const API = 'https://jai-fore-production.up.railway.app';
 // The products table has no `sizes` column, so apparel uses this list unless a
 // product ever comes back with its own `sizes` array.
 // KEEP IN SYNC with category.js and the size buttons (.sz-btn) in configurator.html.
-const APPAREL_SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
+const APPAREL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
 let selectedSize         = null;
 let selectedPrintSize    = null;
@@ -160,13 +160,19 @@ document.addEventListener('click', async (e) => {
   const alreadySaved = wishlistedProductIds.has(String(productId));
   btn.disabled = true;
 
+  // Graphics are bought by print size, so the heart in the modal saves the size
+  // picked there (a card heart has no size yet — the wishlist asks for one later).
+  const isDesignItem = dbCategoryToKey(product.category) === 'design';
+  const sizeToSave   = (isDesignItem && btn.classList.contains('modal-wishlist-heart-btn')) ? selectedPrintSize : null;
+
   try {
     if (alreadySaved) {
       const listRes = await fetch(`${API}/api/wishlist`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const items = await listRes.json();
-      const match = items.find(i => !i.config_signature && String(i.product_id) === String(productId));
+      const plain = items.filter(i => !i.config_signature && String(i.product_id) === String(productId));
+      const match = (sizeToSave && plain.find(i => String(i.print_size_id) === String(sizeToSave.id))) || plain[0];
       if (match) {
         await fetch(`${API}/api/wishlist/${match.id}`, {
           method: 'DELETE',
@@ -181,8 +187,9 @@ document.addEventListener('click', async (e) => {
         body: JSON.stringify({
           productId: product.id,
           name: product.name,
-          price: product.price ?? 0,
-          snapshot: product.image_url || null
+          price: sizeToSave ? getDesignBasePrice(product) + parseFloat(sizeToSave.price) : (product.price ?? 0),
+          snapshot: product.image_url || null,
+          ...(isDesignItem ? { category: 'design', printSize: sizeToSave } : {})
         })
       });
       wishlistedProductIds.add(String(productId));
@@ -274,16 +281,18 @@ async function loadRecentlyViewed() {
   const token = localStorage.getItem('jaifore_token');
   if (!token) { section.classList.add('hidden'); return; }
 
+  // Show the strip right away with placeholder cards; it hides again if there's nothing to show
+  section.classList.remove('hidden');
+  grid.innerHTML = Array(4).fill(
+    `<div class="skel-card recently-viewed-card" aria-hidden="true"><span class="skel skel-img" style="aspect-ratio:4/3"></span><span class="skel skel-line" style="width:70%;margin-top:0.7rem"></span><span class="skel skel-line short"></span></div>`).join('');
+
   try {
-    const res = await fetch(`${API}/api/recently-viewed`, {
+    const items = await fetchJson(`${API}/api/recently-viewed`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error();
-    const items = await res.json();
 
     if (!items.length) { section.classList.add('hidden'); return; }
 
-    section.classList.remove('hidden');
     grid.innerHTML = '';
     items.forEach((item, i) => {
       const category = dbCategoryToKey(item.category);
@@ -294,7 +303,7 @@ async function loadRecentlyViewed() {
       card.style.animationDelay = `${i * 0.05}s`;
       card.innerHTML = `
         <div class="card-img">
-          ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" loading="lazy"/>` : `<div class="card-img-placeholder">📦</div>`}
+          ${item.image_url ? `<img src="${item.thumb_url || item.image_url}" alt="${item.name}" width="400" height="300" loading="lazy" decoding="async"/>` : `<div class="card-img-placeholder">📦</div>`}
         </div>
         <div class="card-body">
           <div class="card-name">${item.name}</div>
@@ -313,8 +322,8 @@ async function loadRecentlyViewed() {
     initRecentlyViewedSlider();
     // Measure after the section is visible and the cards are in place
     requestAnimationFrame(() => { grid.scrollLeft = 0; updateRecentlyViewedArrows(); });
-  } catch {
-    section.classList.add('hidden');
+  } catch (err) {
+    showError(grid, friendlyError(err), loadRecentlyViewed);
   }
 }
 
@@ -340,7 +349,7 @@ function renderRelatedItemsHTML(items, category) {
         ${items.map(p => `
           <div class="modal-related-card" data-id="${p.id}">
             <div class="modal-related-img">
-              ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy"/>` : '📦'}
+              ${p.image_url ? `<img src="${p.thumb_url || p.image_url}" alt="${p.name}" width="400" height="300" loading="lazy" decoding="async"/>` : '📦'}
             </div>
             <div class="modal-related-name">${p.name}</div>
             <div class="modal-related-price">${getPriceLabel(p, category)}</div>
@@ -452,7 +461,7 @@ async function fetchProducts(category, limit = 3) {
   };
   try {
     const cat = encodeURIComponent(categoryMap[category] || category);
-    const res = await fetch(`${API}/api/products?category=${cat}&limit=${limit}`);
+    const res = await fetchWithTimeout(`${API}/api/products?category=${cat}&limit=${limit}`);
     if (!res.ok) throw new Error();
     const data = await res.json();
     return Array.isArray(data) ? data : data.products || [];
@@ -463,116 +472,30 @@ async function fetchProducts(category, limit = 3) {
 
 // ── PRODUCT CARD ─────────────────────────────────────
 function renderCard(product, index, category) {
-  const card        = document.createElement('div');
-  card.className    = 'product-card';
-  card.style.animationDelay = `${index * 0.1}s`;
-
-  const isWebdev   = category === 'webdev';
-  const isApparel  = category === 'apparel';
-  const isDesign   = category === 'design';
-  const placeholder = getPlaceholder(category, index);
-
-  const imgHTML = product.image_url
-    ? `<img src="${product.image_url}" alt="${product.name}" loading="lazy"/>`
-    : `<div class="card-img-placeholder">${placeholder}</div>`;
-
-  const printSizes    = getPrintSizes(product);
-  const hasPrintSizes = printSizes.length > 0;
-
-  let sizeHTML = '';
-  if (isApparel) {
-    const sizes = getSizes(product);
-    sizeHTML = `<div class="size-chips">
-        ${sizes.slice(0,4).map(s => `<span class="size-chip">${s}</span>`).join('')}
-        ${sizes.length > 4 ? `<span class="size-chip">+${sizes.length - 4}</span>` : ''}
-       </div>`;
-  } else if (isDesign && hasPrintSizes) {
-    sizeHTML = `<div class="size-chips">
-        ${printSizes.map(s => `<span class="size-chip">${s.size_label}</span>`).join('')}
-       </div>`;
-  }
-
-  // webdev's live link comes from product.live_link (real DB field)
-  const domainHTML = isWebdev && product.live_link
-    ? `<div class="site-domain">↗ ${product.live_link}</div>` : '';
-
-  // "Out of stock" only ever applies to apparel
-  const badgeHTML = (isApparel && product.in_stock === false)
-    ? `<span class="card-badge out-of-stock">Out of Stock</span>`
-    : `<span class="card-badge">${isApparel ? 'Merch' : isDesign ? 'Design' : 'Web'}</span>`;
-
-  const wishlistHeartHTML = renderWishlistHeart(product.id, category);
-  const priceLabel = getPriceLabel(product, category);
-
-  let footerHTML;
-  if (isApparel) {
-    footerHTML = `<div class="card-price">${priceLabel}</div>
-       <div style="display:flex;gap:0.4rem">
-         ${wishlistHeartHTML}
-         <button class="configure-btn" data-id="${product.id}">🎨 Design</button>
-         <button class="card-action" data-id="${product.id}" ${product.in_stock === false ? 'disabled' : ''}>Add to Cart</button>
-       </div>`;
-  } else if (isDesign) {
-    footerHTML = `<div class="card-price">${priceLabel || 'Not available yet'}</div>
-       <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-         ${wishlistHeartHTML}
-         <button class="card-action" data-id="${product.id}" ${hasPrintSizes ? '' : 'disabled'}>Order Now</button>
-       </div>`;
-  } else {
-    // webdev has no price to show — it's enquiry-only.
-    footerHTML = `<button class="card-action" data-id="${product.id}">Enquire</button>`;
-  }
-
-  card.innerHTML = `
-    <div class="card-img">
-      ${imgHTML}
-      ${badgeHTML}
-    </div>
-    <div class="card-body">
-      ${domainHTML}
-      <div class="card-name">${product.name}</div>
-      <div class="card-desc">${product.description || ''}</div>
-      ${sizeHTML}
-      <div class="card-footer">${footerHTML}</div>
-    </div>
-  `;
-
-  card.addEventListener('click', (e) => {
-    if (!e.target.classList.contains('card-action') &&
-        !e.target.classList.contains('configure-btn') &&
-        !e.target.closest('.qty-stepper') &&
-        !e.target.closest('.wishlist-heart-btn')) {
-      openModal(product, category);
-    }
+  return buildProductCard(product, {
+    category,
+    tag:         category === 'apparel' ? 'Merch' : category === 'design' ? 'Design' : 'Web',
+    placeholder: getPlaceholder(category, index),
+    delay:       index * 0.1,
+    getSizes, getPrintSizes, getPriceLabel, renderWishlistHeart,
+    open:        () => openModal(product, category),
   });
-
-  // Every "add" button opens the modal: apparel needs a size chosen, graphic
-  // designs need a print size chosen, web development is an enquiry.
-  card.querySelector('.card-action')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openModal(product, category);
-  });
-
-  card.querySelector('.configure-btn')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    window.location.href = `configurator.html?product=${product.id}`;
-  });
-
-  return card;
 }
 
 async function loadCategory(category) {
   const grid     = document.getElementById(`${category}-grid`);
+  grid.innerHTML = Array(3).fill('<div class="skeleton-card"></div>').join('');
   const fetched  = await fetchProducts(category);
   const products = fetched || [];
   grid.innerHTML = '';
   loadedProducts[category] = products;
 
+  if (fetched === null) {
+    showError(grid, 'We couldn’t load these products right now.', () => loadCategory(category));
+    return;
+  }
   if (!products.length) {
-    const message = fetched === null
-      ? 'We couldn’t load these products right now. Please refresh in a moment.'
-      : 'No products found.';
-    grid.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;padding:2rem 0;grid-column:1/-1">${message}</div>`;
+    grid.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;padding:2rem 0;grid-column:1/-1">No products found.</div>`;
     return;
   }
   products.slice(0, 3).forEach((p, i) => grid.appendChild(renderCard(p, i, category)));

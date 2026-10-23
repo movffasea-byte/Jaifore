@@ -37,7 +37,7 @@
 
 .tour-spotlight-ring {
   position: fixed;
-  border: 2px solid var(--tour-accent, #4a2d7a);
+  border: 2px solid var(--tour-accent, var(--purple-dark));
   border-radius: 10px;
   box-shadow: 0 0 0 4px rgba(74,45,122,0.18);
   pointer-events: none;
@@ -61,7 +61,7 @@
   font-size: 0.68rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--tour-accent, #4a2d7a);
+  color: var(--tour-accent, var(--purple-dark));
   font-weight: 700;
   margin-bottom: 0.5rem;
 }
@@ -101,7 +101,7 @@
 }
 
 .tour-dot.active {
-  background: var(--tour-accent, #4a2d7a);
+  background: var(--tour-accent, var(--purple-dark));
 }
 
 .tour-btn-row {
@@ -127,13 +127,13 @@
 .tour-btn-skip:hover { color: #555; }
 
 .tour-btn-back {
-  background: #f0ecf7;
-  color: var(--tour-accent, #4a2d7a);
+  background: var(--purple-tint);
+  color: var(--tour-accent, var(--purple-dark));
 }
 .tour-btn-back:hover { background: #e6ddf2; }
 
 .tour-btn-next {
-  background: var(--tour-accent, #4a2d7a);
+  background: var(--tour-accent, var(--purple-dark));
   color: var(--tour-accent-ink, #fff);
 }
 .tour-btn-next:hover { opacity: 0.88; }

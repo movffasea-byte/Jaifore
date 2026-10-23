@@ -34,10 +34,43 @@ let undoStack         = [];
 let redoStack         = [];
 let selectedSize      = null;
 let printPricing      = [];
-let selectedPrintSize = null;
+// The last print size the customer picked. Every design carries its own
+// `printSize`; new designs start with this one so a second design doesn't
+// need a second tap, and they can still change it per design.
+let lastPrintSize     = null;
 let cheapestPrice     = 1;
 let uploadFee         = 0.50;
-const MAX_DESIGNS     = 5;
+// At most 2 designs in total on a garment (front or back, any mix).
+// Keep in sync with MAX_DESIGNS_PER_LINE in backend/pricing.js.
+const MAX_DESIGNS     = 2;
+
+// ── DESIGN HELPERS ───────────────────────────────────
+function allDesigns() { return Object.values(designsByView).flat(); }
+
+// Plain data for a design (no DOM element) — drafts, undo/redo, cart and wishlist all use this
+function serializeDesign(d) {
+  return {
+    id: d.id, src: d.src, name: d.name, price: d.price,
+    viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h,
+    printSize: d.printSize || null
+  };
+}
+
+// One design costs its own fee (0 for catalog art, the upload fee for uploads)
+// plus the price of the print size chosen for that design.
+function designPrice(d) {
+  return (d.price || 0) + (d.printSize ? parseFloat(d.printSize.price) || 0 : 0);
+}
+
+function unitTotal() {
+  return parseFloat(product?.price || 0) + allDesigns().reduce((sum, d) => sum + designPrice(d), 0);
+}
+
+function designsMissingSize() { return allDesigns().filter(d => !d.printSize); }
+
+function sizeBadge(ps) {
+  return ps?.size_label ? ps.size_label.charAt(0).toUpperCase() : '?';
+}
 
 // item 18 — quantity for the whole configured garment. All designs + print
 // fees scale together as N identical physical shirts (product decision:
@@ -78,10 +111,7 @@ function saveDraft() {
 function serializeDesignsByView() {
   const out = {};
   for (const key of Object.keys(designsByView)) {
-    out[key] = designsByView[key].map(d => ({
-      id: d.id, src: d.src, name: d.name, price: d.price,
-      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
-    }));
+    out[key] = designsByView[key].map(d => (serializeDesign(d)));
   }
   return out;
 }
@@ -146,6 +176,7 @@ function restoreDraftDesigns(draftDesignsByView, draftGender) {
       container.appendChild(el);
     });
   }
+  lastPrintSize = allDesigns().map(d => d.printSize).filter(Boolean).pop() || lastPrintSize;
 }
 
 // ── RECENTLY VIEWED (item 20) ────────────────────────
@@ -185,13 +216,10 @@ async function init() {
   }
 
   try {
-    const [productRes, pricingRes] = await Promise.all([
-      fetch(`${API}/api/products/${productId}`),
-      fetch(`${API}/api/print-pricing`)
+    [product, printPricing] = await Promise.all([
+      fetchJson(`${API}/api/products/${productId}`),
+      fetchJson(`${API}/api/print-pricing`)
     ]);
-
-    product      = await productRes.json();
-    printPricing = await pricingRes.json();
 
     // item 20 — recording the view here, right after the product is
     // confirmed to have actually loaded (not at the top of init(), before
@@ -201,10 +229,7 @@ async function init() {
 
     document.getElementById('studioProductName').textContent = product.name;
     document.getElementById('panelMerchName').textContent    = product.name;
-    document.getElementById('panelMerchPrice').textContent   =
-      window.JaiforeCurrency?.isReady()
-        ? window.JaiforeCurrency.format(product.price)
-        : `$${parseFloat(product.price).toFixed(2)}`;
+    document.getElementById('panelMerchPrice').textContent   = formatPrice(product.price);
     document.title = `Design — ${product.name} | Jai'fore`;
 
     if (printPricing.length) {
@@ -273,7 +298,7 @@ async function init() {
 
   } catch (err) {
     console.error('Init error:', err);
-    document.getElementById('studioProductName').textContent = 'Product not found';
+    showError('studioProductName', friendlyError(err), () => window.location.reload());
   }
 
   updateTotal();
@@ -288,7 +313,7 @@ async function init() {
 // restoreDraftDesigns() (built for item 20's draft system) since the shape
 // needed is identical: a designsByView-keyed object of plain design data
 // that needs real DOM elements + drag/resize handlers wired back up. Also
-// restores selectedSize / selectedPrintSize / notes / gender, none of
+// restores selectedSize / per-design printSize / notes / gender, none of
 // which the draft system needed to touch (a draft is pre-cart, so it never
 // captured print size or garment size — only in-progress canvas state).
 async function tryResumeFromWishlist(wishlistId) {
@@ -318,7 +343,8 @@ async function tryResumeFromWishlist(wishlistId) {
     data.customDesigns.forEach(d => {
       const key = d.viewKey || `${currentGender}_front`;
       if (!rebuilt[key]) rebuilt[key] = [];
-      rebuilt[key].push({ ...d, id: d.id || Date.now() + Math.random() });
+      // Older saves carried one line-level print size — hand it to designs without their own
+      rebuilt[key].push({ ...d, id: d.id || Date.now() + Math.random(), printSize: d.printSize || data.printSize || null });
     });
 
     restoreDraftDesigns(rebuilt, currentGender);
@@ -331,14 +357,10 @@ async function tryResumeFromWishlist(wishlistId) {
         b.classList.toggle('selected', b.dataset.size === data.selectedSize);
       });
     }
-    if (data.printSize) {
-      selectedPrintSize = data.printSize;
-      // printPricing/renderPrintSizes() has already run by this point in
-      // init(), so the buttons exist to match against.
-      document.querySelectorAll('.print-size-btn').forEach(b => {
-        b.classList.toggle('selected', String(b.dataset.id) === String(data.printSize.id));
-      });
-    }
+    // restoreDraftDesigns() above already set lastPrintSize from the designs;
+    // an old save's line-level size is the fallback when none had their own.
+    if (data.printSize && !lastPrintSize) lastPrintSize = data.printSize;
+    syncPrintSizePicker();
     if (data.notes) {
       document.getElementById('designNotes').value = data.notes;
     }
@@ -453,17 +475,54 @@ function renderPrintSizes() {
     btn.innerHTML = `
       <span class="ps-label">${p.size_label}</span>
       <span class="ps-dim">${p.dimensions}</span>
-      <span class="ps-price">+$${parseFloat(p.price).toFixed(2)}</span>
+      <span class="ps-price">+${formatPrice(parseFloat(p.price))}</span>
     `;
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.print-size-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      selectedPrintSize = p;
+      lastPrintSize = p;
+      // With a design selected the pick applies to THAT design only;
+      // with none selected it is just the default for the next design added.
+      if (selectedDesign) {
+        saveToUndo();
+        selectedDesign.printSize = p;
+      }
+      updateSlots();
       updateTotal();
+      saveDraft();
     });
     wrap.appendChild(btn);
   });
+  syncPrintSizePicker();
 }
+
+// Highlights the size of the selected design (or the default for new designs)
+// and updates the hint + "Apply to all" button next to the picker.
+function syncPrintSizePicker() {
+  const shown = selectedDesign ? selectedDesign.printSize : lastPrintSize;
+  document.querySelectorAll('.print-size-btn').forEach(b => {
+    b.classList.toggle('selected', !!shown && String(b.dataset.id) === String(shown.id));
+  });
+
+  const hint = document.getElementById('printSizeHint');
+  if (hint) {
+    hint.textContent = selectedDesign
+      ? `Size for "${selectedDesign.name}"${selectedDesign.printSize ? '' : ' — not chosen yet'}`
+      : 'Select a design to set its own size. New designs start with your last choice.';
+  }
+
+  const applyAll = document.getElementById('applySizeAllBtn');
+  if (applyAll) applyAll.disabled = allDesigns().length < 2 || !(selectedDesign?.printSize || lastPrintSize);
+}
+
+document.getElementById('applySizeAllBtn')?.addEventListener('click', () => {
+  const size = selectedDesign?.printSize || lastPrintSize;
+  if (!size) return;
+  allDesigns().forEach(d => { d.printSize = size; });
+  lastPrintSize = size;
+  updateSlots();
+  updateTotal();
+  saveDraft();
+  showMsg(`${size.size_label} applied to all designs.`);
+});
 
 // ── SET VIEW ─────────────────────────────────────────
 function setView(view) {
@@ -540,47 +599,129 @@ document.getElementById('canvasContainer').addEventListener('pointerdown', (e) =
   ) {
     selectedDesign = null;
     designs_deselect_all();
+    updateSlots();
   }
 });
 
 // ── LOAD GRAPHIC DESIGNS ─────────────────────────────
+// The picker used to fetch and draw all ~141 designs at full size. Now:
+// one slim request (cached for the session), 24 thumbnails at a time with
+// lazy images, search, and "more" via scroll (or the Load more button).
+const GD_PAGE      = 24;
+const GD_CACHE_KEY = 'jaifore_gd_list_v1';
+const GD_CACHE_MS  = 10 * 60 * 1000;
+
+let gdAll = [], gdFiltered = [], gdShown = 0, gdObserver = null, gdSearchTimer = null;
+
+function gdEsc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Slim list from the API (fields=lite once the backend supports it; an older
+// backend just ignores the parameter, and a failing lite request falls back
+// to the plain one), cached in sessionStorage.
+async function fetchDesignList() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(GD_CACHE_KEY) || 'null');
+    if (cached && Date.now() - cached.t < GD_CACHE_MS && Array.isArray(cached.list)) return cached.list;
+  } catch { /* unreadable cache — refetch */ }
+
+  const base = `${API}/api/products?category=Graphic%20Design`;
+  let data;
+  try {
+    data = await fetchJson(`${base}&fields=lite`);
+  } catch (err) {
+    if (err.message === 'timeout' || err instanceof TypeError) throw err; // unreachable — don't retry
+    data = await fetchJson(base);
+  }
+
+  const list = (Array.isArray(data) ? data : []).map(p => ({
+    id: p.id, name: p.name, image_url: p.image_url, thumb_url: p.thumb_url || null
+  }));
+  try { sessionStorage.setItem(GD_CACHE_KEY, JSON.stringify({ t: Date.now(), list })); } catch { /* storage full — fine */ }
+  return list;
+}
+
+function renderDesignPage() {
+  const grid     = document.getElementById('graphicGrid');
+  const moreBtn  = document.getElementById('gdLoadMore');
+  const slice    = gdFiltered.slice(gdShown, gdShown + GD_PAGE);
+
+  slice.forEach(gd => {
+    const item = document.createElement('div');
+    item.className = 'gd-item';
+    const thumb = gd.thumb_url || gd.image_url;
+    item.innerHTML = thumb
+      ? `<img src="${gdEsc(thumb)}" alt="${gdEsc(gd.name)}" width="120" height="120" loading="lazy" decoding="async"/>
+         <div class="gd-name">${gdEsc(gd.name)}</div>`
+      : `<div class="gd-placeholder">🎨</div>
+         <div class="gd-name">${gdEsc(gd.name)}</div>`;
+
+    // The full-size image is only used once a design is actually placed on the garment
+    item.addEventListener('click', () => addDesign(gd.image_url || null, gd.name, 0));
+    grid.appendChild(item);
+  });
+
+  gdShown += slice.length;
+  if (moreBtn) moreBtn.hidden = gdShown >= gdFiltered.length;
+}
+
+function applyDesignSearch() {
+  const term = (document.getElementById('gdSearch')?.value || '').trim().toLowerCase();
+  gdFiltered = term ? gdAll.filter(d => (d.name || '').toLowerCase().includes(term)) : gdAll.slice();
+  gdShown = 0;
+
+  const grid = document.getElementById('graphicGrid');
+  grid.innerHTML = '';
+  if (!gdFiltered.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;color:#888;font-size:0.8rem">No designs match "${gdEsc(term)}".</div>`;
+    document.getElementById('gdLoadMore').hidden = true;
+    return;
+  }
+  renderDesignPage();
+}
+
 async function loadGraphicDesigns() {
   const grid = document.getElementById('graphicGrid');
-  try {
-    const res  = await fetch(`${API}/api/products?category=Graphic%20Design`);
-    const data = await res.json();
-    grid.innerHTML = '';
+  grid.innerHTML = Array(6).fill('<div class="skel skel-img"></div>').join('');
+  document.getElementById('gdLoadMore').hidden = true;
 
-    if (!data.length) {
-      grid.innerHTML = `<div style="grid-column:1/-1;color:#aaa;font-size:0.8rem">No graphic designs available yet.</div>`;
+  try {
+    gdAll = await fetchDesignList();
+
+    if (!gdAll.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;color:#888;font-size:0.8rem">No graphic designs available yet.</div>`;
       return;
     }
 
     document.querySelector('.upload-text').innerHTML =
       `Click to upload<br/><span>PNG, JPG, SVG — max 5MB</span><br/>
-       <span style="color:#7b5ea7;font-weight:600">Print fee: $${uploadFee.toFixed(2)}</span>`;
+       <span style="color:#7b5ea7;font-weight:600">Print fee: ${formatPrice(uploadFee)}</span>`;
 
-    data.forEach(gd => {
-      const item = document.createElement('div');
-      item.className = 'gd-item';
-      item.innerHTML = gd.image_url
-        ? `<img src="${gd.image_url}" alt="${gd.name}"/>
-           <div class="gd-name">${gd.name}<br/>$${parseFloat(gd.price).toFixed(2)}</div>`
-        : `<div class="gd-placeholder">🎨</div>
-           <div class="gd-name">${gd.name}<br/>$${parseFloat(gd.price).toFixed(2)}</div>`;
+    applyDesignSearch();
 
-      item.addEventListener('click', () => addDesign(gd.image_url || null, gd.name, parseFloat(gd.price) || 0));
-      grid.appendChild(item);
-    });
-  } catch {
-    grid.innerHTML = `<div style="grid-column:1/-1;color:#aaa;font-size:0.8rem">Failed to load designs.</div>`;
+    // Scrolling the sentinel into view loads the next 24
+    if (gdObserver) gdObserver.disconnect();
+    if ('IntersectionObserver' in window) {
+      gdObserver = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && gdShown < gdFiltered.length) renderDesignPage();
+      }, { rootMargin: '200px' });
+      gdObserver.observe(document.getElementById('gdSentinel'));
+    }
+  } catch (err) {
+    showError(grid, friendlyError(err), loadGraphicDesigns);
   }
 }
 
+document.getElementById('gdSearch')?.addEventListener('input', () => {
+  clearTimeout(gdSearchTimer);
+  gdSearchTimer = setTimeout(() => { if (gdAll.length) applyDesignSearch(); }, 250);
+});
+document.getElementById('gdLoadMore')?.addEventListener('click', renderDesignPage);
+
 // ── ADD DESIGN ───────────────────────────────────────
 function addDesign(src, name, price = 0) {
-  const cd = currentDesigns();
-  if (cd.length >= MAX_DESIGNS) { showMsg('Maximum 5 designs allowed.'); return; }
+  if (allDesigns().length >= MAX_DESIGNS) { showMsg(`Maximum ${MAX_DESIGNS} designs per garment (front and back combined).`); return; }
   if (!src) { showMsg('This design has no image yet.'); return; }
 
   saveToUndo();
@@ -609,7 +750,7 @@ function addDesign(src, name, price = 0) {
   `;
 
   const id     = Date.now();
-  const design = { id, src, name, price, viewKey: viewKey(), el, x, y, w, h };
+  const design = { id, src, name, price, viewKey: viewKey(), el, x, y, w, h, printSize: lastPrintSize };
 
   designsByView[viewKey()].push(design);
   makeDraggable(el, design);
@@ -634,6 +775,7 @@ function selectDesign(design) {
   designs_deselect_all();
   selectedDesign = design;
   if (design) design.el.classList.add('selected');
+  updateSlots(); // re-marks the selected slot and re-syncs the print size picker
 }
 
 // ── DRAG ─────────────────────────────────────────────
@@ -693,19 +835,10 @@ function makeResizable(el, design) {
 // quantity — "5 separate shirts, each fully printed" per product decision,
 // not just the garment price scaling while print/design fees stay flat.
 function updateTotal() {
-  const merchPrice   = parseFloat(product?.price || 0);
-  const allDesigns   = Object.values(designsByView).flat();
-  const designsTotal = allDesigns.reduce((sum, d) => sum + (d.price || 0), 0);
-  const printTotal   = selectedPrintSize
-    ? parseFloat(selectedPrintSize.price) * allDesigns.length
-    : 0;
-  const unitTotal = merchPrice + designsTotal + printTotal;
-  const total     = unitTotal * quantity;
+  // base garment + Σ(design fee + that design's own print price), then x quantity
+  const total = unitTotal() * quantity;
 
-  const formatted = window.JaiforeCurrency?.isReady()
-    ? window.JaiforeCurrency.format(total)
-    : `$${total.toFixed(2)}`;
-  document.getElementById('cartBtnPrice').textContent = formatted;
+  document.getElementById('cartBtnPrice').textContent = formatPrice(total);
 }
 
 // ── QUANTITY (item 18) ───────────────────────────────
@@ -745,23 +878,26 @@ function updateSlots() {
   const wrap = document.getElementById('designSlots');
   wrap.innerHTML = '';
   const cd = currentDesigns();
-  document.getElementById('designCount').textContent = `${cd.length} / ${MAX_DESIGNS}`;
+  document.getElementById('designCount').textContent = `${allDesigns().length} / ${MAX_DESIGNS}`;
 
   for (let i = 0; i < MAX_DESIGNS; i++) {
     const slot = document.createElement('div');
-    slot.className = 'design-slot' + (cd[i] ? ' filled' : '');
+    slot.className = 'design-slot' + (cd[i] ? ' filled' : '') + (cd[i] && selectedDesign?.id === cd[i].id ? ' selected' : '');
     if (cd[i]) {
       const d = cd[i];
       slot.innerHTML = `
         <img src="${d.src}" alt="${d.name}"/>
+        <span class="slot-size${d.printSize ? '' : ' unset'}" title="${d.printSize ? d.printSize.size_label : 'Print size not chosen'}">${sizeBadge(d.printSize)}</span>
         <button class="slot-remove" data-id="${d.id}">✕</button>
       `;
-      slot.querySelector('.slot-remove').addEventListener('click', () => removeDesignById(d.id));
+      slot.querySelector('.slot-remove').addEventListener('click', (e) => { e.stopPropagation(); removeDesignById(d.id); });
+      slot.addEventListener('click', () => { if (selectedDesign?.id !== d.id) selectDesign(d); });
     } else {
       slot.textContent = `${i + 1}`;
     }
     wrap.appendChild(slot);
   }
+  syncPrintSizePicker();
 }
 
 // ── REMOVE ───────────────────────────────────────────
@@ -804,10 +940,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 function saveToUndo() {
   undoStack.push({
     key:      viewKey(),
-    snapshot: currentDesigns().map(d => ({
-      id: d.id, src: d.src, name: d.name, price: d.price,
-      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
-    }))
+    snapshot: currentDesigns().map(d => (serializeDesign(d)))
   });
   if (undoStack.length > 30) undoStack.shift();
   redoStack = [];
@@ -859,10 +992,7 @@ document.getElementById('undoBtn').addEventListener('click', () => {
 
   redoStack.push({
     key:      viewKey(),
-    snapshot: currentDesigns().map(d => ({
-      id: d.id, src: d.src, name: d.name, price: d.price,
-      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
-    }))
+    snapshot: currentDesigns().map(d => (serializeDesign(d)))
   });
 
   const { key, snapshot } = undoStack.pop();
@@ -877,10 +1007,7 @@ document.getElementById('redoBtn').addEventListener('click', () => {
 
   undoStack.push({
     key:      viewKey(),
-    snapshot: currentDesigns().map(d => ({
-      id: d.id, src: d.src, name: d.name, price: d.price,
-      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
-    }))
+    snapshot: currentDesigns().map(d => (serializeDesign(d)))
   });
 
   const { key, snapshot } = redoStack.pop();
@@ -945,13 +1072,11 @@ document.querySelectorAll('.sz-btn').forEach(btn => {
 document.getElementById('addToCartBtn').addEventListener('click', () => {
   if (!selectedSize) { showMsg('Please select a garment size first.'); return; }
 
-  const allDesigns = Object.values(designsByView).flat();
-  if (!allDesigns.length) { showMsg('Add at least one design to your merch.'); return; }
-  if (!selectedPrintSize) { showMsg('Please select a print size.'); return; }
+  if (!allDesigns().length) { showMsg('Add at least one design to your merch.'); return; }
+  const unsized = designsMissingSize();
+  if (unsized.length) { showMsg(`Please choose a print size for ${unsized.map(d => `"${d.name}"`).join(' and ')}.`); return; }
 
-  const designsTotal = allDesigns.reduce((sum, d) => sum + (d.price || 0), 0);
-  const printTotal   = parseFloat(selectedPrintSize.price) * allDesigns.length;
-  const unitPrice    = parseFloat(product.price) + designsTotal + printTotal;
+  const unitPrice    = unitTotal();
 
   // Use the mockup currently shown (front view of the selected gender) as the
   // cart/checkout thumbnail, so the customer sees their configured product,
@@ -966,19 +1091,15 @@ document.getElementById('addToCartBtn').addEventListener('click', () => {
     price:         unitPrice,    // per-unit price — addToCart() is called `quantity` times below, cart.js accumulates qty
     gender:        currentGender,
     snapshot:      snapshotImage,
-    customDesigns: allDesigns.map(d => ({
-      src: d.src, name: d.name, price: d.price,
-      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
-    })),
-    printSize:    selectedPrintSize,
+    customDesigns: allDesigns().map(d => { const { id, ...rest } = serializeDesign(d); return rest; }),
+    printSize:    null, // sizes live on each design
     selectedSize,
     notes:        document.getElementById('designNotes').value.trim(),
     isCustom:     true
   };
 
-  for (let i = 0; i < quantity; i++) {
-    addToCart(cartProduct, selectedSize, 'apparel');
-  }
+  // One call with the quantity — cart.js accumulates qty on the matching line
+  addToCart(cartProduct, selectedSize, 'apparel', quantity);
 
   // item 20 — once added to cart, this design is no longer "in progress";
   // clear the draft so it doesn't linger and incorrectly prompt to
@@ -1007,13 +1128,11 @@ document.getElementById('saveForLaterBtn')?.addEventListener('click', async () =
 
   if (!selectedSize) { showMsg('Please select a garment size first.'); return; }
 
-  const allDesigns = Object.values(designsByView).flat();
-  if (!allDesigns.length) { showMsg('Add at least one design to your merch.'); return; }
-  if (!selectedPrintSize) { showMsg('Please select a print size.'); return; }
+  if (!allDesigns().length) { showMsg('Add at least one design to your merch.'); return; }
+  const unsized = designsMissingSize();
+  if (unsized.length) { showMsg(`Please choose a print size for ${unsized.map(d => `"${d.name}"`).join(' and ')}.`); return; }
 
-  const designsTotal = allDesigns.reduce((sum, d) => sum + (d.price || 0), 0);
-  const printTotal   = parseFloat(selectedPrintSize.price) * allDesigns.length;
-  const unitPrice     = parseFloat(product.price) + designsTotal + printTotal;
+  const unitPrice     = unitTotal();
 
   const gender        = currentGender || 'male';
   const snapshotImage = MOCKUPS[gender]?.front || product.image_url || '';
@@ -1024,11 +1143,8 @@ document.getElementById('saveForLaterBtn')?.addEventListener('click', async () =
     price:         unitPrice,
     snapshot:      snapshotImage,
     gender:        currentGender,
-    printSize:     selectedPrintSize,
-    customDesigns: allDesigns.map(d => ({
-      src: d.src, name: d.name, price: d.price,
-      viewKey: d.viewKey, x: d.x, y: d.y, w: d.w, h: d.h
-    })),
+    printSize:     null, // sizes live on each design
+    customDesigns: allDesigns().map(d => { const { id, ...rest } = serializeDesign(d); return rest; }),
     selectedSize:  selectedSize,
     notes:         document.getElementById('designNotes').value.trim(),
   };
@@ -1104,3 +1220,16 @@ document.getElementById('merchMockup').style.transition = 'opacity 0.2s ease';
 window.JaiforeCurrency?.init().then(() => {
   init();
 }).catch(() => init());
+// ── MOBILE BOTTOM SHEET ──────────────────────────────
+// On phones the control panel is a bottom sheet: collapsed it shows the
+// price + Add to Cart; the handle expands it to the full controls.
+(function () {
+  const panel  = document.querySelector('.studio-panel');
+  const handle = document.getElementById('sheetHandle');
+  if (!panel || !handle) return;
+
+  handle.addEventListener('click', () => {
+    const open = panel.classList.toggle('expanded');
+    handle.setAttribute('aria-expanded', String(open));
+  });
+})();

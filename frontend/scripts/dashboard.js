@@ -63,14 +63,28 @@ function parseItems(raw) {
 
 let ordersData = [];
 
+// "Lion — Medium" lines for the designs on an ordered garment (per-design print sizes)
+function orderDesignLines(item) {
+  if (!Array.isArray(item.designs) || !item.designs.length) return '';
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const lines = item.designs.map(d => {
+    const size = (d.printSize || item.printSize)?.size_label;
+    return `<div class="order-modal-item-meta">${esc(d.name || 'Design')}${size ? ` — ${esc(size)}` : ''}</div>`;
+  });
+  return lines.join('');
+}
+
 // ── LOAD ORDERS ──────────────────────────────────────
 async function loadOrders() {
   const list = document.getElementById('ordersList');
-  list.innerHTML = `<div class="dash-empty"><div class="dash-empty-icon">◎</div><p>Loading orders...</p></div>`;
+  list.innerHTML = Array(3).fill(
+    `<div class="skel-card skel-flex" aria-hidden="true" style="margin-bottom:0.8rem">
+       <div class="skel-grow"><span class="skel skel-line" style="width:35%"></span><span class="skel skel-line" style="width:25%"></span><span class="skel skel-line short"></span></div>
+       <div style="width:90px"><span class="skel skel-line"></span><span class="skel skel-line"></span></div>
+     </div>`).join('');
 
   try {
-    const res  = await fetch(`${API}/api/orders/my`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/orders/my`, { headers: authHeaders() });
     ordersData = data;
 
     if (!data.length) {
@@ -101,8 +115,8 @@ async function loadOrders() {
         </div>`;
       list.appendChild(card);
     });
-  } catch {
-    list.innerHTML = `<div class="dash-empty"><div class="dash-empty-icon">⚠</div><p>Failed to load orders.</p></div>`;
+  } catch (err) {
+    showError(list, friendlyError(err), loadOrders);
   }
 }
 
@@ -174,15 +188,13 @@ function renderTimelineHTML(history) {
 
 async function loadOrderTimeline(orderId) {
   const el = document.getElementById('orderModalTimeline');
-  el.innerHTML = `<p class="timeline-loading">Loading order history...</p>`;
+  el.innerHTML = skelLines(3);
 
   try {
-    const res = await fetch(`${API}/api/orders/${orderId}/timeline`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to load timeline');
-    const history = await res.json();
+    const history = await fetchJson(`${API}/api/orders/${orderId}/timeline`, { headers: authHeaders() });
     el.innerHTML = renderTimelineHTML(history);
-  } catch {
-    el.innerHTML = `<p class="timeline-empty">Unable to load order history.</p>`;
+  } catch (err) {
+    showError(el, friendlyError(err), () => loadOrderTimeline(orderId));
   }
 }
 
@@ -205,13 +217,14 @@ function openOrderDetail(orderId) {
     ? items.map(item => `
         <div class="order-modal-item">
           <div class="order-modal-item-img">
-            ${item.snapshot ? `<img src="${item.snapshot}" alt="${item.name}"/>` : '🛍'}
+            ${item.snapshot ? `<img src="${item.snapshot}" alt="${item.name}" loading="lazy" decoding="async"/>` : '🛍'}
           </div>
           <div class="order-modal-item-info">
             <div class="order-modal-item-name">${item.name || 'Item'}</div>
             <div class="order-modal-item-meta">
               ${item.size ? `Size: ${item.size} · ` : ''}Qty: ${item.qty || 1}
             </div>
+            ${orderDesignLines(item)}
           </div>
           <div class="order-modal-item-price">${formatPrice((item.price || 0) * (item.qty || 1))}</div>
         </div>`).join('')
@@ -254,7 +267,7 @@ function loadDesigns() {
     card.className = 'design-card';
     card.innerHTML = `
       <div class="design-card-img">
-        ${design.preview ? `<img src="${design.preview}" alt="${design.name}"/>` : '🎨'}
+        ${design.preview ? `<img src="${design.preview}" alt="${design.name}" loading="lazy" decoding="async"/>` : '🎨'}
       </div>
       <div class="design-card-info">
         <div class="design-card-name">${design.name || 'Custom Design'}</div>

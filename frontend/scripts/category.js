@@ -11,7 +11,7 @@ const API = 'https://jai-fore-production.up.railway.app';
 // The products table has no `sizes` column, so apparel uses this list unless a
 // product ever comes back with its own `sizes` array.
 // KEEP IN SYNC with the size buttons (.sz-btn) in configurator.html.
-const APPAREL_SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
+const APPAREL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
 const CATEGORY_META = {
   apparel: {
@@ -210,13 +210,19 @@ document.addEventListener('click', async (e) => {
   const alreadySaved = wishlistedProductIds.has(String(productId));
   btn.disabled = true;
 
+  // Graphics are bought by print size, so the heart in the modal saves the size
+  // picked there (a card heart has no size yet — the wishlist asks for one later).
+  const isDesignItem = currentCategory === 'design';
+  const sizeToSave   = (isDesignItem && btn.classList.contains('modal-wishlist-heart-btn')) ? selectedPrintSize : null;
+
   try {
     if (alreadySaved) {
       const listRes = await fetch(`${API}/api/wishlist`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const items = await listRes.json();
-      const match = items.find(i => !i.config_signature && String(i.product_id) === String(productId));
+      const plain = items.filter(i => !i.config_signature && String(i.product_id) === String(productId));
+      const match = (sizeToSave && plain.find(i => String(i.print_size_id) === String(sizeToSave.id))) || plain[0];
       if (match) {
         await fetch(`${API}/api/wishlist/${match.id}`, {
           method: 'DELETE',
@@ -231,8 +237,9 @@ document.addEventListener('click', async (e) => {
         body: JSON.stringify({
           productId: product.id,
           name: product.name,
-          price: product.price ?? 0,
-          snapshot: product.image_url || null
+          price: sizeToSave ? getDesignBasePrice(product) + parseFloat(sizeToSave.price) : (product.price ?? 0),
+          snapshot: product.image_url || null,
+          ...(isDesignItem ? { category: 'design', printSize: sizeToSave } : {})
         })
       });
       wishlistedProductIds.add(String(productId));
@@ -272,7 +279,7 @@ function renderRelatedItemsHTML(items) {
         ${items.map(p => `
           <div class="modal-related-card" data-id="${p.id}">
             <div class="modal-related-img">
-              ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy"/>` : '📦'}
+              ${p.image_url ? `<img src="${p.thumb_url || p.image_url}" alt="${p.name}" width="400" height="300" loading="lazy" decoding="async"/>` : '📦'}
             </div>
             <div class="modal-related-name">${p.name}</div>
             <div class="modal-related-price">${getPriceLabel(p, currentCategory)}</div>
@@ -343,6 +350,19 @@ updateHeroForCategory(currentCategory);
 configureToolbar(currentCategory);
 document.getElementById('categorySelect').value = currentCategory;
 
+// Categories whose last fetch failed — applyFilters() shows an error + Retry for these
+const failedCategories = new Set();
+
+async function retryCategory() {
+  const cat = currentCategory;
+  document.getElementById('cat-grid').innerHTML = Array(6).fill('<div class="skeleton-card"></div>').join('');
+  document.getElementById('catCount').innerHTML = '<span class="skel skel-line" style="width:90px;display:inline-block"></span>';
+  await fetchCategory(cat);
+  if (cat !== currentCategory) return; // the visitor switched category meanwhile
+  populatePrintSizeFilter();
+  applyFilters();
+}
+
 async function fetchCategory(cat) {
   // FIX: was `if (productsByCategory[cat])` — an empty array [] is truthy in JS,
   // so once a failed fetch cached [] for a category, every future call short-circuited
@@ -354,11 +374,11 @@ async function fetchCategory(cat) {
   const meta = CATEGORY_META[cat] || CATEGORY_META.apparel;
   try {
     const dbCat = encodeURIComponent(meta.dbCat);
-    const res = await fetch(`${API}/api/products?category=${dbCat}`);
-    if (!res.ok) throw new Error();
-    const data = await res.json();
+    const data = await fetchJson(`${API}/api/products?category=${dbCat}`);
     productsByCategory[cat] = Array.isArray(data) ? data : [];
+    failedCategories.delete(cat);
   } catch {
+    failedCategories.add(cat);
     // FIX: was `productsByCategory[cat] = [];` — that permanently poisoned the
     // cache on a transient failure. Now we just return [] for this one call
     // and leave the cache slot untouched, so the next call retries the real fetch.
@@ -369,6 +389,14 @@ async function fetchCategory(cat) {
 
 // ── FILTERING ────────────────────────────────────────
 function applyFilters() {
+  if (failedCategories.has(currentCategory) && productsByCategory[currentCategory] === undefined) {
+    showError('cat-grid', 'We couldn’t load these products right now.', retryCategory);
+    document.getElementById('catCount').textContent = '';
+    document.getElementById('catEmpty').classList.add('hidden');
+    document.getElementById('loadMoreWrap').classList.add('hidden');
+    return;
+  }
+
   const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
   const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
   const sort  = document.getElementById('sortSelect').value;
@@ -429,100 +457,14 @@ function loadNextPage() {
 // ── PRODUCT CARD ─────────────────────────────────────
 function renderCard(product, index) {
   const meta = CATEGORY_META[currentCategory] || CATEGORY_META.apparel;
-  const card = document.createElement('div');
-  card.className = 'product-card';
-  card.style.animationDelay = `${(index % PAGE_SIZE) * 0.05}s`;
-
-  const isWebdev  = currentCategory === 'webdev';
-  const isApparel = currentCategory === 'apparel';
-  const isDesign  = currentCategory === 'design';
-  const placeholder = PLACEHOLDERS[currentCategory]?.[index % 7] || '📦';
-
-  const imgHTML = product.image_url
-    ? `<img src="${product.image_url}" alt="${product.name}" loading="lazy"/>`
-    : `<div class="card-img-placeholder">${placeholder}</div>`;
-
-  const printSizes = getPrintSizes(product);
-  const hasPrintSizes = printSizes.length > 0;
-
-  let sizeHTML = '';
-  if (isApparel) {
-    const sizes = getSizes(product);
-    sizeHTML = `<div class="size-chips">
-        ${sizes.slice(0, 4).map(s => `<span class="size-chip">${s}</span>`).join('')}
-        ${sizes.length > 4 ? `<span class="size-chip">+${sizes.length - 4}</span>` : ''}
-       </div>`;
-  } else if (isDesign && hasPrintSizes) {
-    sizeHTML = `<div class="size-chips">
-        ${printSizes.map(s => `<span class="size-chip">${s.size_label}</span>`).join('')}
-       </div>`;
-  }
-
-  const domainHTML = isWebdev && product.live_link
-    ? `<div class="site-domain">↗ ${product.live_link}</div>` : '';
-
-  // "Out of stock" only ever applies to apparel
-  const stockBadge = (isApparel && !product.in_stock)
-    ? `<span class="card-badge out-of-stock">Out of Stock</span>`
-    : `<span class="card-badge">${meta.tag}</span>`;
-
-  const wishlistHeartHTML = renderWishlistHeart(product.id, currentCategory);
-  const priceLabel = getPriceLabel(product, currentCategory);
-
-  let footerHTML;
-  if (isApparel) {
-    footerHTML = `<div class="card-price">${priceLabel}</div>
-       <div style="display:flex;gap:0.4rem">
-         ${wishlistHeartHTML}
-         <button class="configure-btn" data-id="${product.id}">🎨 Design</button>
-         <button class="card-action" data-id="${product.id}" ${!product.in_stock ? 'disabled' : ''}>Add to Cart</button>
-       </div>`;
-  } else if (isDesign) {
-    footerHTML = `<div class="card-price">${priceLabel || 'Not available yet'}</div>
-       <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-         ${wishlistHeartHTML}
-         <button class="card-action" data-id="${product.id}" ${hasPrintSizes ? '' : 'disabled'}>Order Now</button>
-       </div>`;
-  } else {
-    footerHTML = `<button class="card-action" data-id="${product.id}">Enquire</button>`;
-  }
-
-  card.innerHTML = `
-    <div class="card-img">
-      ${imgHTML}
-      ${stockBadge}
-    </div>
-    <div class="card-body">
-      ${domainHTML}
-      <div class="card-name">${product.name}</div>
-      <div class="card-desc">${product.description || ''}</div>
-      ${sizeHTML}
-      <div class="card-footer">${footerHTML}</div>
-    </div>
-  `;
-
-  card.addEventListener('click', (e) => {
-    if (!e.target.classList.contains('card-action') &&
-        !e.target.classList.contains('configure-btn') &&
-        !e.target.closest('.qty-stepper') &&
-        !e.target.closest('.wishlist-heart-btn')) {
-      openModal(product);
-    }
+  return buildProductCard(product, {
+    category:    currentCategory,
+    tag:         meta.tag,
+    placeholder: PLACEHOLDERS[currentCategory]?.[index % 7] || '📦',
+    delay:       (index % PAGE_SIZE) * 0.05,
+    getSizes, getPrintSizes, getPriceLabel, renderWishlistHeart,
+    open:        () => openModal(product),
   });
-
-  // Every "add" button opens the modal: apparel needs a size chosen, graphic
-  // designs need a print size chosen, web development is an enquiry.
-  card.querySelector('.card-action')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openModal(product);
-  });
-
-  card.querySelector('.configure-btn')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    window.location.href = `configurator.html?product=${product.id}`;
-  });
-
-  return card;
 }
 
 // ── PRODUCT MODAL ────────────────────────────────────
@@ -718,7 +660,7 @@ document.getElementById('categorySelect').addEventListener('change', async (e) =
       Array(6).fill('<div class="skeleton-card"></div>').join('');
     document.getElementById('loadMoreWrap').classList.add('hidden');
     document.getElementById('catEmpty').classList.add('hidden');
-    document.getElementById('catCount').textContent = 'Loading...';
+    document.getElementById('catCount').innerHTML = '<span class="skel skel-line" style="width:90px;display:inline-block"></span>';
   }
 
   await fetchCategory(newCat);
@@ -744,7 +686,6 @@ window.addEventListener('jaifore:currency-ready', () => {
 
 // ── START ────────────────────────────────────────────
 (async () => {
-  document.getElementById('catCount').textContent = 'Loading...';
   await Promise.all([
     fetchCategory(currentCategory),
     loadWishlistedIds(),
@@ -752,4 +693,11 @@ window.addEventListener('jaifore:currency-ready', () => {
   ]);
   populatePrintSizeFilter();
   applyFilters();
+
+  // ?product=<id> opens that item's modal (e.g. from the wishlist's "Choose a size")
+  const openId = new URLSearchParams(location.search).get('product');
+  if (openId) {
+    const target = (productsByCategory[currentCategory] || []).find(p => String(p.id) === String(openId));
+    if (target) openModal(target);
+  }
 })();

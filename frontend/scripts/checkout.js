@@ -34,6 +34,7 @@ if (!isSignedIn) {
 let quote      = null;
 let quoteError = '';
 let quoteSeq   = 0; // ignores slow, out-of-date quote responses
+let quotePending = false; // true while the server quote is in flight (summary shows skeletons)
 
 // ── HELPERS ──────────────────────────────────────────
 function escapeHtml(str) {
@@ -46,17 +47,17 @@ function isImageSrc(value) {
   return typeof value === 'string' && /^(https?:|data:image)/i.test(value);
 }
 
-async function apiPost(path, body) {
+async function apiPost(path, body, timeoutMs = 30000) {
   try {
-    const res  = await fetch(`${API}${path}`, {
+    const res  = await fetchWithTimeout(`${API}${path}`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body:    JSON.stringify(body),
-    });
+    }, timeoutMs);
     const data = await res.json().catch(() => ({}));
     return { ok: res.ok, status: res.status, data };
-  } catch {
-    return { ok: false, status: 0, data: { error: 'Network error. Please check your connection and try again.' } };
+  } catch (err) {
+    return { ok: false, status: 0, data: { error: friendlyError(err) } };
   }
 }
 
@@ -66,15 +67,24 @@ function redirectToLogin() {
 }
 
 // ── FORMAT CONFIG META (size, gender, print size, designs) ───
+// "Medium" for a design's own print size, falling back to the old line-level size
+function designSizeLabel(design, item) {
+  const ps = design?.printSize || item?.printSize;
+  return ps?.size_label ?? ps?.id ?? null;
+}
+
 function formatConfigMeta(item) {
   const parts = [];
   if (item.size) parts.push(`Size: ${item.size}`);
   if (item.gender) parts.push(item.gender.charAt(0).toUpperCase() + item.gender.slice(1));
 
+  // Print sizes now live on each design (shown below the name and in the
+  // details modal); only legacy lines still carry one line-level size.
+  const perDesign = item.designs?.some(d => d?.printSize);
   const printSizeLabel = item.printSize?.size_label ?? item.printSize?.id ?? null;
-  if (printSizeLabel) parts.push(`Print: ${printSizeLabel}`);
+  if (printSizeLabel && !perDesign) parts.push(`Print: ${printSizeLabel}`);
 
-  if (item.designs?.length) parts.push(`${item.designs.length} design(s)`);
+  if (item.designs?.length) parts.push(`${item.designs.length} design${item.designs.length > 1 ? 's' : ''}`);
 
   return parts.join(' · ');
 }
@@ -110,7 +120,7 @@ function changeQty(index, delta) {
 let itemModalEl  = null;
 let itemModalSeq = 0; // guards against a slow description fetch landing in a newer modal
 
-function renderDesignList(designs) {
+function renderDesignList(designs, item) {
   if (!Array.isArray(designs) || !designs.length) return '';
 
   const rows = designs.map((d, i) => {
@@ -120,7 +130,9 @@ function renderDesignList(designs) {
         : `<li><span>${escapeHtml(d)}</span></li>`;
     }
 
-    const label = d?.name || d?.title || d?.label || d?.id || `Design ${i + 1}`;
+    const baseLabel = d?.name || d?.title || d?.label || d?.id || `Design ${i + 1}`;
+    const sizeLabel = designSizeLabel(d, item);
+    const label = sizeLabel ? `${baseLabel} — ${sizeLabel}` : baseLabel;
     const img   = d?.src || d?.image || d?.url || d?.preview || d?.snapshot;
     return `<li>${isImageSrc(img) ? `<img class="item-modal-thumb" src="${escapeHtml(img)}" alt="${escapeHtml(label)}"/>` : ''}<span>${escapeHtml(label)}</span></li>`;
   }).join('');
@@ -173,7 +185,7 @@ function openItemModal(index) {
   const detailRows = [
     item.size      ? ['Size', item.size]            : null,
     gender         ? ['Gender', gender]             : null,
-    printSizeLabel ? ['Print size', printSizeLabel] : null,
+    (printSizeLabel && !item.designs?.some(d => d?.printSize)) ? ['Print size', printSizeLabel] : null,
     ['Quantity', item.qty],
     ['Unit price', formatPrice(unit)],
     ['Line total', formatPrice(unit * item.qty)],
@@ -186,7 +198,7 @@ function openItemModal(index) {
   content.innerHTML = `
     <div class="item-modal-head">
       <div class="item-modal-img">
-        ${isImageSrc(item.snapshot) ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}"/>` : '🛍'}
+        ${isImageSrc(item.snapshot) ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async"/>` : '🛍'}
       </div>
       <h3 class="item-modal-title" id="itemModalTitle">${escapeHtml(item.name)}</h3>
     </div>
@@ -195,7 +207,7 @@ function openItemModal(index) {
       <div class="item-modal-label">Order details</div>
       ${detailRows}
     </div>
-    ${renderDesignList(item.designs)}
+    ${renderDesignList(item.designs, item)}
     ${item.notes ? `<div class="item-modal-block"><div class="item-modal-label">Your notes</div><p class="item-modal-desc">${escapeHtml(item.notes)}</p></div>` : ''}
   `;
 
@@ -278,7 +290,7 @@ function renderItems() {
     <div class="checkout-item checkout-item-clickable" data-index="${index}" tabindex="0" role="button" aria-label="View details for ${escapeHtml(item.name)}">
       <div class="checkout-item-img">
         ${isImageSrc(item.snapshot)
-          ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}"/>`
+          ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async"/>`
           : '🛍'}
       </div>
       <div class="checkout-item-info">
@@ -327,8 +339,13 @@ function renderSummary() {
     // No server numbers yet (still loading, or the cart couldn't be priced)
     const localSubtotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0) * item.qty, 0);
     subtotalEl.textContent = formatPrice(localSubtotal);
-    shippingEl.textContent = '—';
-    totalEl.textContent    = formatPrice(localSubtotal);
+    if (quotePending) {
+      // The server's shipping and total are on their way
+      showStatSkeleton([shippingEl, totalEl]);
+    } else {
+      shippingEl.textContent = '—';
+      totalEl.textContent    = formatPrice(localSubtotal);
+    }
     hintEl.textContent     = '';
     noteEl.textContent     = '';
     return;
@@ -367,8 +384,12 @@ async function refreshQuote() {
     return;
   }
 
-  const res = await apiPost('/api/stripe/quote', { items: cart });
+  quotePending = true;
+  renderSummary();
+
+  const res = await apiPost('/api/stripe/quote', { items: cart }, FETCH_TIMEOUT_MS);
   if (seq !== quoteSeq) return; // a newer request has superseded this one
+  quotePending = false;
 
   if (res.status === 401 || res.status === 403) { redirectToLogin(); return; }
 
@@ -382,6 +403,17 @@ async function refreshQuote() {
 
   renderItems();
   showMsg(quoteError);
+
+  // A failed quote gets a Retry, so the summary never sits on "—" forever
+  if (quoteError) {
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'load-error-retry';
+    retry.textContent = 'Retry';
+    retry.style.marginLeft = '0.6rem';
+    retry.addEventListener('click', () => { retry.disabled = true; refreshQuote(); });
+    document.getElementById('checkoutMsg').appendChild(retry);
+  }
 }
 
 // ── PREFILL USER INFO ─────────────────────────────────
