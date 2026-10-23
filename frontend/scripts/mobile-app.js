@@ -91,7 +91,7 @@
       <div class="cd-line" data-index="${i}">
         <div class="cd-remove-hint" aria-hidden="true">Remove</div>
         <div class="cd-line-inner">
-          <div class="cd-img">${isImage(item.snapshot) ? `<img src="${esc(item.snapshot)}" alt="" loading="lazy"/>` : '🛍'}</div>
+          <div class="cd-img">${isImage(item.snapshot) ? `<img src="${esc(jfThumb(item.snapshot))}" alt="" loading="lazy"/>` : '🛍'}</div>
           <div class="cd-info">
             <div class="cd-name">${esc(item.name)}</div>
             <div class="cd-meta">${esc(lineMeta(item))}</div>

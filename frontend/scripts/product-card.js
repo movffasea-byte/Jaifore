@@ -32,7 +32,7 @@ function buildProductCard(product, ctx) {
   card.style.animationDelay = `${delay}s`;
 
   // Thumbnail first; the full-size image is only used in the modal
-  const thumb = product.thumb_url || product.image_url;
+  const thumb = jfThumb(product.thumb_url || product.image_url);
   const imgHTML = thumb
     ? `<img src="${esc(thumb)}" alt="${esc(product.name)}" width="400" height="500" loading="lazy" decoding="async"/>`
     : `<div class="card-img-placeholder">${placeholder || '📦'}</div>`;

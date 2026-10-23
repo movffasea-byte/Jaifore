@@ -154,7 +154,7 @@ function restoreDraftDesigns(draftDesignsByView, draftGender) {
       el.className     = 'design-layer';
       el.style.cssText = `left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;`;
       el.innerHTML = `
-        <img src="${d.src}" alt="${d.name}" draggable="false"/>
+        <img src="${jfWeb(d.src)}" alt="${d.name}" draggable="false" decoding="async"/>
         <div class="resize-handle"></div>
       `;
       const design = { ...d, el };
@@ -536,7 +536,7 @@ function setView(view) {
 
   mockup.style.opacity = '0';
   setTimeout(() => {
-    mockup.src           = src;
+    mockup.src           = jfWeb(src);
     mockup.style.opacity = '1';
   }, 200);
 
@@ -650,7 +650,7 @@ function renderDesignPage() {
   slice.forEach(gd => {
     const item = document.createElement('div');
     item.className = 'gd-item';
-    const thumb = gd.thumb_url || gd.image_url;
+    const thumb = jfThumb(gd.thumb_url || gd.image_url);
     item.innerHTML = thumb
       ? `<img src="${gdEsc(thumb)}" alt="${gdEsc(gd.name)}" width="120" height="120" loading="lazy" decoding="async"/>
          <div class="gd-name">${gdEsc(gd.name)}</div>`
@@ -745,7 +745,7 @@ function addDesign(src, name, price = 0) {
   el.className = 'design-layer';
   el.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
   el.innerHTML = `
-    <img src="${src}" alt="${name}" draggable="false"/>
+    <img src="${jfWeb(src)}" alt="${name}" draggable="false" decoding="async"/>
     <div class="resize-handle"></div>
   `;
 
@@ -886,7 +886,7 @@ function updateSlots() {
     if (cd[i]) {
       const d = cd[i];
       slot.innerHTML = `
-        <img src="${d.src}" alt="${d.name}"/>
+        <img src="${jfThumb(d.src)}" alt="${d.name}" loading="lazy" decoding="async"/>
         <span class="slot-size${d.printSize ? '' : ' unset'}" title="${d.printSize ? d.printSize.size_label : 'Print size not chosen'}">${sizeBadge(d.printSize)}</span>
         <button class="slot-remove" data-id="${d.id}">✕</button>
       `;
@@ -964,7 +964,7 @@ function restoreSnapshot(key, snapshot) {
     el.className     = 'design-layer';
     el.style.cssText = `left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;`;
     el.innerHTML = `
-      <img src="${d.src}" alt="${d.name}" draggable="false"/>
+      <img src="${jfWeb(d.src)}" alt="${d.name}" draggable="false" decoding="async"/>
       <div class="resize-handle"></div>
     `;
     const design = { ...d, el };

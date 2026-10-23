@@ -303,7 +303,7 @@ async function loadRecentlyViewed() {
       card.style.animationDelay = `${i * 0.05}s`;
       card.innerHTML = `
         <div class="card-img">
-          ${item.image_url ? `<img src="${item.thumb_url || item.image_url}" alt="${item.name}" width="400" height="300" loading="lazy" decoding="async"/>` : `<div class="card-img-placeholder">📦</div>`}
+          ${item.image_url ? `<img src="${jfThumb(item.thumb_url || item.image_url)}" alt="${item.name}" width="400" height="300" loading="lazy" decoding="async"/>` : `<div class="card-img-placeholder">📦</div>`}
         </div>
         <div class="card-body">
           <div class="card-name">${item.name}</div>
@@ -349,7 +349,7 @@ function renderRelatedItemsHTML(items, category) {
         ${items.map(p => `
           <div class="modal-related-card" data-id="${p.id}">
             <div class="modal-related-img">
-              ${p.image_url ? `<img src="${p.thumb_url || p.image_url}" alt="${p.name}" width="400" height="300" loading="lazy" decoding="async"/>` : '📦'}
+              ${p.image_url ? `<img src="${jfThumb(p.thumb_url || p.image_url)}" alt="${p.name}" width="400" height="300" loading="lazy" decoding="async"/>` : '📦'}
             </div>
             <div class="modal-related-name">${p.name}</div>
             <div class="modal-related-price">${getPriceLabel(p, category)}</div>
@@ -523,7 +523,7 @@ async function openModal(product, category) {
   const hasPrintSizes = printSizes.length > 0;
 
   const imgHTML = product.image_url
-    ? `<img src="${product.image_url}" alt="${product.name}"/>`
+    ? `<img src="${jfWeb(product.image_url)}" alt="${product.name}" decoding="async"/>`
     : `<div class="modal-img-placeholder">${placeholder}</div>`;
 
   const sizesHTML = isApparel

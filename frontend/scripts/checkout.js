@@ -126,7 +126,7 @@ function renderDesignList(designs, item) {
   const rows = designs.map((d, i) => {
     if (typeof d === 'string') {
       return isImageSrc(d)
-        ? `<li><img class="item-modal-thumb" src="${escapeHtml(d)}" alt="Design ${i + 1}"/><span>Design ${i + 1}</span></li>`
+        ? `<li><img class="item-modal-thumb" src="${escapeHtml(jfThumb(d))}" alt="Design ${i + 1}"/><span>Design ${i + 1}</span></li>`
         : `<li><span>${escapeHtml(d)}</span></li>`;
     }
 
@@ -134,7 +134,7 @@ function renderDesignList(designs, item) {
     const sizeLabel = designSizeLabel(d, item);
     const label = sizeLabel ? `${baseLabel} — ${sizeLabel}` : baseLabel;
     const img   = d?.src || d?.image || d?.url || d?.preview || d?.snapshot;
-    return `<li>${isImageSrc(img) ? `<img class="item-modal-thumb" src="${escapeHtml(img)}" alt="${escapeHtml(label)}"/>` : ''}<span>${escapeHtml(label)}</span></li>`;
+    return `<li>${isImageSrc(img) ? `<img class="item-modal-thumb" src="${escapeHtml(jfThumb(img))}" alt="${escapeHtml(label)}" loading="lazy" decoding="async"/>` : ''}<span>${escapeHtml(label)}</span></li>`;
   }).join('');
 
   return `
@@ -198,7 +198,7 @@ function openItemModal(index) {
   content.innerHTML = `
     <div class="item-modal-head">
       <div class="item-modal-img">
-        ${isImageSrc(item.snapshot) ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async"/>` : '🛍'}
+        ${isImageSrc(item.snapshot) ? `<img src="${escapeHtml(jfThumb(item.snapshot))}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async"/>` : '🛍'}
       </div>
       <h3 class="item-modal-title" id="itemModalTitle">${escapeHtml(item.name)}</h3>
     </div>
@@ -290,7 +290,7 @@ function renderItems() {
     <div class="checkout-item checkout-item-clickable" data-index="${index}" tabindex="0" role="button" aria-label="View details for ${escapeHtml(item.name)}">
       <div class="checkout-item-img">
         ${isImageSrc(item.snapshot)
-          ? `<img src="${escapeHtml(item.snapshot)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async"/>`
+          ? `<img src="${escapeHtml(jfThumb(item.snapshot))}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async"/>`
           : '🛍'}
       </div>
       <div class="checkout-item-info">
