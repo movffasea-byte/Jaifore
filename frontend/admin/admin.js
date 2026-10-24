@@ -611,6 +611,36 @@ async function deleteProduct(id) {
 }
 
 // ── ORDERS ───────────────────────────────────────────
+// Customer uploads are public copies; the untouched print original sits in a
+// private bucket under the same <userId>/<uuid>.<ext> path.
+const UPLOAD_PATH = /\/object\/public\/[^/]+\/(\d+\/[0-9a-f-]{36}\.(?:png|jpg|webp|gif))$/;
+
+function addOriginalButtons(cell, order) {
+  const items = Array.isArray(order.items) ? order.items : [];
+  items.forEach(item => (item.designs || []).forEach(d => {
+    const m = UPLOAD_PATH.exec(String(d.src || ''));
+    if (!m) return;
+    const btn = document.createElement('button');
+    btn.className = 'action-btn';
+    btn.textContent = `Original: ${d.name || 'Design'}`;
+    btn.addEventListener('click', () => openPrintOriginal(m[1]));
+    cell.appendChild(document.createElement('br'));
+    cell.appendChild(btn);
+  }));
+}
+
+async function openPrintOriginal(path) {
+  // Open the tab now (inside the click) so the popup blocker allows it.
+  const tab = window.open('', '_blank');
+  try {
+    const data = await fetchJson(`${API}/api/uploads/original?path=${encodeURIComponent(path)}`, { headers: authHeaders() });
+    if (tab) tab.location = data.url; else window.location = data.url;
+  } catch (err) {
+    if (tab) tab.close();
+    alert(friendlyError(err));
+  }
+}
+
 async function loadOrders() {
   showTableSkeleton('ordersBody', 6, 6);
   try {
@@ -640,6 +670,7 @@ async function loadOrders() {
             ${o.payment_status === 'refunded' ? 'Refunded' : 'Refund'}
           </button>
         </td>`;
+      addOriginalButtons(tr.lastElementChild, o);
       body.appendChild(tr);
     });
   } catch (err) {
