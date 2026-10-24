@@ -126,6 +126,19 @@ describe('POST /api/auth/login', () => {
 });
 
 describe('registration and OTP', () => {
+  // Fake Redis: the pending registration must live there, not in process memory.
+  const redisMock = require('../redis');
+  let store;
+  beforeEach(() => {
+    store = new Map();
+    redisMock.cacheGet.mockImplementation(async (k) => (store.has(k) ? JSON.parse(store.get(k)) : null));
+    redisMock.cacheSet.mockImplementation(async (k, v) => { store.set(k, JSON.stringify(v)); });
+    redisMock.cacheInvalidate.mockImplementation(async (k) => { store.delete(k); });
+  });
+  afterEach(() => {
+    redisMock.cacheGet.mockReset(); redisMock.cacheSet.mockReset(); redisMock.cacheInvalidate.mockReset();
+  });
+
   it('rejects a password shorter than 8 characters', async () => {
     const res = await request(app).post('/api/auth/register').send({ name: 'A', email: 'a@test.dev', password: 'short' });
     expect(res.status).toBe(400);
@@ -150,6 +163,32 @@ describe('registration and OTP', () => {
     const ok = await request(app).post('/api/auth/verify-otp').send({ email, otp: '123456' });
     expect(ok.status).toBe(201);
     expect(jwt.verify(ok.body.token, process.env.JWT_SECRET).id).toBe(9);
+  });
+
+  it('keeps the pending registration in Redis with a 10 minute TTL and clears it once verified', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const email = 'store@test.dev';
+    await request(app).post('/api/auth/register').send({ name: 'S', email, password: 'longenough1' });
+    expect(redisMock.cacheSet).toHaveBeenCalledWith('otp:store@test.dev', expect.objectContaining({ otp: '123456' }), 600);
+    expect(store.has('otp:store@test.dev')).toBe(true);
+
+    mockPool.query.mockResolvedValueOnce({ rows: [{ id: 3, name: 'S', email, role: 'user', created_at: new Date() }] });
+    await request(app).post('/api/auth/verify-otp').send({ email, otp: '123456' });
+    expect(store.has('otp:store@test.dev')).toBe(false);
+  });
+
+  it('resend-otp refreshes the stored code', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const email = 'resend@test.dev';
+    await request(app).post('/api/auth/register').send({ name: 'R', email, password: 'longenough1' });
+    const res = await request(app).post('/api/auth/resend-otp').send({ email });
+    expect(res.status).toBe(200);
+    expect(redisMock.cacheSet).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns 400 for resend-otp with no pending registration', async () => {
+    const res = await request(app).post('/api/auth/resend-otp').send({ email: 'ghost@test.dev' });
+    expect(res.status).toBe(400);
   });
 
   it('returns 400 for verify-otp with no pending registration', async () => {

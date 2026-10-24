@@ -13,7 +13,10 @@ const { generateOTP, sendOTPEmail, sendAdminNotification, sendWelcomeEmail, send
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
-const otpStore = {}; // { email: { otp, expires, userData } }
+// Pending registrations live in Redis as otp:<email> -> { otp, userData } so a
+// Railway restart between "OTP sent" and "OTP entered" doesn't lose them.
+const OTP_TTL_SECONDS = 10 * 60;
+const otpKey = (email) => `otp:${email}`;
 
 // Reset links are valid for 30 minutes — long enough for someone to check
 // their email and act, short enough that a stale/leaked link doesn't stay
@@ -40,7 +43,8 @@ router.post('/register', async (req, res) => {
     if (existing.rows.length > 0 && existing.rows[0].verified) return res.status(409).json({ error: 'An account with this email already exists.' });
     const hashed = await bcrypt.hash(password, 12);
     const otp = generateOTP();
-    otpStore[email.toLowerCase().trim()] = { otp, expires: Date.now() + 10 * 60 * 1000, userData: { name: name.trim(), email: email.toLowerCase().trim(), password: hashed } };
+    const key = email.toLowerCase().trim();
+    await cacheSet(otpKey(key), { otp, userData: { name: name.trim(), email: key, password: hashed } }, OTP_TTL_SECONDS);
     await sendOTPEmail(email, name, otp);
     return res.status(200).json({ message: 'OTP sent to your email.' });
   } catch (err) { console.error('Register error:', err.message, err.stack); return res.status(500).json({ error: err.message }); }
@@ -51,9 +55,8 @@ router.post('/verify-otp', async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required.' });
   const key = email.toLowerCase().trim();
-  const pending = otpStore[key];
-  if (!pending) return res.status(400).json({ error: 'No pending registration. Please register again.' });
-  if (Date.now() > pending.expires) { delete otpStore[key]; return res.status(400).json({ error: 'OTP expired. Please register again.' }); }
+  const pending = await cacheGet(otpKey(key));
+  if (!pending) return res.status(400).json({ error: 'No pending registration or OTP expired. Please register again.' });
   if (pending.otp !== otp.toString()) return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
   try {
     const { name, email: userEmail, password } = pending.userData;
@@ -64,7 +67,7 @@ router.post('/verify-otp', async (req, res) => {
       [name, userEmail, password]
     );
     const user = result.rows[0];
-    delete otpStore[key];
+    await cacheInvalidate(otpKey(key));
     const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     try { await sendAdminNotification(user); } catch (e) { console.error('Admin notify error:', e.message); }
     sendWelcomeEmail(user.email, user.name).catch(e => console.error('Welcome email error:', e.message));
@@ -75,10 +78,11 @@ router.post('/verify-otp', async (req, res) => {
 // RESEND OTP
 router.post('/resend-otp', async (req, res) => {
   const key = req.body.email?.toLowerCase().trim();
-  const pending = otpStore[key];
+  const pending = key ? await cacheGet(otpKey(key)) : null;
   if (!pending) return res.status(400).json({ error: 'No pending registration. Please register again.' });
   const otp = generateOTP();
-  pending.otp = otp; pending.expires = Date.now() + 10 * 60 * 1000;
+  pending.otp = otp;
+  await cacheSet(otpKey(key), pending, OTP_TTL_SECONDS);
   try { await sendOTPEmail(key, pending.userData.name, otp); return res.json({ message: 'New OTP sent.' }); }
   catch (err) { return res.status(500).json({ error: 'Failed to send OTP.' }); }
 });
@@ -208,4 +212,4 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-module.exports = { router, authenticate };
+module.exports = { router, authenticate };
