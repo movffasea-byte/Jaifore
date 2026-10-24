@@ -28,6 +28,7 @@ const { authenticate } = require('../middleware');
 const { cacheInvalidate } = require('../redis');
 const stripe = require('../stripeClient');
 const { sendOrderConfirmation, sendAdminOrderAlert, sendLowStockAlert } = require('../mailer');
+const { sendAdminPush } = require('../push');
 const { PricingError, priceApparelDesigns, toCents, cleanText } = require('../pricing');
 
 const router = express.Router();
@@ -501,6 +502,12 @@ async function fulfillSession(session) {
     const customer = await pool.query('SELECT name, email FROM users WHERE id = $1', [order.user_id]);
     const customerName  = customer.rows[0]?.name  || pending.contact?.name  || 'Customer';
     const customerEmail = customer.rows[0]?.email || pending.contact?.email || '';
+
+    sendAdminPush({
+      title: "Jai'fore — new order",
+      body: `New order #${order.id} — $${Number(order.total).toFixed(2)} — ${customerName}`,
+      orderId: order.id,
+    }); // fire-and-forget; never throws
 
     Promise.allSettled([
       sendOrderConfirmation(customerEmail, customerName, order),

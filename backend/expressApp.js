@@ -145,6 +145,7 @@ app.use('/api/wishlist', generalLimiter, require('./routes/wishlist'));
 app.use('/api/recently-viewed', generalLimiter, require('./routes/recently-viewed'));
 app.use('/api/cart', generalLimiter, require('./routes/cart'));
 app.use('/api/uploads', generalLimiter, require('./routes/uploads'));
+app.use('/api/push',    generalLimiter, require('./routes/push'));
 
 app.use('/images', express.static(path.join(__dirname, 'images')));
 

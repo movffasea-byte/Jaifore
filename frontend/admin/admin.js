@@ -40,6 +40,7 @@ function showDashboard() {
   document.getElementById('dashboard').classList.remove('hidden');
   document.getElementById('adminName').textContent = `Welcome, ${adminUser?.name || 'Admin'}`;
   switchTab('overview');
+  if (window.startOrderAlerts) startOrderAlerts();
 }
 
 // Password toggle
@@ -160,6 +161,7 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
   localStorage.removeItem('jaifore_admin_token');
   localStorage.removeItem('jaifore_admin_user');
   token = null; adminUser = null;
+  if (window.stopOrderAlerts) stopOrderAlerts();
   showLogin();
 });
 

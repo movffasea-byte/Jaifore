@@ -12,7 +12,7 @@
    - Images / fonts: cache first.
    Bump CACHE_VERSION to drop old caches after a change here.
    ================================ */
-const CACHE_VERSION = 'jaifore-v5';
+const CACHE_VERSION = 'jaifore-v7';
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const ASSET_CACHE   = `${CACHE_VERSION}-assets`;
 
@@ -52,6 +52,30 @@ async function cacheFirst(request, cacheName) {
   if (res.ok || res.type === 'opaque') cache.put(request, res.clone());
   return res;
 }
+
+// Web push from the backend (new-order alerts for the admin)
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { /* not JSON */ }
+  event.waitUntil(self.registration.showNotification(data.title || "Jai'fore", {
+    body: data.body || 'You have a new order.',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: 'jaifore-order',
+    renotify: true,
+    vibrate: [200, 100, 200],
+    data: { url: '/admin/admin.html' },
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    const open = list.find(c => c.url.includes(url) && 'focus' in c);
+    return open ? open.focus() : self.clients.openWindow(url);
+  }));
+});
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;

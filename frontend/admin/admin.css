@@ -1066,3 +1066,39 @@ body::before {
   .cal-grid { gap: 2px; }
   .revenue-chart-wrap { padding: 0.8rem; }
 }
+
+/* ── ORDER ALERTS ──────────────────────────────────── */
+.alert-controls { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+.alert-enable, .alert-mute {
+  background: transparent; border: 1px solid var(--border); color: var(--ink-muted);
+  font: inherit; font-size: 0.8rem; border-radius: 8px; cursor: pointer; padding: 0.45rem 0.8rem; min-height: 38px;
+}
+.alert-enable { color: var(--purple-lt); border-color: var(--purple-lt); }
+.alert-enable[hidden] { display: none; }
+.alert-enable:disabled { opacity: 0.6; cursor: not-allowed; }
+.alert-mute { padding: 0.45rem 0.65rem; font-size: 1rem; }
+.alert-enable:hover:not(:disabled), .alert-mute:hover { color: var(--ink); border-color: var(--purple-lt); }
+
+.nav-badge {
+  margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+  background: var(--danger); color: #1a0a0a; font-size: 0.7rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.nav-item { position: relative; }
+
+#orderToasts {
+  position: fixed; top: 1rem; right: 1rem; z-index: 2000;
+  display: flex; flex-direction: column; gap: 0.6rem; max-width: min(380px, calc(100vw - 2rem));
+}
+.order-toast {
+  text-align: left; font: inherit; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+  color: var(--ink); background: var(--surface2); border: 1px solid var(--teal);
+  border-left-width: 4px; border-radius: 10px; padding: 0.85rem 1rem;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5); animation: toastIn 0.3s ease-out;
+}
+@keyframes toastIn { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media (max-width: 768px) {
+  #orderToasts { left: 1rem; right: 1rem; max-width: none; }
+  .alert-enable { padding: 0.45rem 0.6rem; font-size: 0.75rem; }
+}
