@@ -6,16 +6,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Admin palette comes from the rooted1 logo: black, violet, teal, blue, sage */
+  /* Admin palette comes from the admin logo (logo/jaifore-admin-source.jpg): black anchor, violet rope, mint and pink lettering, cream-sage rope */
   --bg:        #08070f;
   --surface:   #12101f;
   --surface2:  #1a1730;
   --border:    #2c2745;
-  --purple:    #7a63a1;   /* logo violet — white text on it is >= 4.5:1 */
-  --purple-lt: #b9a3e3;   /* links / accents on dark */
-  --teal:      #5cc8c4;
-  --blue:      #6b8fe0;
-  --sage:      #8dbba0;
+  --purple:    #7b5cb0;   /* logo violet — white text on it is >= 4.5:1 */
+  --purple-lt: #c6aef0;   /* links / accents on dark */
+  --teal:      #7fe8b8;   /* logo mint */
+  --blue:      #f2a9d0;   /* logo pink (name kept) */
+  --sage:      #cfd8b0;   /* logo cream-sage rope */
   --ink:       #edebf5;
   --ink-muted: #b4b0c4;
   --danger:    #f06a6a;
@@ -242,12 +242,48 @@ body {
   padding-left: 0.4rem;
 }
 
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .sidebar-logo {
   width: 48px;
   height: 48px;
-  border-radius: 50px;
+  border-radius: 12px;
   object-fit: cover;
-  object-position: center 35%;
+  background: #000;
+}
+
+.login-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #000;
+}
+
+.sidebar-close, .sidebar-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+  font: inherit;
+  line-height: 1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.sidebar-close { width: 32px; height: 32px; font-size: 1.1rem; }
+.sidebar-toggle { width: 38px; height: 38px; font-size: 1.1rem; flex-shrink: 0; margin-right: 0.9rem; }
+.sidebar-close:hover, .sidebar-toggle:hover { color: var(--purple-lt); border-color: var(--purple-lt); }
+.sidebar-close:focus-visible, .sidebar-toggle:focus-visible { outline: 2px solid var(--purple-lt); outline-offset: 2px; }
+
+/* Sidebar closed (desktop): collapse the column; the header button reopens it */
+.dashboard.sidebar-collapsed .sidebar {
+  width: 0; min-width: 0; padding: 0; gap: 0;
+  border: none; box-shadow: none; opacity: 0;
+  overflow: hidden; pointer-events: none;
 }
 
 .sidebar-nav {
@@ -291,7 +327,7 @@ body {
 .main-header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .main-title {
@@ -397,7 +433,7 @@ body {
 .badge-pending  { background: #78350f22; color: #f59e0b; border: 1px solid #f59e0b44; }
 .badge-success  { background: #14532d22; color: #4ade80; border: 1px solid #4ade8044; }
 .badge-failed   { background: #7f1d1d22; color: #f87171; border: 1px solid #f8717144; }
-.badge-admin    { background: rgba(122, 99, 161, 0.2); color: var(--purple-lt); border: 1px solid rgba(185, 163, 227, 0.35); }
+.badge-admin    { background: rgba(123, 92, 176, 0.2); color: var(--purple-lt); border: 1px solid rgba(198, 174, 240, 0.35); }
 .badge-user     { background: var(--surface2); color: var(--ink-muted); border: 1px solid var(--border); }
 
 .action-btn {
@@ -833,9 +869,9 @@ body {
   --glass-bg-1:       #06050c;
   --glass-bg-2:       #14102a;
   --glass-bg-3:       #07161a;
-  --blob-purple:      rgba(122, 99, 161, 0.48);
-  --blob-blue:        rgba(59, 111, 208, 0.30);
-  --blob-pink:        rgba(92, 200, 196, 0.22);   /* teal glow from the logo (var name kept) */
+  --blob-purple:      rgba(123, 92, 176, 0.48);
+  --blob-blue:        rgba(242, 169, 208, 0.20);   /* pink glow from the logo (var name kept) */
+  --blob-pink:        rgba(127, 232, 184, 0.20);   /* mint glow from the logo (var name kept) */
 
   /* panels */
   --glass-fill:       rgba(26, 22, 48, 0.58);
@@ -849,7 +885,7 @@ body {
 
   /* text — raised from #888 so it stays >= 4.5:1 on glass */
   --ink-muted:        #b4b0c4;
-  --purple-hover:     #6a5391;                   /* white text stays >= 4.5:1 */
+  --purple-hover:     #694b9c;                   /* white text stays >= 4.5:1 */
 }
 
 body {
@@ -949,7 +985,7 @@ body::before {
 .badge-pending  { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); }
 .badge-success  { background: rgba(74, 222, 128, 0.14); color: #6ee7a0; border-color: rgba(110, 231, 160, 0.4); }
 .badge-failed   { background: rgba(248, 113, 113, 0.16); color: #fca5a5; border-color: rgba(252, 165, 165, 0.4); }
-.badge-admin    { background: rgba(122, 99, 161, 0.22); color: #d9cdf3; border-color: rgba(217, 205, 243, 0.4); }
+.badge-admin    { background: rgba(123, 92, 176, 0.22); color: #ddd0f5; border-color: rgba(221, 208, 245, 0.4); }
 .badge-user     { background: rgba(255, 255, 255, 0.08); color: var(--ink-muted); border-color: var(--glass-border); }
 .badge-lowstock { background: rgba(245, 158, 11, 0.16);  color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); }
 
@@ -1002,6 +1038,14 @@ body::before {
   }
   .sidebar-brand { margin: 0; padding: 0; }
   .sidebar-logo { width: 36px; height: 36px; }
+  .sidebar-close { display: none; }
+  .sidebar-brand { margin-right: auto; }
+  /* closed on a phone: only the nav row hides, logo + logout stay */
+  .dashboard.sidebar-collapsed .sidebar {
+    width: auto; padding: 0.7rem 0.9rem; gap: 0.5rem; opacity: 1; pointer-events: auto;
+    border: 1px solid var(--glass-border); border-top: none; box-shadow: var(--glass-shadow);
+  }
+  .dashboard.sidebar-collapsed .sidebar-nav { display: none; }
   .btn-logout { width: auto; margin: 0 0 0 auto; padding: 0.45rem 0.8rem; }
   .sidebar-nav {
     order: 3; flex: 1 1 100%; flex-direction: row;

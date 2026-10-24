@@ -135,6 +135,26 @@ document.getElementById('loginPassword').addEventListener('keydown', e => {
 });
 
 
+// Sidebar open / close (remembered per browser)
+(function () {
+  const dash = document.getElementById('dashboard');
+  const toggle = document.getElementById('sidebarToggle');
+  const close = document.getElementById('sidebarClose');
+  function setOpen(open) {
+    dash.classList.toggle('sidebar-collapsed', !open);
+    toggle.setAttribute('aria-expanded', String(open));
+    const label = open ? 'Close sidebar' : 'Open sidebar';
+    toggle.setAttribute('aria-label', label);
+    toggle.title = label;
+    try { localStorage.setItem('jaifore_admin_sidebar', open ? 'open' : 'closed'); } catch (e) {}
+  }
+  toggle.addEventListener('click', () => setOpen(dash.classList.contains('sidebar-collapsed')));
+  close.addEventListener('click', () => setOpen(false));
+  let saved = null;
+  try { saved = localStorage.getItem('jaifore_admin_sidebar'); } catch (e) {}
+  if (saved === 'closed') setOpen(false);
+})();
+
 // Logout
 document.getElementById('logoutBtn').addEventListener('click', () => {
   localStorage.removeItem('jaifore_admin_token');
@@ -311,7 +331,7 @@ async function loadRevenueChart(period = 'daily') {
           label: 'Revenue (USD)',
           data: values,
           backgroundColor: 'rgba(185, 163, 227, 0.55)',
-          borderColor: '#b9a3e3',
+          borderColor: '#c6aef0',
           borderWidth: 1,
           borderRadius: 4,
         }]
@@ -1005,8 +1025,8 @@ async function openQrStats(id, title) {
         datasets: [{
           label: 'Scans',
           data: values.length ? values : [0],
-          borderColor: '#5cc8c4',
-          backgroundColor: 'rgba(92, 200, 196, 0.18)',
+          borderColor: '#7fe8b8',
+          backgroundColor: 'rgba(127, 232, 184, 0.18)',
           fill: true,
           tension: 0.3,
         }]

@@ -8,6 +8,9 @@
      logo/jaifore-480.webp     hero / offline / login logo
      icons/*.png, logo/favicon-32.png   app and tab icons
 
+   It also crops logo/jaifore-admin-source.jpg (black background, used by the
+   admin only) to logo/admin-192.webp and logo/admin-512.webp.
+
    White is removed everywhere except inside the lettering box, where only
    white connected to the outside or the rope-loop holes goes, so the white
    cores of the neon letters stay.
@@ -99,6 +102,11 @@ async function main() {
   await (await square(512, 0.08, dark)).png().toFile(path.join(ROOT, 'icons', 'icon-512.png'));
   await (await square(180, 0.08, dark)).png().toFile(path.join(ROOT, 'icons', 'apple-touch-icon.png'));
   await (await square(512, 0.20, dark)).png().toFile(path.join(ROOT, 'icons', 'icon-maskable-512.png'));  // safe zone
+  const adminSrc = path.join(ROOT, 'logo', 'jaifore-admin-source.jpg');
+  for (const size of [192, 512]) {
+    await sharp(adminSrc).extract({ left: 110, top: 315, width: 860, height: 860 })
+      .resize(size, size).webp({ quality: 86 }).toFile(path.join(ROOT, 'logo', `admin-${size}.webp`));
+  }
   console.log('logo files written');
 }
 
