@@ -3,7 +3,8 @@
   "private": true,
   "description": "Build-time tooling only. The site itself is plain HTML/CSS/JS.",
   "scripts": {
-    "images": "node tools/optimize-images.js"
+    "images": "node tools/optimize-images.js",
+    "logo": "node tools/make-logo.js"
   },
   "devDependencies": {
     "sharp": "^0.35.5"

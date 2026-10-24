@@ -57,7 +57,7 @@
       border-color: var(--purple);
       background: var(--purple-tint);
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(123,94,167,0.15);
+      box-shadow: 0 8px 24px rgba(138, 31, 168,0.15);
     }
     .gender-icon  { font-size: 2rem; }
     .gender-label { font-size: 0.9rem; font-weight: 600; color: var(--ink); }
@@ -85,7 +85,7 @@
     .gender-btn.active {
       background: var(--purple-fill);
       color: #fff;
-      box-shadow: 0 2px 8px rgba(123,94,167,0.3);
+      box-shadow: 0 2px 8px rgba(138, 31, 168,0.3);
     }
     .gender-btn:hover:not(.active) { background: var(--border); color: var(--ink-soft); }
 

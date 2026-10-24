@@ -48,7 +48,7 @@
         transition: all 0.2s;
       ">Decline</button>
       <button id="cookieAccept" style="
-        background: #7b5ea7;
+        background: #8a1fa8;
         border: none;
         color: #fff;
         padding: 0.5rem 1.4rem;

@@ -6,10 +6,6 @@
      images/web/<name>.webp    max 1600px, quality 80  (modals, detail, canvas)
      images/thumb/<name>.webp  max  400px, quality 75  (grids, pickers)
 
-   It also writes small WebP copies of the header/footer logo
-   (logo/rooted2-96.webp for the 40px nav logo, logo/rooted2-480.webp for the
-   larger ones).
-
    The originals are print masters: they are only ever READ here, never
    modified, moved or deleted. Transparency is kept (WebP has alpha).
    Re-runnable: a copy that is newer than its original is skipped.
@@ -26,9 +22,6 @@ const SIZES = [
   { dir: 'thumb', max: 400,  quality: 75 },
 ];
 const EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
-
-const LOGO_SRC = path.join(__dirname, '..', 'logo', 'rooted2.jpg');
-const LOGO_WIDTHS = [96, 480];
 
 const mb = bytes => (bytes / 1e6).toFixed(1);
 
@@ -76,12 +69,6 @@ async function main() {
         console.error(`FAILED ${dir}/${stem}.webp:`, err.message);
       }
     }
-  }
-
-  for (const width of LOGO_WIDTHS) {
-    const out = path.join(__dirname, '..', 'logo', `rooted2-${width}.webp`);
-    await sharp(LOGO_SRC).resize({ width, withoutEnlargement: true }).webp({ quality: 85 }).toFile(out);
-    console.log(`logo/rooted2-${width}.webp ${(fs.statSync(out).size / 1024).toFixed(1)} KB`);
   }
 
   console.log(`${files.length} originals — made ${made}, skipped ${skipped}, failed ${failed}`);

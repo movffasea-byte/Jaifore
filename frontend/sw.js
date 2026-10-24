@@ -12,11 +12,11 @@
    - Images / fonts: cache first.
    Bump CACHE_VERSION to drop old caches after a change here.
    ================================ */
-const CACHE_VERSION = 'jaifore-v4';
+const CACHE_VERSION = 'jaifore-v5';
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const ASSET_CACHE   = `${CACHE_VERSION}-assets`;
 
-const PRECACHE = ['offline.html', 'manifest.webmanifest', 'icons/icon-192.png', 'logo/rooted2-96.webp'];
+const PRECACHE = ['offline.html', 'manifest.webmanifest', 'icons/icon-192.png', 'logo/jaifore-96.webp'];
 
 // Never answered from cache, whichever host serves them
 const NETWORK_ONLY = ['/api/auth', '/api/cart', '/api/stripe', '/api/orders', '/api/wishlist', '/api/users', '/api/transactions', '/api/qr'];

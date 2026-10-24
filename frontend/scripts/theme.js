@@ -31,7 +31,7 @@
     root.setAttribute('data-theme', dark ? 'dark' : 'light');
     root.setAttribute('data-theme-pref', pref);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', dark ? '#0f0d1a' : '#4a2d7a');
+    if (meta) meta.setAttribute('content', dark ? '#0b0710' : '#5d0f78');
   }
 
   function paint(btn, pref) {

@@ -31,10 +31,8 @@
 .navbar.scrolled { box-shadow: var(--shadow-nav); }
 
 .nav-logo img {
-  height: 40px; width: 40px;
-  object-fit: cover; border-radius: 50%;
-  border: 1px solid var(--border);
-  background: #fff; /* the logo file has a white background; keeps the badge clean in dark mode */
+  height: 44px; width: 44px;
+  object-fit: contain; /* transparent logo, works on light and dark */
 }
 
 .nav-links { display: flex; align-items: center; gap: 2rem; }
@@ -116,9 +114,8 @@
   flex-wrap: wrap; gap: 0.8rem;
 }
 .footer-brand {
-  height: 40px; width: 40px;
-  object-fit: cover; border-radius: 50% !important;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  height: 44px; width: 44px;
+  object-fit: contain;
   flex-shrink: 0;
 }
 .footer-copy {

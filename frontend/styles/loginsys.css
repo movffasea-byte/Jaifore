@@ -29,11 +29,9 @@ html,body{
 }
 
 .nav-logo img{
-  height:40px;
-  width:40px;
-  object-fit:cover;
-  border-radius:50%;
-  border:1px solid var(--border)
+  height:44px;
+  width:44px;
+  object-fit:contain
 }
 
 .topbar-tag{

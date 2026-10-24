@@ -3,9 +3,10 @@
    frontend/styles/tokens.css
 
    The one place to change the brand. Load this FIRST on every page.
-   Colours come from the logo (logo/rooted2.jpg): anchor purple, glow teal,
-   anchor blue, rope sage. Teal and sage are decoration only — they do not
-   pass contrast as text on white.
+   Colours come from the logo (logo/jaifore-source.jpg): the neon purple rope
+   and green rope on a gunmetal anchor. Neon green and its tints are
+   decoration only — they do not pass contrast as text on white; use
+   --green-deep for green text.
 
    Dark mode: the full dark set is defined below under [data-theme="dark"].
    scripts/theme.js sets data-theme on <html> from the 3-way toggle
@@ -13,17 +14,20 @@
    ================================ */
 :root {
   /* ── Brand ─────────────────────────────────────── */
-  --purple:        #6b4ea8;   /* primary: buttons, links, accents */
-  --purple-dark:   #4b3585;   /* pressed / strong accents / text on tint */
-  --purple-hover:  #573d91;
-  --purple-soft:   #a58cd6;   /* links on dark backgrounds */
-  --purple-tint:   #efeafb;   /* selected / highlighted backgrounds */
+  --purple:        #8a1fa8;   /* primary: buttons, links, accents */
+  --purple-dark:   #5d0f78;   /* pressed / strong accents / text on tint */
+  --purple-hover:  #741a90;
+  --purple-soft:   #d27be8;   /* links on dark backgrounds */
+  --purple-tint:   #f6e9fb;   /* selected / highlighted backgrounds */
   --purple-light:  var(--purple-hover);  /* legacy name used by services.css */
-  --purple-dim:    rgba(107, 78, 168, 0.08);
-  --purple-glow:   rgba(107, 78, 168, 0.20);
-  --teal:          #3fb8b4;
-  --blue:          #3b6fd0;
-  --sage:          #8dbba0;
+  --purple-dim:    rgba(138, 31, 168, 0.08);
+  --purple-glow:   rgba(138, 31, 168, 0.20);
+  --green:         #3ddc2e;   /* neon green rope: decoration, text on dark */
+  --green-deep:    #1f7a1a;   /* green text on light surfaces (>= 4.5:1) */
+  --magenta:       #c13cf0;   /* neon purple glow */
+  --teal:          var(--green);    /* legacy names kept for old rules */
+  --blue:          var(--magenta);
+  --sage:          #8fe07f;
   --on-purple:     #ffffff;   /* text on --purple */
   --purple-fill:   var(--purple);   /* button fills; darker in dark mode so white text passes 4.5:1 */
   --inverse-bg:     #111111;   /* dark buttons that flip to light in dark mode */
@@ -35,27 +39,27 @@
 
   /* ── Surfaces ──────────────────────────────────── */
   --bg:            #ffffff;
-  --bg-soft:       #f6f4fb;
-  --bg-card:       #f6f4fb;
-  --bg-panel:      #faf9fd;
-  --bg-tint:       #faf9ff;
+  --bg-soft:       #f8f2fb;
+  --bg-card:       #f8f2fb;
+  --bg-panel:      #fbf7fd;
+  --bg-tint:       #fcf8fe;
   --surface:       #ffffff;   /* cards, modals, inputs */
   --nav-bg:        rgba(255, 255, 255, 0.94);
-  --footer-bg:     #17142b;   /* deep indigo, from the logo's dark tones */
-  --footer-ink:    #cfcce0;
-  --footer-muted:  #8c88a0;
+  --footer-bg:     #14091c;   /* deep aubergine, from the logo's dark purple */
+  --footer-ink:    #dccfe6;
+  --footer-muted:  #9a8aa8;
 
   /* ── Text ──────────────────────────────────────── */
-  --ink:           #14121c;
-  --ink-soft:      #26233a;
-  --ink-2:         #4a4659;
-  --muted:         #6b6779;   /* >= 4.5:1 on white */
-  --muted2:        #9a96a8;   /* placeholders, disabled — not for body text */
+  --ink:           #14101a;
+  --ink-soft:      #2a2033;
+  --ink-2:         #4d4458;
+  --muted:         #6b6277;   /* >= 4.5:1 on white */
+  --muted2:        #9a90a8;   /* placeholders, disabled — not for body text */
   --muted-2:       var(--muted2);
 
   /* ── Lines ─────────────────────────────────────── */
-  --border:        #ddd8ea;
-  --border-soft:   #eceaf3;
+  --border:        #e2d6ea;
+  --border-soft:   #efe7f4;
   --border-hover:  var(--purple-dark);
 
   /* ── Status ────────────────────────────────────── */
@@ -98,7 +102,7 @@
   --shadow-sm:    0 1px 3px rgba(20, 18, 28, 0.08);
   --shadow-md:    0 4px 18px rgba(20, 18, 28, 0.10);
   --shadow-lg:    0 12px 40px rgba(20, 18, 28, 0.18);
-  --shadow-nav:   0 4px 24px rgba(107, 78, 168, 0.12);
+  --shadow-nav:   0 4px 24px rgba(138, 31, 168, 0.12);
   --shadow-hard:  4px 4px 0 var(--ink);   /* editorial card hover */
 
   /* ── Layers ────────────────────────────────────── */
@@ -125,33 +129,33 @@
 /* ── Dark theme (switched on by data-theme="dark") ── */
 [data-theme="dark"] {
   color-scheme: dark;
-  --purple-fill:   #7457bd;
-  --purple:        #8a6fcb;
-  --purple-dark:   #b9a3e3;
-  --purple-hover:  #654aa8;
-  --purple-soft:   #b9a3e3;
-  --purple-tint:   #241f3d;
-  --purple-dim:    rgba(138, 111, 203, 0.14);
-  --purple-glow:   rgba(138, 111, 203, 0.30);
-  --bg:            #0f0d1a;
-  --bg-soft:       #171428;
-  --bg-card:       #171428;
-  --bg-panel:      #1b1830;
-  --bg-tint:       #1b1830;
-  --surface:       #171428;
-  --nav-bg:        rgba(15, 13, 26, 0.94);
-  --footer-bg:     #0a0914;
-  --ink:           #edebf5;
-  --ink-soft:      #d8d5e6;
-  --ink-2:         #bdb9cf;
-  --muted:         #a29eb5;
-  --muted2:        #6d6980;
-  --border:        #2e2a45;
-  --border-soft:   #232038;
+  --purple-fill:   #8a1fa8;
+  --purple:        #c46ae0;
+  --purple-dark:   #e3b4f2;
+  --purple-hover:  #741a90;
+  --purple-soft:   #d27be8;
+  --purple-tint:   #27102f;
+  --purple-dim:    rgba(196, 106, 224, 0.14);
+  --purple-glow:   rgba(196, 106, 224, 0.30);
+  --bg:            #0b0710;
+  --bg-soft:       #150d1d;
+  --bg-card:       #150d1d;
+  --bg-panel:      #1a1024;
+  --bg-tint:       #1a1024;
+  --surface:       #150d1d;
+  --nav-bg:        rgba(11, 7, 16, 0.94);
+  --footer-bg:     #070409;
+  --ink:           #f0ebf5;
+  --ink-soft:      #ddd5e6;
+  --ink-2:         #c3b9cf;
+  --muted:         #a99eb5;
+  --muted2:        #74687f;
+  --border:        #35214a;
+  --border-soft:   #281838;
   --shadow-hard:   4px 4px 0 var(--purple);
   --tour-overlay:  rgba(0, 0, 0, 0.78);
-  --inverse-bg:    #edebf5;
-  --inverse-ink:   #0f0d1a;
+  --inverse-bg:    #f0ebf5;
+  --inverse-ink:   #0b0710;
   --status-processing-bg: #3a2f12;
   --status-shipped-bg:    #14283d;
   --status-delivered-bg:  #12301f;

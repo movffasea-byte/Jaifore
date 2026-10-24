@@ -696,7 +696,7 @@ async function loadGraphicDesigns() {
 
     document.querySelector('.upload-text').innerHTML =
       `Click to upload<br/><span>PNG, JPG, SVG — max 5MB</span><br/>
-       <span style="color:#7b5ea7;font-weight:600">Print fee: ${formatPrice(uploadFee)}</span>`;
+       <span style="color:#8a1fa8;font-weight:600">Print fee: ${formatPrice(uploadFee)}</span>`;
 
     applyDesignSearch();
 
