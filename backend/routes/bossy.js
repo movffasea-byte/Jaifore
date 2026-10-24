@@ -3,7 +3,7 @@
    backend/routes/bossy.js
 
    POST /api/bossy/chat  { conversationId?, message }
-   -> { conversationId, reply, actions: [] }
+   -> { conversationId, reply, actions }
 
    Guests are allowed; a valid JWT just attaches req.user.
    Daily caps and short-term history live in Redis (Phase 4 moves
@@ -17,12 +17,14 @@ const Sentry = require('@sentry/node');
 const { redis } = require('../redis');
 const { createReply, extractText } = require('../bossyClient');
 const { SYSTEM_PROMPT } = require('../bossyPrompt');
+const { TOOL_DEFINITIONS, runTool } = require('../bossyTools');
 
 const router = express.Router();
 
 const MAX_MESSAGE_LENGTH = 1000;
 const HISTORY_TURNS = 10;          // user+assistant pairs sent to the model
 const HISTORY_TTL_SECONDS = 24 * 60 * 60;
+const MAX_TOOL_ROUNDS = 3;
 
 const userCap = () => Number(process.env.BOSSY_USER_DAILY_CAP) || 50;
 const guestCap = () => Number(process.env.BOSSY_GUEST_DAILY_CAP) || 15;
@@ -84,6 +86,43 @@ async function saveHistory(conversationId, history) {
   }
 }
 
+// Runs the model, executing tool calls for up to MAX_TOOL_ROUNDS rounds.
+// Tool blocks stay inside this request; only the final text is stored in history.
+async function runWithTools(history) {
+  const messages = [...history];
+  const actions = [];
+
+  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+    // After the last allowed round, call without tools to force a final answer.
+    const tools = round < MAX_TOOL_ROUNDS ? TOOL_DEFINITIONS : [];
+    const response = await createReply({ system: SYSTEM_PROMPT, messages, tools });
+    const toolUses = (response.content || []).filter((b) => b.type === 'tool_use');
+
+    if (!toolUses.length || !tools.length) {
+      return { response, actions };
+    }
+
+    messages.push({ role: 'assistant', content: response.content });
+    const results = [];
+    for (const tu of toolUses) {
+      try {
+        const out = await runTool(tu.name, tu.input);
+        actions.push(...out.actions);
+        results.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out.result) });
+      } catch (err) {
+        console.error(`Bossy tool ${tu.name} failed:`, err.message);
+        results.push({
+          type: 'tool_result',
+          tool_use_id: tu.id,
+          is_error: true,
+          content: 'That lookup failed. Tell the customer you could not check it right now.',
+        });
+      }
+    }
+    messages.push({ role: 'user', content: results });
+  }
+}
+
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
 router.post('/chat', optionalAuth, async (req, res) => {
@@ -122,13 +161,13 @@ router.post('/chat', optionalAuth, async (req, res) => {
   const recent = history.slice(-(HISTORY_TURNS * 2 - 1));
 
   try {
-    const response = await createReply({ system: SYSTEM_PROMPT, messages: recent });
+    const { response, actions } = await runWithTools(recent);
     const reply = extractText(response) || "I'm lost for words. Try asking me again.";
 
     history.push({ role: 'assistant', content: reply });
     await saveHistory(conversationId, history.slice(-HISTORY_TURNS * 2));
 
-    return res.json({ conversationId, reply, actions: [] });
+    return res.json({ conversationId, reply, actions });
   } catch (err) {
     console.error('Bossy chat failed:', err.message);
     Sentry.captureException(err);

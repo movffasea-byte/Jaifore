@@ -29,6 +29,7 @@ const { cacheInvalidate } = require('../redis');
 const stripe = require('../stripeClient');
 const { sendOrderConfirmation, sendAdminOrderAlert, sendLowStockAlert } = require('../mailer');
 const { sendAdminPush } = require('../push');
+const { FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_FEE_CENTS } = require('../shippingRules'); // $60+ ships free, else flat $15
 const { PricingError, priceApparelDesigns, toCents, cleanText } = require('../pricing');
 
 const router = express.Router();
@@ -36,11 +37,6 @@ const router = express.Router();
 // ── CONFIG ───────────────────────────────────────────
 const APPAREL_CATEGORY = 'Apparels & Merchandise';
 const DESIGN_CATEGORY  = 'Graphic Design';
-
-// Shipping rule: physical orders of $60 or more ship free; below that, a
-// flat $15. Web development is enquiry-only and can't be bought here.
-const FREE_SHIPPING_THRESHOLD_CENTS = 60 * 100;
-const SHIPPING_FEE_CENTS            = 15 * 100;
 
 const MAX_LINES              = 50;
 const MAX_LINE_QTY           = 99;
