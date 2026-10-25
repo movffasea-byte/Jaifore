@@ -1,6 +1,5 @@
 {
   "installCommand": "true",
-  "buildCommand": "true",
   "headers": [
     {
       "source": "/sw.js",
