@@ -14,7 +14,6 @@ jest.mock('@anthropic-ai/sdk', () =>
 );
 jest.mock('@sentry/node', () => ({ captureException: jest.fn() }));
 
-const mockStore = new Map();
 const mockCounts = new Map();
 jest.mock('../redis', () => ({
   redis: {
@@ -24,15 +23,38 @@ jest.mock('../redis', () => ({
       return n;
     }),
     expireat: jest.fn(async () => 1),
-    get: jest.fn(async (k) => mockStore.get(k) ?? null),
-    set: jest.fn(async (k, v) => { mockStore.set(k, v); return 'OK'; }),
     quit: jest.fn(),
   },
   cacheGet: jest.fn(async () => null),
   cacheSet: jest.fn(async () => {}),
 }));
 const mockQuery = jest.fn();
-jest.mock('../database', () => ({ pool: { query: (...a) => mockQuery(...a) } }));
+// In-memory stand-in for the bossy_* tables so history round-trips like the real DB.
+const mockConvs = new Map();
+const mockMsgs = [];
+const mockClientQuery = jest.fn(async (sql, p = []) => {
+  if (/INSERT INTO bossy_conversations/.test(sql)) mockConvs.set(p[0], { user_id: p[1], ip_hash: p[2] });
+  else if (/INSERT INTO bossy_messages/.test(sql)) mockMsgs.push({ conv: p[0], role: p[1], content: p[2], tool_name: p[3] });
+  return { rows: [] };
+});
+const mockBossyDb = (sql, p = []) => {
+  if (/FROM bossy_conversations/.test(sql)) {
+    const c = mockConvs.get(p[0]);
+    return { rows: c ? [{ user_id: c.user_id }] : [] };
+  }
+  if (/FROM bossy_messages/.test(sql)) {
+    const rows = mockMsgs.filter((m) => m.conv === p[0] && m.role !== 'tool').slice(-p[1])
+      .map(({ role, content }) => ({ role, content }));
+    return { rows };
+  }
+  return undefined;
+};
+jest.mock('../database', () => ({
+  pool: {
+    query: (sql, p) => mockBossyDb(sql, p) || mockQuery(sql, p),
+    connect: async () => ({ query: (...a) => mockClientQuery(...a), release: jest.fn() }),
+  },
+}));
 
 const express = require('express');
 const request = require('supertest');
@@ -51,7 +73,9 @@ const chat = (body, tok) => {
 };
 
 beforeEach(() => {
-  mockStore.clear();
+  mockConvs.clear();
+  mockMsgs.length = 0;
+  mockClientQuery.mockClear();
   mockCounts.clear();
   mockQuery.mockReset();
   mockCreate.mockReset().mockResolvedValue({ content: [{ type: 'text', text: 'Pick the Large.' }] });
@@ -93,7 +117,7 @@ describe('chat', () => {
     expect(params.messages[params.messages.length - 1].role).toBe('user');
   });
 
-  test('keeps history by conversationId and sends only the last 10 turns', async () => {
+  test('loads history from the DB and sends only the last 10 turns', async () => {
     process.env.BOSSY_USER_DAILY_CAP = '100';
     let id;
     for (let i = 0; i < 12; i++) {
@@ -111,6 +135,15 @@ describe('chat', () => {
     const bogus = '00000000-0000-4000-8000-000000000000';
     const res = await chat({ conversationId: bogus, message: 'hi' });
     expect(res.body.conversationId).not.toBe(bogus);
+  });
+
+  test("another user's conversation is never continued", async () => {
+    const first = await chat({ message: 'private' }, token); // user 7
+    const other = jwt.sign({ id: 8, role: 'user' }, process.env.JWT_SECRET);
+    const res = await chat({ conversationId: first.body.conversationId, message: 'hello' }, other);
+    expect(res.body.conversationId).not.toBe(first.body.conversationId);
+    const sent = mockCreate.mock.calls[1][0].messages;
+    expect(JSON.stringify(sent)).not.toContain('private');
   });
 
   test('returns 502 when the model call fails', async () => {
@@ -260,5 +293,84 @@ describe('tools', () => {
     expect(rules).toEqual({ FREE_SHIPPING_THRESHOLD_CENTS: 6000, SHIPPING_FEE_CENTS: 1500 });
     expect(require('fs').readFileSync(require.resolve('../routes/stripe'), 'utf8'))
       .toMatch(/require\('\.\.\/shippingRules'\)/);
+  });
+});
+
+describe('logging', () => {
+  test('saves user message, tool rows and reply in order, with a hashed IP', async () => {
+    dbFor(PRODUCTS);
+    mockCreate
+      .mockResolvedValueOnce(toolUse('search_products', { query: 'tee' }))
+      .mockResolvedValueOnce(text('Take the tee.'));
+    const res = await chat({ message: 'find a tee' }, token);
+    const rows = mockMsgs.filter((m) => m.conv === res.body.conversationId);
+    expect(rows.map((r) => r.role)).toEqual(['user', 'tool', 'assistant']);
+    expect(rows[1].tool_name).toBe('search_products');
+    expect(rows[2].content).toBe('Take the tee.');
+
+    const conv = mockConvs.get(res.body.conversationId);
+    expect(conv.user_id).toBe(7);
+    expect(conv.ip_hash).toMatch(/^[0-9a-f]{64}$/);
+    const params = mockClientQuery.mock.calls.flatMap((c) => c[1] || []);
+    expect(params.some((v) => typeof v === 'string' && /^(::ffff:)?\d+\.\d+\.\d+\.\d+$|^::1$/.test(v))).toBe(false);
+  });
+
+  test('a failed log write still returns the reply', async () => {
+    mockClientQuery.mockRejectedValueOnce(new Error('db down')); // BEGIN fails
+    const res = await chat({ message: 'hi' });
+    expect(res.status).toBe(200);
+    expect(res.body.reply).toBe('Pick the Large.');
+  });
+
+  test('the migration creates both tables', () => {
+    const sqlText = require('fs').readFileSync(require.resolve('../migrations/003_bossy_conversations.sql'), 'utf8');
+    expect(sqlText).toMatch(/CREATE TABLE IF NOT EXISTS bossy_conversations/);
+    expect(sqlText).toMatch(/CREATE TABLE IF NOT EXISTS bossy_messages/);
+    expect(sqlText).toMatch(/ip_hash/);
+  });
+});
+
+describe('get_my_orders', () => {
+  const ORDERS = [{ id: 5, created_at: '2026-10-01', status: 'shipped', payment_status: 'paid', total: '42.50', currency: 'USD' }];
+
+  test('queries with the JWT user id even if the model passes another user_id', async () => {
+    mockQuery.mockResolvedValue({ rows: ORDERS });
+    mockCreate
+      .mockResolvedValueOnce(toolUse('get_my_orders', { user_id: 99, limit: 50 }))
+      .mockResolvedValueOnce(text('Order 5 shipped.'));
+    const res = await chat({ message: 'where is my order?' }, token);
+    expect(res.status).toBe(200);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/WHERE user_id = \$1/);
+    expect(params).toEqual([7, 10]); // JWT id; limit capped at 10
+    const result = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content[0].content);
+    expect(result.orders[0]).toEqual({ id: 5, date: '2026-10-01', status: 'shipped', payment_status: 'paid', total: 42.5, currency: 'USD' });
+  });
+
+  test('only the count is logged, never order details', async () => {
+    mockQuery.mockResolvedValue({ rows: ORDERS });
+    mockCreate
+      .mockResolvedValueOnce(toolUse('get_my_orders'))
+      .mockResolvedValueOnce(text('One order.'));
+    await chat({ message: 'orders?' }, token);
+    const toolRow = mockMsgs.find((m) => m.role === 'tool');
+    expect(toolRow.content).toBe('returned 1 orders');
+  });
+
+  test('guests are not offered the tool, and cannot run it', async () => {
+    mockCreate
+      .mockResolvedValueOnce(toolUse('get_my_orders'))
+      .mockResolvedValueOnce(text('Please log in.'));
+    const res = await chat({ message: 'my order?' });
+    expect(res.status).toBe(200);
+    expect(mockCreate.mock.calls[0][0].tools.map((t) => t.name)).not.toContain('get_my_orders');
+    const result = mockCreate.mock.calls[1][0].messages.at(-1).content[0];
+    expect(result.is_error).toBe(true);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('logged-in users are offered the tool', async () => {
+    await chat({ message: 'hi' }, token);
+    expect(mockCreate.mock.calls[0][0].tools.map((t) => t.name)).toContain('get_my_orders');
   });
 });

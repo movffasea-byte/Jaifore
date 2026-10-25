@@ -6,8 +6,8 @@
    -> { conversationId, reply, actions }
 
    Guests are allowed; a valid JWT just attaches req.user.
-   Daily caps and short-term history live in Redis (Phase 4 moves
-   history to the database).
+   Daily caps live in Redis; conversations and history live in Postgres
+   (bossyLog.js).
    ================================ */
 
 const express = require('express');
@@ -17,13 +17,13 @@ const Sentry = require('@sentry/node');
 const { redis } = require('../redis');
 const { createReply, extractText } = require('../bossyClient');
 const { SYSTEM_PROMPT } = require('../bossyPrompt');
-const { TOOL_DEFINITIONS, runTool } = require('../bossyTools');
+const { toolsFor, runTool } = require('../bossyTools');
+const { loadHistory, saveTurn } = require('../bossyLog');
 
 const router = express.Router();
 
 const MAX_MESSAGE_LENGTH = 1000;
 const HISTORY_TURNS = 10;          // user+assistant pairs sent to the model
-const HISTORY_TTL_SECONDS = 24 * 60 * 60;
 const MAX_TOOL_ROUNDS = 3;
 
 const userCap = () => Number(process.env.BOSSY_USER_DAILY_CAP) || 50;
@@ -63,51 +63,31 @@ async function withinDailyCap(req) {
   }
 }
 
-async function loadHistory(conversationId) {
-  try {
-    const raw = await redis.get(`bossy:conv:${conversationId}`);
-    return raw ? JSON.parse(raw) : null;
-  } catch (err) {
-    console.error('Bossy history load failed:', err.message);
-    return null;
-  }
-}
-
-async function saveHistory(conversationId, history) {
-  try {
-    await redis.set(
-      `bossy:conv:${conversationId}`,
-      JSON.stringify(history),
-      'EX',
-      HISTORY_TTL_SECONDS
-    );
-  } catch (err) {
-    console.error('Bossy history save failed:', err.message);
-  }
-}
-
 // Runs the model, executing tool calls for up to MAX_TOOL_ROUNDS rounds.
-// Tool blocks stay inside this request; only the final text is stored in history.
-async function runWithTools(history) {
+// Tool blocks stay inside this request; only the final text goes back into history.
+async function runWithTools(history, user) {
   const messages = [...history];
   const actions = [];
+  const toolLog = [];
+  const available = toolsFor(user);
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     // After the last allowed round, call without tools to force a final answer.
-    const tools = round < MAX_TOOL_ROUNDS ? TOOL_DEFINITIONS : [];
+    const tools = round < MAX_TOOL_ROUNDS ? available : [];
     const response = await createReply({ system: SYSTEM_PROMPT, messages, tools });
     const toolUses = (response.content || []).filter((b) => b.type === 'tool_use');
 
     if (!toolUses.length || !tools.length) {
-      return { response, actions };
+      return { response, actions, toolLog };
     }
 
     messages.push({ role: 'assistant', content: response.content });
     const results = [];
     for (const tu of toolUses) {
       try {
-        const out = await runTool(tu.name, tu.input);
+        const out = await runTool(tu.name, tu.input, { user });
         actions.push(...out.actions);
+        toolLog.push({ name: tu.name, summary: out.summary || tu.name });
         results.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out.result) });
       } catch (err) {
         console.error(`Bossy tool ${tu.name} failed:`, err.message);
@@ -145,27 +125,40 @@ router.post('/chat', optionalAuth, async (req, res) => {
     });
   }
 
-  let conversationId = null;
-  let history = null;
-  if (typeof clientId === 'string' && UUID_RE.test(clientId)) {
-    history = await loadHistory(clientId);
-    if (history) conversationId = clientId;
-  }
-  if (!conversationId) {
-    conversationId = crypto.randomUUID();
-    history = [];
-  }
+  const userText = message.trim();
 
-  history.push({ role: 'user', content: message.trim() });
+  let conversationId = null;
+  let history = [];
+  if (typeof clientId === 'string' && UUID_RE.test(clientId)) {
+    try {
+      const saved = await loadHistory(clientId, req.user?.id);
+      if (saved) {
+        conversationId = clientId;
+        history = saved;
+      }
+    } catch (err) {
+      // Carry on with an empty history rather than failing the chat.
+      console.error('Bossy history load failed:', err.message);
+      Sentry.captureException(err);
+    }
+  }
+  const isNew = !conversationId;
+  if (isNew) conversationId = crypto.randomUUID();
+
   // Only the last N turns (each turn = user + assistant message) go to the model.
-  const recent = history.slice(-(HISTORY_TURNS * 2 - 1));
+  const recent = [...history, { role: 'user', content: userText }].slice(-(HISTORY_TURNS * 2 - 1));
 
   try {
-    const { response, actions } = await runWithTools(recent);
+    const { response, actions, toolLog } = await runWithTools(recent, req.user);
     const reply = extractText(response) || "I'm lost for words. Try asking me again.";
 
-    history.push({ role: 'assistant', content: reply });
-    await saveHistory(conversationId, history.slice(-HISTORY_TURNS * 2));
+    try {
+      await saveTurn({ conversationId, isNew, userId: req.user?.id, ip: req.ip, userText, toolLog, reply });
+    } catch (err) {
+      // The customer still gets their answer; the log write is reported.
+      console.error('Bossy log save failed:', err.message);
+      Sentry.captureException(err);
+    }
 
     return res.json({ conversationId, reply, actions });
   } catch (err) {

@@ -54,6 +54,16 @@ const TOOL_DEFINITIONS = [
     input_schema: { type: 'object', properties: {} },
   },
   {
+    name: 'get_my_orders',
+    description:
+      'Get the signed-in customer\'s own recent orders (id, date, status, total in USD). ' +
+      'Only available to logged-in customers. Never state anything about an order that this does not return.',
+    input_schema: {
+      type: 'object',
+      properties: { limit: { type: 'integer', description: 'How many orders, 1 to 10. Default 5.' } },
+    },
+  },
+  {
     name: 'open_contact',
     description:
       'Open the contact form so the customer can reach a human. Use for web-development enquiries, ' +
@@ -149,12 +159,13 @@ async function searchProducts({ query, category, maxPrice } = {}) {
     ({ id, name, category: cat, price, image_url, link }));
   return {
     result: { count: items.length, products: items },
+    summary: `${items.length} products`,
     actions: items.length ? [{ type: 'products', items: cards }] : [],
   };
 }
 
 async function getPrintPricing() {
-  return { result: { currency: 'USD', sizes: (await loadPrintPricing()).map(printRow) }, actions: [] };
+  return { result: { currency: 'USD', sizes: (await loadPrintPricing()).map(printRow) }, summary: 'print sizes', actions: [] };
 }
 
 function getShippingRules() {
@@ -165,13 +176,39 @@ function getShippingRules() {
       free_from: FREE_SHIPPING_THRESHOLD_CENTS / 100,
       web_dev_exempt: true,
     },
+    summary: 'shipping rules',
     actions: [],
   };
+}
+
+/** The signed-in customer's own orders. The user id comes only from the verified JWT, never from model input. */
+async function getMyOrders({ limit } = {}, ctx = {}) {
+  if (!ctx.user?.id) throw new Error('Not signed in.');
+  const n = Math.min(Math.max(parseInt(limit, 10) || 5, 1), 10);
+  const { rows } = await pool.query(
+    `SELECT id, created_at, status, payment_status, total, currency
+       FROM orders
+      WHERE user_id = $1 AND stripe_session_id IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT $2`,
+    [ctx.user.id, n]
+  );
+  const orders = rows.map((o) => ({
+    id: o.id,
+    date: o.created_at,
+    status: o.status,
+    payment_status: o.payment_status,
+    total: Number(o.total),
+    currency: o.currency || 'USD',
+  }));
+  // The summary is what gets logged: a count only, never order details.
+  return { result: { count: orders.length, orders }, summary: `returned ${orders.length} orders`, actions: [] };
 }
 
 function openContact({ reason } = {}) {
   return {
     result: { opened: true, reason: String(reason || '').slice(0, 200) },
+    summary: `contact: ${String(reason || '').slice(0, 200)}`,
     actions: [{ type: 'open_contact' }],
   };
 }
@@ -180,14 +217,20 @@ const HANDLERS = {
   search_products:   searchProducts,
   get_print_pricing: getPrintPricing,
   get_shipping_rules: getShippingRules,
+  get_my_orders:     getMyOrders,
   open_contact:      openContact,
 };
 
 /** Run one tool. Throws on unknown tool or bad input; the caller turns that into an is_error result. */
-async function runTool(name, input) {
+async function runTool(name, input, ctx = {}) {
   const handler = HANDLERS[name];
   if (!handler) throw new Error(`Unknown tool: ${name}`);
-  return handler(input && typeof input === 'object' ? input : {});
+  return handler(input && typeof input === 'object' ? input : {}, ctx);
 }
 
-module.exports = { TOOL_DEFINITIONS, runTool };
+/** Tools offered to the model: guests do not get get_my_orders. */
+function toolsFor(user) {
+  return user?.id ? TOOL_DEFINITIONS : TOOL_DEFINITIONS.filter((t) => t.name !== 'get_my_orders');
+}
+
+module.exports = { TOOL_DEFINITIONS, toolsFor, runTool };
