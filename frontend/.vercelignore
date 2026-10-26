@@ -3,3 +3,8 @@ tools/
 README.md
 package.json
 package-lock.json
+# Originals are served from Supabase Storage (see the /images rewrite in vercel.json)
+/images/*.jpg
+/images/*.jpeg
+/images/*.png
+/images/*.webp
