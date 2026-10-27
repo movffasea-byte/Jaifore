@@ -147,6 +147,7 @@ app.use('/api/cart', generalLimiter, require('./routes/cart'));
 app.use('/api/uploads', generalLimiter, require('./routes/uploads'));
 app.use('/api/push',    generalLimiter, require('./routes/push'));
 app.use('/api/bossy',   generalLimiter, require('./routes/bossy'));
+app.use('/api/bossy-admin', generalLimiter, require('./routes/bossyAdmin'));
 
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
