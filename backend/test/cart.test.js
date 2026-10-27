@@ -22,6 +22,12 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
+// The app builds a Resend client when it loads, which throws without an API key.
+// Cart routes never send email, so a stub keeps the suite runnable anywhere.
+jest.mock('resend', () => ({
+  Resend: jest.fn().mockImplementation(() => ({ emails: { send: jest.fn().mockResolvedValue({}) } })),
+}));
+
 // Adjust this path to wherever your Express app is exported from.
 // If server.js currently does app.listen() directly with no separate
 // export, that's a small refactor needed: split into app.js (exports
