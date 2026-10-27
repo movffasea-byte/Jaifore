@@ -1102,3 +1102,16 @@ body::before {
   #orderToasts { left: 1rem; right: 1rem; max-width: none; }
   .alert-enable { padding: 0.45rem 0.6rem; font-size: 0.75rem; }
 }
+
+/* ── BOSSY BOT TAB ─────────────────────────────────── */
+.bossy-note { margin: 0.9rem 0; color: var(--ink-muted); font-size: 0.85rem; }
+.bossy-row { cursor: pointer; }
+.bossy-row:hover, .bossy-row:focus-visible { background: var(--surface2); outline: none; }
+.bossy-preview { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bossy-pager { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1rem; color: var(--ink-muted); font-size: 0.85rem; }
+.bossy-pager .btn-ghost:disabled { opacity: 0.4; cursor: default; }
+.bossy-thread { display: flex; flex-direction: column; gap: 0.6rem; max-width: 640px; }
+.bossy-msg { max-width: 85%; padding: 0.6rem 0.9rem; border-radius: 14px; font-size: 0.9rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bossy-msg--user { align-self: flex-end; background: var(--purple); color: #fff; border-bottom-right-radius: 4px; }
+.bossy-msg--bot { align-self: flex-start; background: var(--surface2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.bossy-tool { align-self: flex-start; max-width: 85%; padding: 0.3rem 0.7rem; border: 1px dashed var(--border); border-radius: 8px; color: var(--ink-muted); font: 0.75rem ui-monospace, monospace; overflow-wrap: anywhere; }

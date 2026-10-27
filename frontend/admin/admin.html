@@ -100,6 +100,9 @@
         <button class="nav-item" data-tab="qrcodes">
           <span class="nav-icon">▧</span> QR Codes
         </button>
+        <button class="nav-item" data-tab="bossy">
+          <span class="nav-icon">✦</span> Bossy Bot
+        </button>
 
 
       </nav>
@@ -312,6 +315,40 @@
             </thead>
             <tbody id="usersBody"></tbody>
           </table>
+        </div>
+      </section>
+
+      <!-- ── BOSSY BOT TAB (read-only chat log) ── -->
+      <section class="tab hidden" id="tab-bossy">
+        <div id="bossyError"></div>
+        <div class="stats-grid" id="bossyStats">
+          <div class="stat-card"><div class="stat-label">Chats today</div><div class="stat-value" id="bossyToday">—</div></div>
+          <div class="stat-card"><div class="stat-label">Chats, 7 days</div><div class="stat-value" id="bossyWeek">—</div></div>
+          <div class="stat-card"><div class="stat-label">Chats, 30 days</div><div class="stat-value" id="bossyMonth">—</div></div>
+          <div class="stat-card"><div class="stat-label">Questions, 30 days</div><div class="stat-value" id="bossyQuestions">—</div></div>
+        </div>
+        <p class="bossy-note" id="bossyNote"></p>
+
+        <div id="bossyListView">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>Who</th><th>Last activity</th><th>Messages</th><th>First question</th></tr>
+              </thead>
+              <tbody id="bossyBody"></tbody>
+            </table>
+          </div>
+          <div class="bossy-pager">
+            <button class="btn-ghost" id="bossyPrev" type="button">Newer</button>
+            <span id="bossyPageLabel"></span>
+            <button class="btn-ghost" id="bossyNext" type="button">Older</button>
+          </div>
+        </div>
+
+        <div id="bossyDetailView" class="hidden">
+          <button class="btn-ghost" id="bossyBack" type="button">← All chats</button>
+          <p class="bossy-note" id="bossyDetailMeta"></p>
+          <div class="bossy-thread" id="bossyThread"></div>
         </div>
       </section>
 

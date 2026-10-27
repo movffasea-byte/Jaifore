@@ -180,7 +180,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
   document.getElementById(`tab-${name}`).classList.remove('hidden');
 
-  const titles = { overview: 'Overview', products: 'Products', orders: 'Orders', transactions: 'Transactions', users: 'Users', pricing: 'Print Pricing', qrcodes: 'QR Codes' };
+  const titles = { overview: 'Overview', products: 'Products', orders: 'Orders', transactions: 'Transactions', users: 'Users', pricing: 'Print Pricing', qrcodes: 'QR Codes', bossy: 'Bossy Bot' };
   document.getElementById('mainTitle').textContent = titles[name];
 
   if (name === 'overview')     loadOverview();
@@ -190,6 +190,7 @@ function switchTab(name) {
   if (name === 'users')        loadUsers();
   if (name === 'pricing') loadPrintPricing();
   if (name === 'qrcodes') loadQrCodes();
+  if (name === 'bossy')   loadBossy();
   }
 
 // ── MONEY ────────────────────────────────────────────
@@ -849,6 +850,113 @@ async function loadUsers() {
     showError('usersBody', friendlyError(err), loadUsers);
   }
 }
+
+// ── BOSSY BOT (read-only chat log) ───────────────────
+// Everything a customer or Bossy wrote goes in with textContent, never innerHTML.
+let bossyPage = 1;
+let bossyPages = 1;
+
+function bossyEl(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+const bossyWhen = (iso) => new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+
+async function loadBossy() {
+  document.getElementById('bossyError').innerHTML = '';
+  showBossyList();
+  loadBossyStats();
+  loadBossyList(bossyPage);
+}
+
+async function loadBossyStats() {
+  try {
+    const s = await fetchJson(`${API}/api/bossy-admin/stats`, { headers: authHeaders() });
+    document.getElementById('bossyToday').textContent = s.conversations.today;
+    document.getElementById('bossyWeek').textContent = s.conversations.week;
+    document.getElementById('bossyMonth').textContent = s.conversations.month;
+    document.getElementById('bossyQuestions').textContent = s.userMessages30d;
+    const tools = s.topTools.map(t => `${t.name} ×${t.count}`).join(' · ');
+    document.getElementById('bossyNote').textContent =
+      `Last 30 days: ${s.signedIn} signed-in, ${s.guests} guest.` + (tools ? ` Most used tools: ${tools}.` : '');
+  } catch (err) {
+    console.error('Bossy stats error:', err);
+    showError('bossyError', friendlyError(err), loadBossy);
+  }
+}
+
+async function loadBossyList(page) {
+  showTableSkeleton('bossyBody', 4, 5);
+  try {
+    const data = await fetchJson(`${API}/api/bossy-admin/conversations?page=${page}`, { headers: authHeaders() });
+    bossyPage = data.page;
+    bossyPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+    const body = document.getElementById('bossyBody');
+    body.replaceChildren();
+
+    if (!data.conversations.length) {
+      const td = bossyEl('td', null, 'No conversations yet. They appear here once customers start chatting with Bossy.');
+      td.colSpan = 4;
+      td.style.cssText = 'text-align:center;color:var(--ink-muted);padding:2rem';
+      body.append(bossyEl('tr')).append(td);
+    }
+    data.conversations.forEach(c => {
+      const tr = bossyEl('tr', 'bossy-row');
+      tr.tabIndex = 0;
+      tr.append(
+        bossyEl('td', null, c.who),
+        bossyEl('td', null, bossyWhen(c.updatedAt)),
+        bossyEl('td', null, c.messageCount),
+        bossyEl('td', 'bossy-preview', c.preview || '—'),
+      );
+      const open = () => openBossyChat(c.id);
+      tr.addEventListener('click', open);
+      tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+      body.append(tr);
+    });
+
+    document.getElementById('bossyPageLabel').textContent = `Page ${bossyPage} of ${bossyPages}`;
+    document.getElementById('bossyPrev').disabled = bossyPage <= 1;
+    document.getElementById('bossyNext').disabled = bossyPage >= bossyPages;
+  } catch (err) {
+    console.error('Bossy list error:', err);
+    showError('bossyBody', friendlyError(err), () => loadBossyList(bossyPage));
+  }
+}
+
+function showBossyList() {
+  document.getElementById('bossyListView').classList.remove('hidden');
+  document.getElementById('bossyDetailView').classList.add('hidden');
+}
+
+async function openBossyChat(id) {
+  const thread = document.getElementById('bossyThread');
+  thread.replaceChildren(bossyEl('p', 'bossy-note', 'Loading…'));
+  document.getElementById('bossyListView').classList.add('hidden');
+  document.getElementById('bossyDetailView').classList.remove('hidden');
+  try {
+    const c = await fetchJson(`${API}/api/bossy-admin/conversations/${encodeURIComponent(id)}`, { headers: authHeaders() });
+    const who = c.who ? `${c.who.name}${c.who.email ? ` (${c.who.email})` : ''}` : 'Guest';
+    document.getElementById('bossyDetailMeta').textContent = `${who} · started ${bossyWhen(c.createdAt)}`;
+    thread.replaceChildren();
+    c.messages.forEach(m => {
+      if (m.role === 'tool') {
+        thread.append(bossyEl('div', 'bossy-tool', `⚙ ${m.tool || 'tool'}  ${m.text}`));
+      } else {
+        thread.append(bossyEl('div', `bossy-msg bossy-msg--${m.role === 'user' ? 'user' : 'bot'}`, m.text));
+      }
+    });
+  } catch (err) {
+    console.error('Bossy chat error:', err);
+    thread.replaceChildren(bossyEl('p', 'bossy-note', friendlyError(err)));
+  }
+}
+
+document.getElementById('bossyPrev').addEventListener('click', () => loadBossyList(bossyPage - 1));
+document.getElementById('bossyNext').addEventListener('click', () => loadBossyList(bossyPage + 1));
+document.getElementById('bossyBack').addEventListener('click', showBossyList);
 
 // ── PRINT PRICING ─────────────────────────────────────
 async function loadPrintPricing() {
