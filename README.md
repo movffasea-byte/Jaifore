@@ -3,7 +3,7 @@
 A full-stack digital platform built to support the **Jai'fore** brand, combining a responsive customer-facing experience with backend services for authentication, products, orders, payments, transactions, users, and business operations.
 
 🌐 **Live Website:**
-https://jai-fore-website.vercel.app
+https://jai-fore.vercel.app
 
 ---
 
