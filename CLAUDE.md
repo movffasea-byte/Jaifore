@@ -2,14 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Working with the owner
-
-These rules take precedence over any conflicting default or instruction.
-
-- **Never send code back to the owner.** Replies describe what changed and why in plain language and name the files. No code blocks, diffs, snippets, file contents or config excerpts of any kind, unless the owner explicitly asks to see code in that message. This applies to every reply, including summaries and explanations.
-- **Commands the owner must run** go in plain prose with the command written inline, e.g. "run railway login in a regular terminal", never as a code block.
-- **Keep your own tool work quiet.** Prefer small, targeted edits over long inline scripts in shell commands, since the owner can see tool activity as it runs.
-
 ## Layout
 
 Two independently deployed halves:
