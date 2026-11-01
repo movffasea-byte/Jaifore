@@ -29,6 +29,28 @@ const MAX_TOOL_ROUNDS = 3;
 const userCap = () => Number(process.env.BOSSY_USER_DAILY_CAP) || 50;
 const guestCap = () => Number(process.env.BOSSY_GUEST_DAILY_CAP) || 15;
 
+// Caps reset at midnight in the business's time zone (Texas, US Central), not
+// the server's (Railway runs UTC). Set from the server, never from the browser,
+// so a customer can't switch zones to get extra messages.
+const CAP_TIMEZONE = process.env.BOSSY_TIMEZONE || 'America/Chicago';
+const CAP_KEY_TTL = 2 * 24 * 60 * 60; // the day is in the key; TTL only cleans up
+
+const capFormat = new Intl.DateTimeFormat('en-US', {
+  timeZone: CAP_TIMEZONE, hourCycle: 'h23',
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+});
+
+// Today's date (YYYY-MM-DD) in CAP_TIMEZONE and the seconds left until its
+// midnight. The date goes in the Redis key, so the counter rolls over exactly
+// at local midnight; resetIn is only for the "try again in" message and can be
+// an hour off on the two DST-change days.
+function capClock(now = new Date()) {
+  const p = Object.fromEntries(capFormat.formatToParts(now).map((x) => [x.type, x.value]));
+  const elapsed = Number(p.hour) * 3600 + Number(p.minute) * 60 + Number(p.second);
+  return { day: `${p.year}-${p.month}-${p.day}`, resetIn: Math.max(24 * 3600 - elapsed, 1) };
+}
+
 // Attach req.user when a valid token is present; never reject.
 function optionalAuth(req, res, next) {
   const header = req.headers['authorization'];
@@ -42,25 +64,30 @@ function optionalAuth(req, res, next) {
   next();
 }
 
-// Counts this message against today's allowance. Returns true if allowed.
+// Counts this message against today's allowance.
+// Returns { allowed, resetIn } where resetIn is seconds until local midnight.
 // Redis trouble fails open so chat is never taken down by the cache.
-async function withinDailyCap(req) {
+async function checkDailyCap(req) {
   const isUser = Boolean(req.user?.id);
   const who = isUser ? `user:${req.user.id}` : `ip:${req.ip}`;
   const cap = isUser ? userCap() : guestCap();
-  const key = `bossy:cap:${who}`;
+  const { day, resetIn } = capClock();
+  const key = `bossy:cap:${day}:${who}`;
   try {
     const count = await redis.incr(key);
-    if (count === 1) {
-      const midnight = new Date();
-      midnight.setHours(24, 0, 0, 0);
-      await redis.expireat(key, Math.floor(midnight.getTime() / 1000));
-    }
-    return count <= cap;
+    if (count === 1) await redis.expire(key, CAP_KEY_TTL);
+    return count <= cap ? { allowed: true } : { allowed: false, resetIn };
   } catch (err) {
     console.error('Bossy cap check failed:', err.message);
-    return true;
+    return { allowed: true };
   }
+}
+
+// "about 3 hours" / "about an hour" / "a few minutes"
+function waitText(seconds) {
+  const hours = Math.ceil(seconds / 3600);
+  if (seconds < 15 * 60) return 'a few minutes';
+  return hours <= 1 ? 'about an hour' : `about ${hours} hours`;
 }
 
 // Runs the model, executing tool calls for up to MAX_TOOL_ROUNDS rounds.
@@ -117,11 +144,14 @@ router.post('/chat', optionalAuth, async (req, res) => {
       .json({ error: `Message is too long (max ${MAX_MESSAGE_LENGTH} characters).` });
   }
 
-  if (!(await withinDailyCap(req))) {
+  const cap = await checkDailyCap(req);
+  if (!cap.allowed) {
+    const wait = waitText(cap.resetIn);
+    res.set('Retry-After', String(cap.resetIn));
     return res.status(429).json({
       error: req.user
-        ? "You've hit today's chat limit. Even a boss needs a break. Come back tomorrow, or use the contact form if it's urgent."
-        : "That's your daily limit as a guest. Log in for more chats, or come back tomorrow, boss.",
+        ? `You've hit your chat limit. Even a boss needs a break. Try again in ${wait}, or use the contact form if it's urgent.`
+        : `That's your limit as a guest. Log in for more chats, or try again in ${wait}, boss.`,
     });
   }
 
@@ -170,4 +200,5 @@ router.post('/chat', optionalAuth, async (req, res) => {
   }
 });
 
+router.capClock = capClock; // exposed for tests
 module.exports = router;

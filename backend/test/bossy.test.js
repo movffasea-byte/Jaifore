@@ -22,7 +22,7 @@ jest.mock('../redis', () => ({
       mockCounts.set(k, n);
       return n;
     }),
-    expireat: jest.fn(async () => 1),
+    expire: jest.fn(async () => 1),
     quit: jest.fn(),
   },
   cacheGet: jest.fn(async () => null),
@@ -165,12 +165,42 @@ describe('daily caps', () => {
   test('logged-in user is capped separately at BOSSY_USER_DAILY_CAP', async () => {
     for (let i = 0; i < 3; i++) expect((await chat({ message: 'x' }, token)).status).toBe(200);
     expect((await chat({ message: 'x' }, token)).status).toBe(429);
-    expect(redis.incr).toHaveBeenCalledWith('bossy:cap:user:7');
+    expect(redis.incr).toHaveBeenCalledWith(expect.stringMatching(/^bossy:cap:\d{4}-\d{2}-\d{2}:user:7$/));
   });
 
   test('invalid token falls back to guest limits', async () => {
     await chat({ message: 'x' }, 'not-a-jwt');
-    expect(redis.incr).toHaveBeenCalledWith(expect.stringMatching(/^bossy:cap:ip:/));
+    expect(redis.incr).toHaveBeenCalledWith(expect.stringMatching(/^bossy:cap:\d{4}-\d{2}-\d{2}:ip:/));
+  });
+
+  test('the counter gets its cleanup expiry on the first message only', async () => {
+    redis.expire.mockClear();
+    await chat({ message: '1' });
+    await chat({ message: '2' });
+    expect(redis.expire).toHaveBeenCalledTimes(1);
+  });
+
+  test('capped reply says when the limit resets', async () => {
+    await chat({ message: '1' });
+    await chat({ message: '2' });
+    const res = await chat({ message: '3' });
+    expect(res.status).toBe(429);
+    const retry = Number(res.headers['retry-after']);
+    expect(retry).toBeGreaterThan(0);
+    expect(retry).toBeLessThanOrEqual(24 * 3600);
+    expect(res.body.error).toMatch(/try again in (a few minutes|about an hour|about \d+ hours)/);
+  });
+
+  test('the cap day rolls over at Texas (US Central) midnight, not UTC midnight', () => {
+    const { capClock } = bossyRouter;
+    // Daylight time (CDT, UTC-5): midnight is 05:00 UTC.
+    expect(capClock(new Date('2026-10-31T04:59:00Z')).day).toBe('2026-10-30');
+    expect(capClock(new Date('2026-10-31T05:00:00Z')).day).toBe('2026-10-31');
+    // Standard time (CST, UTC-6) after Nov 1: midnight moves to 06:00 UTC.
+    expect(capClock(new Date('2026-11-02T05:59:00Z')).day).toBe('2026-11-01');
+    expect(capClock(new Date('2026-11-02T06:00:00Z')).day).toBe('2026-11-02');
+    // 11 pm Central leaves an hour until the reset.
+    expect(capClock(new Date('2026-11-02T05:00:00Z')).resetIn).toBe(3600);
   });
 });
 
