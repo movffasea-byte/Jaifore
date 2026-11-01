@@ -68,7 +68,9 @@ app.use(cors({
 
 
 app.use(helmet({
-  contentSecurityPolicy: false, // enable + configure directives once external script sources are audited
+  // The site's CSP is set where its pages are served: frontend/vercel.json
+  // (report-only for now, reports arrive at /api/csp-report). This API returns JSON.
+  contentSecurityPolicy: false,
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
@@ -150,6 +152,16 @@ app.use('/api/uploads', generalLimiter, require('./routes/uploads'));
 app.use('/api/push',    generalLimiter, require('./routes/push'));
 app.use('/api/bossy',   generalLimiter, require('./routes/bossy'));
 app.use('/api/bossy-admin', generalLimiter, require('./routes/bossyAdmin'));
+
+// CSP reports get their own limiter so a noisy page can't use up a visitor's
+// general API allowance.
+const cspReportLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/csp-report', cspReportLimiter, require('./routes/cspReport'));
 
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
