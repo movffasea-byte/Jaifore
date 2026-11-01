@@ -16,6 +16,7 @@
   const IMG = 'images/bossy/';
   const STORAGE_KEY = 'bossy:chat';
   const TEASER_KEY = 'bossy:teaser';
+  const GUEST_KEY = 'bossy:guest';
   const KEEP_MESSAGES = 30;
   const MAX_LENGTH = 1000;
   const GREETING = "Bossy Bot here. Tell me what you need and I'll tell you what to buy.";
@@ -62,6 +63,19 @@
       conversationId = typeof saved.conversationId === 'string' ? saved.conversationId : null;
     }
   } catch { /* storage is a convenience; the chat works without it */ }
+
+  // Random per-browser id so guests get their own daily allowance instead of
+  // sharing one per network address. The server still caps each network.
+  function guestId() {
+    try {
+      let id = localStorage.getItem(GUEST_KEY);
+      if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem(GUEST_KEY, id);
+      }
+      return id;
+    } catch { return null; } // no storage or no crypto: server falls back to per-network limits
+  }
 
   function persist() {
     try {
@@ -184,11 +198,17 @@
     const headers = { 'Content-Type': 'application/json' };
     let token = null;
     try { token = localStorage.getItem('jaifore_token'); } catch { /* guest */ }
+    const body = { message: text };
+    if (conversationId) body.conversationId = conversationId;
     if (token) headers.Authorization = `Bearer ${token}`;
+    else {
+      const id = guestId();
+      if (id) body.guestId = id;
+    }
     const res = await fetch(`${API}/api/bossy/chat`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(conversationId ? { message: text, conversationId } : { message: text }),
+      body: JSON.stringify(body),
     });
     let data = null;
     try { data = await res.json(); } catch { /* non-JSON error body */ }

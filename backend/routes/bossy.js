@@ -29,6 +29,11 @@ const MAX_TOOL_ROUNDS = 3;
 
 const userCap = () => Number(process.env.BOSSY_USER_DAILY_CAP) || 50;
 const guestCap = () => Number(process.env.BOSSY_GUEST_DAILY_CAP) || 15;
+// Guests are counted per browser (guestId), so customers sharing one carrier IP
+// don't share one allowance. guestId is client-made and easy to rotate, so every
+// guest message also counts against this much higher per-IP ceiling: that is
+// what keeps total spend bounded.
+const guestIpCap = () => Number(process.env.BOSSY_GUEST_IP_DAILY_CAP) || 150;
 
 // Caps reset at midnight in the business's time zone (businessTime.js), not
 // the server's (Railway runs UTC). Set from the server, never from the browser,
@@ -89,26 +94,40 @@ function reportFallback(err) {
   Sentry.captureException(err, { tags: { area: 'bossy-cap' } });
 }
 
-// Counts this message against today's allowance.
-// Returns { allowed, resetIn } where resetIn is seconds until local midnight.
+// Adds one to today's counter for `who` and returns the new count.
 // If Redis is down the count moves to memory: chat stays up and caps still apply.
-async function checkDailyCap(req) {
-  const isUser = Boolean(req.user?.id);
-  const who = isUser ? `user:${req.user.id}` : `ip:${req.ip}`;
-  const cap = isUser ? userCap() : guestCap();
-  const { day, resetIn } = capClock();
+async function bump(day, who) {
   const key = `bossy:cap:${day}:${who}`;
-
-  let count;
   try {
-    count = await redis.incr(key);
+    const count = await redis.incr(key);
     // Cleanup only (the day is in the key), so a failure here doesn't matter.
     if (count === 1) redis.expire(key, CAP_KEY_TTL).catch(() => {});
+    return count;
   } catch (err) {
     reportFallback(err);
-    count = memoryIncr(day, key);
+    return memoryIncr(day, key);
   }
-  return count <= cap ? { allowed: true } : { allowed: false, resetIn };
+}
+
+// Counts this message against today's allowance.
+// Returns { allowed, resetIn, limit } where resetIn is seconds until local
+// midnight and limit says which cap was hit ('own' or 'network').
+//   signed in:          per user
+//   guest with guestId: per browser, plus the shared per-IP ceiling
+//   guest without one:  per IP (older clients, e.g. the mobile app)
+async function checkDailyCap(req, guestId) {
+  const { day, resetIn } = capClock();
+  const deny = (limit) => ({ allowed: false, resetIn, limit });
+
+  if (req.user?.id) {
+    return (await bump(day, `user:${req.user.id}`)) <= userCap() ? { allowed: true } : deny('own');
+  }
+  if (!guestId) {
+    return (await bump(day, `ip:${req.ip}`)) <= guestCap() ? { allowed: true } : deny('own');
+  }
+  if ((await bump(day, `guest:${guestId}`)) > guestCap()) return deny('own');
+  if ((await bump(day, `guestip:${req.ip}`)) > guestIpCap()) return deny('network');
+  return { allowed: true };
 }
 
 // "about 3 hours" / "about an hour" / "a few minutes"
@@ -161,7 +180,8 @@ async function runWithTools(history, user) {
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
 router.post('/chat', optionalAuth, async (req, res) => {
-  const { conversationId: clientId, message } = req.body || {};
+  const { conversationId: clientId, message, guestId: rawGuestId } = req.body || {};
+  const guestId = typeof rawGuestId === 'string' && UUID_RE.test(rawGuestId) ? rawGuestId.toLowerCase() : null;
 
   if (typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ error: 'Message is required.' });
@@ -172,15 +192,19 @@ router.post('/chat', optionalAuth, async (req, res) => {
       .json({ error: `Message is too long (max ${MAX_MESSAGE_LENGTH} characters).` });
   }
 
-  const cap = await checkDailyCap(req);
+  const cap = await checkDailyCap(req, guestId);
   if (!cap.allowed) {
     const wait = waitText(cap.resetIn);
     res.set('Retry-After', String(cap.resetIn));
-    return res.status(429).json({
-      error: req.user
-        ? `You've hit your chat limit. Even a boss needs a break. Try again in ${wait}, or use the contact form if it's urgent.`
-        : `That's your limit as a guest. Log in for more chats, or try again in ${wait}, boss.`,
-    });
+    let error;
+    if (req.user) {
+      error = `You've hit your chat limit. Even a boss needs a break. Try again in ${wait}, or use the contact form if it's urgent.`;
+    } else if (cap.limit === 'network') {
+      error = `Lots of guests on your network are chatting today. Log in to keep going, or try again in ${wait}, boss.`;
+    } else {
+      error = `That's your limit as a guest. Log in for more chats, or try again in ${wait}, boss.`;
+    }
+    return res.status(429).json({ error });
   }
 
   const userText = message.trim();

@@ -7,6 +7,7 @@
 process.env.JWT_SECRET = 'test-secret';
 process.env.BOSSY_USER_DAILY_CAP = '3';
 process.env.BOSSY_GUEST_DAILY_CAP = '2';
+process.env.BOSSY_GUEST_IP_DAILY_CAP = '5';
 
 const mockCreate = jest.fn();
 jest.mock('@anthropic-ai/sdk', () =>
@@ -189,6 +190,47 @@ describe('daily caps', () => {
     expect(retry).toBeGreaterThan(0);
     expect(retry).toBeLessThanOrEqual(24 * 3600);
     expect(res.body.error).toMatch(/try again in (a few minutes|about an hour|about \d+ hours)/);
+  });
+
+  describe('per-browser guest caps', () => {
+    const g1 = '11111111-1111-4111-8111-111111111111';
+    const g2 = '22222222-2222-4222-8222-222222222222';
+    const g3 = '33333333-3333-4333-8333-333333333333';
+
+    test('guests on the same network each get their own allowance', async () => {
+      for (const g of [g1, g2]) {
+        expect((await chat({ message: 'a', guestId: g })).status).toBe(200);
+        expect((await chat({ message: 'b', guestId: g })).status).toBe(200);
+      }
+      const res = await chat({ message: 'c', guestId: g1 });
+      expect(res.status).toBe(429);
+      expect(res.body.error).toMatch(/limit as a guest/);
+    });
+
+    test('rotating guest ids still hits the per-network ceiling', async () => {
+      let res;
+      for (const g of [g1, g2, g3]) {
+        for (let i = 0; i < 2; i++) res = await chat({ message: 'x', guestId: g });
+      }
+      // 6 messages from one IP; the ceiling is 5.
+      expect(res.status).toBe(429);
+      expect(res.body.error).toMatch(/guests on your network/);
+      expect(mockCreate).toHaveBeenCalledTimes(5);
+    });
+
+    test('a malformed guestId is ignored and the guest is counted per IP', async () => {
+      redis.incr.mockClear();
+      await chat({ message: 'x', guestId: 'not-a-uuid' });
+      expect(redis.incr).toHaveBeenCalledWith(expect.stringMatching(/^bossy:cap:\d{4}-\d{2}-\d{2}:ip:/));
+      expect(redis.incr).not.toHaveBeenCalledWith(expect.stringMatching(/:guest:/));
+    });
+
+    test('signed-in users are counted per user even if a guestId is sent', async () => {
+      redis.incr.mockClear();
+      await chat({ message: 'x', guestId: g1 }, token);
+      expect(redis.incr).toHaveBeenCalledWith(expect.stringMatching(/:user:7$/));
+      expect(redis.incr).not.toHaveBeenCalledWith(expect.stringMatching(/:guest/));
+    });
   });
 
   describe('when Redis is down', () => {
