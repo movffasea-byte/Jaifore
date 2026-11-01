@@ -252,6 +252,22 @@ describe('server errors are not leaked to the client', () => {
   });
 });
 
+describe('POST /api/auth/forgot-password', () => {
+  const mailer = require('../mailer');
+  const redisMock = require('../redis');
+
+  it('still answers with the generic message when the email fails to send', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [{ id: 3, name: 'Ada', email: 'ada@test.dev' }] });
+    mailer.sendPasswordResetEmail.mockRejectedValueOnce(new Error('Resend validation_error: domain not verified'));
+    const res = await request(app).post('/api/auth/forgot-password').send({ email: 'ada@test.dev' });
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/If an account exists/);
+    expect(JSON.stringify(res.body)).not.toMatch(/Resend|verified/);
+    expect(console.error).toHaveBeenCalledWith('Forgot password error:', expect.stringMatching(/Resend/));
+    expect(redisMock.cacheSet).toHaveBeenCalled();
+  });
+});
+
 describe('PUT /api/auth/update-profile', () => {
   it('rejects a new password shorter than 8 characters before touching the old one', async () => {
     mockPool.query.mockResolvedValueOnce({ rows: [{ id: 3, password: 'hash' }] });

@@ -15,6 +15,19 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const MAIL_FROM_ADDRESS = process.env.MAIL_FROM_ADDRESS || 'onboarding@resend.dev';
 const sender = (name) => `${name} <${MAIL_FROM_ADDRESS}>`;
 
+// The Resend SDK does not throw on failure: it resolves { data, error }.
+// Every caller expects a failed send to reject (they log it and report it to
+// Sentry), so turn an error result into a thrown one here.
+async function deliver(payload) {
+  const { data, error } = await resend.emails.send(payload);
+  if (error) {
+    const err = new Error(`Resend ${error.name || 'error'}: ${error.message}`);
+    err.resend = error;
+    throw err;
+  }
+  return data;
+}
+
 // 4 digits to match the sign-up form; crypto, not Math.random, so codes can't be predicted.
 function generateOTP() { return crypto.randomInt(1000, 10000).toString(); }
 
@@ -57,7 +70,7 @@ function formatItems(items, currency) {
 
 /* ── 1. OTP EMAIL ── */
 async function sendOTPEmail(toEmail, name, otp) {
-  await resend.emails.send({
+  await deliver({
     from: sender('Jaifore Studio'),
     to: toEmail,
     subject: `Your Jai'fore verification code: ${otp}`,
@@ -87,7 +100,7 @@ async function sendOTPEmail(toEmail, name, otp) {
 
 /* ── 2. ADMIN NEW USER NOTIFICATION ── */
 async function sendAdminNotification(newUser) {
-  await resend.emails.send({
+  await deliver({
     from: sender('Jaifore Media'),
     to: process.env.ADMIN_EMAIL,
     subject: `New Registration — ${newUser.name}`,
@@ -118,7 +131,7 @@ async function sendOrderConfirmation(toEmail, name, order) {
   const currency = order.currency || 'USD';
   const orderId  = String(order.id).padStart(5, '0');
 
-  await resend.emails.send({
+  await deliver({
     from: sender("Jai'fore Studio"),
     to: toEmail,
     subject: `Order Confirmed — #JF${orderId}`,
@@ -225,7 +238,7 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
     ? items.map(i => `${i.qty || 1}× ${i.name || 'Item'}${i.size ? ` (${i.size})` : ''}${formatDesignLines(i)}`).join('<br>')
     : '—';
 
-  await resend.emails.send({
+  await deliver({
     from: sender('Jaifore Media'),
     to: process.env.ADMIN_EMAIL,
     subject: `New Order #JF${orderId} — ${formatCurrency(order.total, currency)}`,
@@ -287,7 +300,7 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
 
 /* ── 5. WELCOME EMAIL (post-verification) ── */
 async function sendWelcomeEmail(toEmail, name) {
-  await resend.emails.send({
+  await deliver({
     from: sender("Jai'fore Studio"),
     to: toEmail,
     subject: `Welcome to Jai'fore, ${name.split(' ')[0]}`,
@@ -345,7 +358,7 @@ async function sendWelcomeEmail(toEmail, name) {
 
 /* ── PASSWORD RESET EMAIL ── */
 async function sendPasswordResetEmail(toEmail, name, resetLink) {
-  await resend.emails.send({
+  await deliver({
     from: sender("Jai'fore Studio"),
     to: toEmail,
     subject: `Reset your Jai'fore password`,
@@ -385,7 +398,7 @@ async function sendOrderStatusUpdate(toEmail, name, order, newStatus) {
   const orderId = String(order.id).padStart(5, '0');
   const cfg = STATUS_CONFIG[newStatus] || { label: newStatus, color: '#4a2d7a', message: `Your order status has been updated to "${newStatus}".` };
 
-  await resend.emails.send({
+  await deliver({
     from: sender("Jai'fore Studio"),
     to: toEmail,
     subject: `Order #JF${orderId} — ${cfg.label}`,
@@ -442,7 +455,7 @@ async function sendRefundNotification(toEmail, name, order, refundAmount) {
   const currency = order.currency || 'USD';
   const amount   = refundAmount != null ? refundAmount : order.total;
 
-  await resend.emails.send({
+  await deliver({
     from: sender("Jai'fore Studio"),
     to: toEmail,
     subject: `Refund Issued — #JF${orderId}`,
@@ -506,7 +519,7 @@ async function sendAdminRefundAlert(order, customerName, customerEmail, refundAm
   const currency = order.currency || 'USD';
   const amount   = refundAmount != null ? refundAmount : order.total;
 
-  await resend.emails.send({
+  await deliver({
     from: sender('Jaifore Media'),
     to: process.env.ADMIN_EMAIL,
     subject: `Refund Processed — #JF${orderId} — ${formatCurrency(amount, currency)}`,
@@ -563,7 +576,7 @@ async function sendLowStockAlert(product) {
   const stockLabel = (product.stock === 0) ? 'OUT OF STOCK' : `${product.stock} remaining`;
   const badgeColor = (product.stock === 0) ? '#a13a3a' : '#c98a2e';
 
-  await resend.emails.send({
+  await deliver({
     from: sender('Jaifore Media'),
     to: process.env.ADMIN_EMAIL,
     subject: `Low Stock — ${product.name} (${stockLabel})`,

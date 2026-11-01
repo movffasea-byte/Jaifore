@@ -196,6 +196,7 @@ router.post('/forgot-password', async (req, res) => {
     return res.json({ message: 'If an account exists with that email, a reset link has been sent.' });
   } catch (err) {
     console.error('Forgot password error:', err.message);
+    Sentry.captureException(err, { tags: { area: 'transactional-email' } });
     // Still return the generic success message even on a server error —
     // the alternative (leaking a 500) tells an attacker something went
     // wrong server-side, which is more information than this endpoint

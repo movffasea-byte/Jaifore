@@ -32,6 +32,22 @@ describe('sender', () => {
   });
 });
 
+describe('delivery failures', () => {
+  // Resend resolves { data, error } instead of throwing; callers rely on a rejection.
+  test('a Resend error result rejects, with the reason in the message', async () => {
+    mockSend.mockResolvedValueOnce({
+      data: null,
+      error: { name: 'validation_error', message: 'The jaifore.org domain is not verified.' },
+    });
+    await expect(sendOTPEmail('a@b.com', 'Ada', '1234')).rejects.toThrow(/validation_error: The jaifore.org domain is not verified/);
+  });
+
+  test('a successful result resolves', async () => {
+    mockSend.mockResolvedValueOnce({ data: { id: 'em_2' }, error: null });
+    await expect(sendOTPEmail('a@b.com', 'Ada', '1234')).resolves.toBeUndefined();
+  });
+});
+
 describe('order emails', () => {
   test('item prices use the order currency', async () => {
     await sendOrderConfirmation('a@b.com', 'Ada', order());
