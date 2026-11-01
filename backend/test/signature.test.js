@@ -15,6 +15,9 @@ const path = require('path');
 process.env.RESEND_API_KEY = process.env.RESEND_API_KEY || 're_test_dummy';
 process.env.JWT_SECRET     = process.env.JWT_SECRET     || 'test-secret';
 
+// auth.js requires redis.js, which would open a real connection and keep Jest alive
+jest.mock('../redis', () => ({ cacheGet: jest.fn(), cacheSet: jest.fn(), cacheInvalidate: jest.fn() }));
+
 const cartRoute     = require('../routes/cart');
 const wishlistRoute = require('../routes/wishlist');
 
