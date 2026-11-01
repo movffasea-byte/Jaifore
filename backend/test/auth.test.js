@@ -195,4 +195,71 @@ describe('registration and OTP', () => {
     const res = await request(app).post('/api/auth/verify-otp').send({ email: 'ghost@test.dev', otp: '123456' });
     expect(res.status).toBe(400);
   });
+
+  it('throws the pending registration away after 5 wrong codes, so the right code then fails', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const email = 'brute@test.dev';
+    await request(app).post('/api/auth/register').send({ name: 'B', email, password: 'longenough1' });
+
+    for (let i = 1; i <= 4; i++) {
+      const res = await request(app).post('/api/auth/verify-otp').send({ email, otp: '000000' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(new RegExp(`${5 - i} tr(y|ies) left`));
+    }
+    const fifth = await request(app).post('/api/auth/verify-otp').send({ email, otp: '000000' });
+    expect(fifth.status).toBe(429);
+    expect(store.has('otp:brute@test.dev')).toBe(false);
+
+    const late = await request(app).post('/api/auth/verify-otp').send({ email, otp: '123456' });
+    expect(late.status).toBe(400);
+  });
+
+  it('resend-otp does not reset the wrong-code count', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const email = 'reset@test.dev';
+    await request(app).post('/api/auth/register').send({ name: 'R', email, password: 'longenough1' });
+    for (let i = 0; i < 4; i++) await request(app).post('/api/auth/verify-otp').send({ email, otp: '000000' });
+    await request(app).post('/api/auth/resend-otp').send({ email });
+
+    const res = await request(app).post('/api/auth/verify-otp').send({ email, otp: '000000' });
+    expect(res.status).toBe(429);
+  });
 });
+
+describe('server errors are not leaked to the client', () => {
+  const boom = () => mockPool.query.mockRejectedValueOnce(new Error('connect ECONNREFUSED 10.0.0.5:5432'));
+
+  it('login', async () => {
+    boom();
+    const res = await request(app).post('/api/auth/login').send({ email: 'a@test.dev', password: 'x' });
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(res.body)).not.toMatch(/ECONNREFUSED|10\.0\.0\.5/);
+  });
+
+  it('register', async () => {
+    boom();
+    const res = await request(app).post('/api/auth/register').send({ name: 'A', email: 'a@test.dev', password: 'longenough1' });
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(res.body)).not.toMatch(/ECONNREFUSED|10\.0\.0\.5/);
+  });
+
+  it('update-profile', async () => {
+    boom();
+    const res = await request(app).put('/api/auth/update-profile')
+      .set('Authorization', `Bearer ${sign({ id: 3 })}`).send({ name: 'Ada' });
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(res.body)).not.toMatch(/ECONNREFUSED|10\.0\.0\.5/);
+  });
+});
+
+describe('PUT /api/auth/update-profile', () => {
+  it('rejects a new password shorter than 8 characters before touching the old one', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [{ id: 3, password: 'hash' }] });
+    const res = await request(app).put('/api/auth/update-profile')
+      .set('Authorization', `Bearer ${sign({ id: 3 })}`)
+      .send({ name: 'Ada', currentPassword: 'whatever', newPassword: 'short' });
+    expect(res.status).toBe(400);
+    expect(mockPool.query).toHaveBeenCalledTimes(1); // no UPDATE ran
+  });
+});
+

@@ -10,7 +10,7 @@ process.env.MAIL_FROM_ADDRESS = 'orders@jaifore.test';
 const mockSend = jest.fn().mockResolvedValue({ id: 'em_1' });
 jest.mock('resend', () => ({ Resend: jest.fn(() => ({ emails: { send: mockSend } })) }));
 
-const { sendOrderConfirmation, sendAdminOrderAlert, sendOTPEmail } = require('../mailer');
+const { sendOrderConfirmation, sendAdminOrderAlert, sendOTPEmail, generateOTP } = require('../mailer');
 const { formatDateTime, formatDate } = require('../businessTime');
 
 const order = (extra = {}) => ({
@@ -61,6 +61,16 @@ describe('order emails', () => {
     const { html } = lastEmail();
     expect(html).toMatch(/\d{1,2}:\d{2} (AM|PM) C[SD]T/);
     expect(html).not.toContain('WAT');
+  });
+});
+
+describe('generateOTP', () => {
+  test('produces 4-digit codes from crypto, not Math.random', () => {
+    const spy = jest.spyOn(Math, 'random');
+    const codes = Array.from({ length: 200 }, generateOTP);
+    expect(codes.every((c) => /^\d{4}$/.test(c))).toBe(true);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });
 

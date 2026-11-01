@@ -2,6 +2,7 @@
    JAIFORE MAILER — Resend
    backend/mailer.js
    ================================ */
+const crypto = require('crypto');
 const { Resend } = require('resend');
 
 const { formatDateTime, formatDate } = require('./businessTime');
@@ -14,7 +15,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const MAIL_FROM_ADDRESS = process.env.MAIL_FROM_ADDRESS || 'onboarding@resend.dev';
 const sender = (name) => `${name} <${MAIL_FROM_ADDRESS}>`;
 
-function generateOTP() { return Math.floor(1000 + Math.random() * 9000).toString(); }
+// 4 digits to match the sign-up form; crypto, not Math.random, so codes can't be predicted.
+function generateOTP() { return crypto.randomInt(1000, 10000).toString(); }
 
 /* ── helpers ── */
 function formatCurrency(amount, currency = 'USD') {

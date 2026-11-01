@@ -6,6 +6,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const Sentry = require('@sentry/node');
 const { pool } = require('./database');
 const { authenticate } = require('./middleware');
 const { cacheGet, cacheSet, cacheInvalidate } = require('./redis');
@@ -17,6 +18,17 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // Railway restart between "OTP sent" and "OTP entered" doesn't lose them.
 const OTP_TTL_SECONDS = 10 * 60;
 const otpKey = (email) => `otp:${email}`;
+// Wrong codes allowed per pending registration before it is thrown away.
+// The count survives resend-otp, so asking for a new code buys no extra guesses.
+const MAX_OTP_ATTEMPTS = 5;
+const MIN_PASSWORD_LENGTH = 8;
+
+// Logs the real error and reports it; the client only ever sees a generic message.
+function serverError(res, err, what) {
+  console.error(`${what} error:`, err.message);
+  Sentry.captureException(err);
+  return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+}
 
 // Reset links are valid for 30 minutes — long enough for someone to check
 // their email and act, short enough that a stale/leaked link doesn't stay
@@ -37,7 +49,7 @@ const FRONTEND_RESET_URL = process.env.FRONTEND_URL
 router.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required.' });
-  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  if (password.length < MIN_PASSWORD_LENGTH) return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
   try {
     const existing = await pool.query('SELECT id, verified FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (existing.rows.length > 0 && existing.rows[0].verified) return res.status(409).json({ error: 'An account with this email already exists.' });
@@ -47,8 +59,15 @@ router.post('/register', async (req, res) => {
     await cacheSet(otpKey(key), { otp, userData: { name: name.trim(), email: key, password: hashed } }, OTP_TTL_SECONDS);
     await sendOTPEmail(email, name, otp);
     return res.status(200).json({ message: 'OTP sent to your email.' });
-  } catch (err) { console.error('Register error:', err.message, err.stack); return res.status(500).json({ error: err.message }); }
+  } catch (err) { return serverError(res, err, 'Register'); }
 });
+
+// Constant-time compare so response timing doesn't hint at correct digits.
+function otpMatches(expected, given) {
+  const a = Buffer.from(String(expected));
+  const b = Buffer.from(String(given));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 // VERIFY OTP — Step 2
 router.post('/verify-otp', async (req, res) => {
@@ -57,7 +76,16 @@ router.post('/verify-otp', async (req, res) => {
   const key = email.toLowerCase().trim();
   const pending = await cacheGet(otpKey(key));
   if (!pending) return res.status(400).json({ error: 'No pending registration or OTP expired. Please register again.' });
-  if (pending.otp !== otp.toString()) return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
+  if (!otpMatches(pending.otp, otp)) {
+    const attempts = (pending.attempts || 0) + 1;
+    if (attempts >= MAX_OTP_ATTEMPTS) {
+      await cacheInvalidate(otpKey(key));
+      return res.status(429).json({ error: 'Too many incorrect codes. Please register again to get a new one.' });
+    }
+    await cacheSet(otpKey(key), { ...pending, attempts }, OTP_TTL_SECONDS);
+    const left = MAX_OTP_ATTEMPTS - attempts;
+    return res.status(400).json({ error: `Invalid OTP. ${left} ${left === 1 ? 'try' : 'tries'} left.` });
+  }
   try {
     const { name, email: userEmail, password } = pending.userData;
     const result = await pool.query(
@@ -100,7 +128,7 @@ router.post('/login', async (req, res) => {
     if (!match) return res.status(401).json({ error: 'Invalid email or password.' });
     const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '30d' });
     return res.status(200).json({ message: 'Login successful.', token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
-  } catch (err) { console.error('Login error:', err.message, err.stack); return res.status(500).json({ error: err.message }); }
+  } catch (err) { return serverError(res, err, 'Login'); }
 });
 
 // GET CURRENT USER
@@ -122,6 +150,9 @@ router.put('/update-profile', authenticate, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
     if (newPassword) {
+      if (String(newPassword).length < MIN_PASSWORD_LENGTH) {
+        return res.status(400).json({ error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+      }
       const match = await bcrypt.compare(currentPassword, user.password);
       if (!match) return res.status(401).json({ error: 'Current password is incorrect.' });
       const hashed = await bcrypt.hash(newPassword, 12);
@@ -132,7 +163,7 @@ router.put('/update-profile', authenticate, async (req, res) => {
 
     const updated = await pool.query('SELECT id, name, email, role FROM users WHERE id=$1', [req.user.id]);
     res.json({ message: 'Profile updated.', user: updated.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { return serverError(res, err, 'Update profile'); }
 });
 
 // ── FORGOT PASSWORD — request a reset link ────────────────────────────
@@ -212,4 +243,4 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-module.exports = { router, authenticate };
+module.exports = { router, authenticate };
