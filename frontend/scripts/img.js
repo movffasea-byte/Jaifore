@@ -20,7 +20,7 @@
    Load this BEFORE the scripts that call jfThumb / jfWeb.
    ================================ */
 (function () {
-  const SITE_HOSTS = ['jai-fore.vercel.app'];
+  const SITE_HOSTS = ['jaifore.org', 'www.jaifore.org', 'jai-fore.vercel.app'];
   const ORIGINAL = /^((?:https?:\/\/[^/]+)?\/?(?:\.\/)?)images\/([^/?#]+)\.(jpe?g|png|webp)(\?[^#]*)?$/i;
   const MAPPED = /\/images\/(?:thumb|web)\/([^/?#]+)\.webp(?:\?[^#]*)?$/i;
   const FALLBACK_EXTS = ['jpg', 'png', 'jpeg', 'webp'];

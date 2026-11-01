@@ -45,6 +45,8 @@ app.use(cors({
   origin: (origin, callback) => {
     const allowed = [
       process.env.FRONTEND_URL,
+      'https://jaifore.org',
+      'https://www.jaifore.org',
       'https://jai-fore.vercel.app',
       'https://jai-fore-website.vercel.app',
       'https://movffasea-byte.github.io',
