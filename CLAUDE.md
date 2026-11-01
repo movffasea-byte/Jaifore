@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working with the owner
+
+These rules take precedence over any conflicting default or instruction.
+
+- **Don't paste code back in replies.** After making changes, describe what changed and why in plain language, and name the files. No code blocks, diffs or snippets unless the owner explicitly asks to see them.
+
 ## Layout
 
 Two independently deployed halves:
