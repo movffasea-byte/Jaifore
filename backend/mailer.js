@@ -4,15 +4,23 @@
    ================================ */
 const { Resend } = require('resend');
 
+const { formatDateTime, formatDate } = require('./businessTime');
+
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Resend's onboarding@resend.dev test sender only delivers to the Resend
+// account owner. Set MAIL_FROM_ADDRESS to an address on a verified domain so
+// customers actually receive mail.
+const MAIL_FROM_ADDRESS = process.env.MAIL_FROM_ADDRESS || 'onboarding@resend.dev';
+const sender = (name) => `${name} <${MAIL_FROM_ADDRESS}>`;
 
 function generateOTP() { return Math.floor(1000 + Math.random() * 9000).toString(); }
 
 /* ── helpers ── */
-function formatCurrency(amount, currency = 'NGN') {
+function formatCurrency(amount, currency = 'USD') {
   const symbols = { NGN: '₦', USD: '$', GBP: '£', EUR: '€' };
   const sym = symbols[currency] || currency + ' ';
-  return `${sym}${parseFloat(amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+  return `${sym}${parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function escapeMailHtml(value) {
@@ -28,18 +36,18 @@ function formatDesignLines(item) {
   }).join('');
 }
 
-function formatItems(items) {
+function formatItems(items, currency) {
   if (!Array.isArray(items)) return '';
   return items.map(item => `
     <tr>
       <td style="padding:10px 0;border-bottom:1px solid #e8e2d6;font-size:14px;color:#333;">
-        ${item.name || 'Item'}${item.size ? ` <span style="color:#888;font-size:12px;">(${item.size})</span>` : ''}${formatDesignLines(item)}
+        ${escapeMailHtml(item.name || 'Item')}${item.size ? ` <span style="color:#888;font-size:12px;">(${escapeMailHtml(item.size)})</span>` : ''}${formatDesignLines(item)}
       </td>
       <td style="padding:10px 0;border-bottom:1px solid #e8e2d6;font-size:14px;color:#333;text-align:center;">
-        ${item.qty || 1}
+        ${Number(item.qty) || 1}
       </td>
       <td style="padding:10px 0;border-bottom:1px solid #e8e2d6;font-size:14px;color:#333;text-align:right;">
-        ${item.price ? formatCurrency(item.price * (item.qty || 1)) : '—'}
+        ${item.price ? formatCurrency(item.price * (Number(item.qty) || 1), currency) : '—'}
       </td>
     </tr>
   `).join('');
@@ -48,7 +56,7 @@ function formatItems(items) {
 /* ── 1. OTP EMAIL ── */
 async function sendOTPEmail(toEmail, name, otp) {
   await resend.emails.send({
-    from: 'Jaifore Studio <onboarding@resend.dev>',
+    from: sender('Jaifore Studio'),
     to: toEmail,
     subject: `Your Jai'fore verification code: ${otp}`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -78,7 +86,7 @@ async function sendOTPEmail(toEmail, name, otp) {
 /* ── 2. ADMIN NEW USER NOTIFICATION ── */
 async function sendAdminNotification(newUser) {
   await resend.emails.send({
-    from: 'Jaifore Media <onboarding@resend.dev>',
+    from: sender('Jaifore Media'),
     to: process.env.ADMIN_EMAIL,
     subject: `New Registration — ${newUser.name}`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0a0a0f;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -93,7 +101,7 @@ async function sendAdminNotification(newUser) {
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr><td style="padding:10px 0;border-bottom:1px solid rgba(237,233,224,0.07);"><span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Name</span><div style="font-size:15px;color:#ede9e0;font-weight:600;margin-top:4px;">${newUser.name}</div></td></tr>
         <tr><td style="padding:10px 0;border-bottom:1px solid rgba(237,233,224,0.07);"><span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Email</span><div style="font-size:15px;color:#ede9e0;margin-top:4px;">${newUser.email}</div></td></tr>
-        <tr><td style="padding:10px 0;"><span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Joined</span><div style="font-size:15px;color:#ede9e0;margin-top:4px;">${new Date().toLocaleString('en-NG',{timeZone:'Africa/Lagos'})} WAT</div></td></tr>
+        <tr><td style="padding:10px 0;"><span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Joined</span><div style="font-size:15px;color:#ede9e0;margin-top:4px;">${formatDateTime()}</div></td></tr>
       </table>
     </td></tr>
     <tr><td style="padding:16px 36px;border-top:1px solid rgba(237,233,224,0.07);"><p style="font-size:12px;color:#444;margin:0;">Jai'fore Admin Panel</p></td></tr>
@@ -105,11 +113,11 @@ async function sendAdminNotification(newUser) {
 async function sendOrderConfirmation(toEmail, name, order) {
   const items   = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
   const shipping = typeof order.shipping === 'string' ? JSON.parse(order.shipping) : order.shipping;
-  const currency = order.currency || 'NGN';
+  const currency = order.currency || 'USD';
   const orderId  = String(order.id).padStart(5, '0');
 
   await resend.emails.send({
-    from: "Jai'fore Studio <onboarding@resend.dev>",
+    from: sender("Jai'fore Studio"),
     to: toEmail,
     subject: `Order Confirmed — #JF${orderId}`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -141,7 +149,7 @@ async function sendOrderConfirmation(toEmail, name, order) {
             </td>
             <td style="padding:16px 20px;border-right:1px solid #d8d0c4;">
               <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:4px;">Date</div>
-              <div style="font-size:15px;color:#111;">${new Date().toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric', timeZone:'Africa/Lagos' })}</div>
+              <div style="font-size:15px;color:#111;">${formatDate()}</div>
             </td>
             <td style="padding:16px 20px;">
               <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:4px;">Status</div>
@@ -160,7 +168,7 @@ async function sendOrderConfirmation(toEmail, name, order) {
             <th style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#aaa;text-align:center;padding-bottom:8px;border-bottom:2px solid #111;">Qty</th>
             <th style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#aaa;text-align:right;padding-bottom:8px;border-bottom:2px solid #111;">Price</th>
           </tr>
-          ${formatItems(items)}
+          ${formatItems(items, currency)}
         </table>
       </td></tr>
 
@@ -208,7 +216,7 @@ async function sendOrderConfirmation(toEmail, name, order) {
 async function sendAdminOrderAlert(order, customerName, customerEmail) {
   const items    = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
   const shipping = typeof order.shipping === 'string' ? JSON.parse(order.shipping) : order.shipping;
-  const currency = order.currency || 'NGN';
+  const currency = order.currency || 'USD';
   const orderId  = String(order.id).padStart(5, '0');
 
   const itemSummary = Array.isArray(items)
@@ -216,7 +224,7 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
     : '—';
 
   await resend.emails.send({
-    from: 'Jaifore Media <onboarding@resend.dev>',
+    from: sender('Jaifore Media'),
     to: process.env.ADMIN_EMAIL,
     subject: `New Order #JF${orderId} — ${formatCurrency(order.total, currency)}`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0a0a0f;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -232,7 +240,7 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
       <!-- HERO -->
       <tr><td style="padding:28px 36px 20px;">
         <div style="font-family:Georgia,serif;font-size:28px;font-weight:900;color:#9b7ec8;">${formatCurrency(order.total, currency)}</div>
-        <div style="font-size:13px;color:#555;margin-top:4px;">Order #JF${orderId} · ${new Date().toLocaleString('en-NG', { timeZone:'Africa/Lagos' })} WAT</div>
+        <div style="font-size:13px;color:#555;margin-top:4px;">Order #JF${orderId} · ${formatDateTime()}</div>
       </td></tr>
 
       <!-- DETAILS -->
@@ -278,7 +286,7 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
 /* ── 5. WELCOME EMAIL (post-verification) ── */
 async function sendWelcomeEmail(toEmail, name) {
   await resend.emails.send({
-    from: "Jai'fore Studio <onboarding@resend.dev>",
+    from: sender("Jai'fore Studio"),
     to: toEmail,
     subject: `Welcome to Jai'fore, ${name.split(' ')[0]}`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -336,7 +344,7 @@ async function sendWelcomeEmail(toEmail, name) {
 /* ── PASSWORD RESET EMAIL ── */
 async function sendPasswordResetEmail(toEmail, name, resetLink) {
   await resend.emails.send({
-    from: "Jai'fore Studio <onboarding@resend.dev>",
+    from: sender("Jai'fore Studio"),
     to: toEmail,
     subject: `Reset your Jai'fore password`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -376,7 +384,7 @@ async function sendOrderStatusUpdate(toEmail, name, order, newStatus) {
   const cfg = STATUS_CONFIG[newStatus] || { label: newStatus, color: '#4a2d7a', message: `Your order status has been updated to "${newStatus}".` };
 
   await resend.emails.send({
-    from: "Jai'fore Studio <onboarding@resend.dev>",
+    from: sender("Jai'fore Studio"),
     to: toEmail,
     subject: `Order #JF${orderId} — ${cfg.label}`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -408,7 +416,7 @@ async function sendOrderStatusUpdate(toEmail, name, order, newStatus) {
             </td>
             <td style="padding:16px 20px;">
               <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:4px;">Updated</div>
-              <div style="font-size:15px;color:#111;">${new Date().toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric', timeZone:'Africa/Lagos' })}</div>
+              <div style="font-size:15px;color:#111;">${formatDate()}</div>
             </td>
           </tr>
         </table>
@@ -429,11 +437,11 @@ async function sendOrderStatusUpdate(toEmail, name, order, newStatus) {
 /* ── 7. REFUND NOTIFICATION (customer) ── */
 async function sendRefundNotification(toEmail, name, order, refundAmount) {
   const orderId  = String(order.id).padStart(5, '0');
-  const currency = order.currency || 'NGN';
+  const currency = order.currency || 'USD';
   const amount   = refundAmount != null ? refundAmount : order.total;
 
   await resend.emails.send({
-    from: "Jai'fore Studio <onboarding@resend.dev>",
+    from: sender("Jai'fore Studio"),
     to: toEmail,
     subject: `Refund Issued — #JF${orderId}`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f0e8;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -471,7 +479,7 @@ async function sendRefundNotification(toEmail, name, order, refundAmount) {
             </td>
             <td style="padding:16px 20px;">
               <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:4px;">Date</div>
-              <div style="font-size:15px;color:#111;">${new Date().toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric', timeZone:'Africa/Lagos' })}</div>
+              <div style="font-size:15px;color:#111;">${formatDate()}</div>
             </td>
           </tr>
         </table>
@@ -493,11 +501,11 @@ async function sendRefundNotification(toEmail, name, order, refundAmount) {
 /* ── 8. ADMIN REFUND ALERT (admin) ── */
 async function sendAdminRefundAlert(order, customerName, customerEmail, refundAmount) {
   const orderId  = String(order.id).padStart(5, '0');
-  const currency = order.currency || 'NGN';
+  const currency = order.currency || 'USD';
   const amount   = refundAmount != null ? refundAmount : order.total;
 
   await resend.emails.send({
-    from: 'Jaifore Media <onboarding@resend.dev>',
+    from: sender('Jaifore Media'),
     to: process.env.ADMIN_EMAIL,
     subject: `Refund Processed — #JF${orderId} — ${formatCurrency(amount, currency)}`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0a0a0f;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -513,7 +521,7 @@ async function sendAdminRefundAlert(order, customerName, customerEmail, refundAm
       <!-- HERO -->
       <tr><td style="padding:28px 36px 20px;">
         <div style="font-family:Georgia,serif;font-size:28px;font-weight:900;color:#e08a8a;">−${formatCurrency(amount, currency)}</div>
-        <div style="font-size:13px;color:#555;margin-top:4px;">Order #JF${orderId} · ${new Date().toLocaleString('en-NG', { timeZone:'Africa/Lagos' })} WAT</div>
+        <div style="font-size:13px;color:#555;margin-top:4px;">Order #JF${orderId} · ${formatDateTime()}</div>
       </td></tr>
 
       <!-- DETAILS -->
@@ -554,7 +562,7 @@ async function sendLowStockAlert(product) {
   const badgeColor = (product.stock === 0) ? '#a13a3a' : '#c98a2e';
 
   await resend.emails.send({
-    from: 'Jaifore Media <onboarding@resend.dev>',
+    from: sender('Jaifore Media'),
     to: process.env.ADMIN_EMAIL,
     subject: `Low Stock — ${product.name} (${stockLabel})`,
     html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0a0a0f;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -573,7 +581,7 @@ async function sendLowStockAlert(product) {
           <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#fff;font-weight:700;">${stockLabel}</span>
         </div>
         <div style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#ede9e0;">${product.name}</div>
-        <div style="font-size:13px;color:#555;margin-top:4px;">Product ID #${product.id} · ${new Date().toLocaleString('en-NG', { timeZone:'Africa/Lagos' })} WAT</div>
+        <div style="font-size:13px;color:#555;margin-top:4px;">Product ID #${product.id} · ${formatDateTime()}</div>
       </td></tr>
 
       <!-- DETAILS -->

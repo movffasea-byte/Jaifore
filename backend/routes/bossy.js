@@ -19,6 +19,7 @@ const { createReply, extractText } = require('../bossyClient');
 const { SYSTEM_PROMPT } = require('../bossyPrompt');
 const { toolsFor, runTool } = require('../bossyTools');
 const { loadHistory, saveTurn } = require('../bossyLog');
+const { BUSINESS_TIMEZONE } = require('../businessTime');
 
 const router = express.Router();
 
@@ -29,19 +30,18 @@ const MAX_TOOL_ROUNDS = 3;
 const userCap = () => Number(process.env.BOSSY_USER_DAILY_CAP) || 50;
 const guestCap = () => Number(process.env.BOSSY_GUEST_DAILY_CAP) || 15;
 
-// Caps reset at midnight in the business's time zone (Texas, US Central), not
+// Caps reset at midnight in the business's time zone (businessTime.js), not
 // the server's (Railway runs UTC). Set from the server, never from the browser,
 // so a customer can't switch zones to get extra messages.
-const CAP_TIMEZONE = process.env.BOSSY_TIMEZONE || 'America/Chicago';
 const CAP_KEY_TTL = 2 * 24 * 60 * 60; // the day is in the key; TTL only cleans up
 
 const capFormat = new Intl.DateTimeFormat('en-US', {
-  timeZone: CAP_TIMEZONE, hourCycle: 'h23',
+  timeZone: BUSINESS_TIMEZONE, hourCycle: 'h23',
   year: 'numeric', month: '2-digit', day: '2-digit',
   hour: '2-digit', minute: '2-digit', second: '2-digit',
 });
 
-// Today's date (YYYY-MM-DD) in CAP_TIMEZONE and the seconds left until its
+// Today's date (YYYY-MM-DD) in BUSINESS_TIMEZONE and the seconds left until its
 // midnight. The date goes in the Redis key, so the counter rolls over exactly
 // at local midnight; resetIn is only for the "try again in" message and can be
 // an hour off on the two DST-change days.
