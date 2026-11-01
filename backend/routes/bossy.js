@@ -64,23 +64,51 @@ function optionalAuth(req, res, next) {
   next();
 }
 
+// Per-process stand-in for the Redis counters, used only while Redis is
+// unreachable. Less exact (each instance and each restart starts from zero),
+// but the caps still hold, so a Redis outage can't become an unbounded API bill.
+const memoryCounts = new Map();
+let memoryDay = null;
+
+function memoryIncr(day, key) {
+  if (day !== memoryDay) { memoryCounts.clear(); memoryDay = day; }
+  const count = (memoryCounts.get(key) || 0) + 1;
+  memoryCounts.set(key, count);
+  return count;
+}
+
+// An outage would otherwise log and report on every chat message.
+const FALLBACK_REPORT_MS = 60 * 1000;
+let lastFallbackReport = 0;
+
+function reportFallback(err) {
+  const now = Date.now();
+  if (now - lastFallbackReport < FALLBACK_REPORT_MS) return;
+  lastFallbackReport = now;
+  console.error('Bossy caps using in-memory fallback, Redis unavailable:', err.message);
+  Sentry.captureException(err, { tags: { area: 'bossy-cap' } });
+}
+
 // Counts this message against today's allowance.
 // Returns { allowed, resetIn } where resetIn is seconds until local midnight.
-// Redis trouble fails open so chat is never taken down by the cache.
+// If Redis is down the count moves to memory: chat stays up and caps still apply.
 async function checkDailyCap(req) {
   const isUser = Boolean(req.user?.id);
   const who = isUser ? `user:${req.user.id}` : `ip:${req.ip}`;
   const cap = isUser ? userCap() : guestCap();
   const { day, resetIn } = capClock();
   const key = `bossy:cap:${day}:${who}`;
+
+  let count;
   try {
-    const count = await redis.incr(key);
-    if (count === 1) await redis.expire(key, CAP_KEY_TTL);
-    return count <= cap ? { allowed: true } : { allowed: false, resetIn };
+    count = await redis.incr(key);
+    // Cleanup only (the day is in the key), so a failure here doesn't matter.
+    if (count === 1) redis.expire(key, CAP_KEY_TTL).catch(() => {});
   } catch (err) {
-    console.error('Bossy cap check failed:', err.message);
-    return { allowed: true };
+    reportFallback(err);
+    count = memoryIncr(day, key);
   }
+  return count <= cap ? { allowed: true } : { allowed: false, resetIn };
 }
 
 // "about 3 hours" / "about an hour" / "a few minutes"
@@ -201,4 +229,5 @@ router.post('/chat', optionalAuth, async (req, res) => {
 });
 
 router.capClock = capClock; // exposed for tests
+router.resetCapFallback = () => { memoryCounts.clear(); memoryDay = null; lastFallbackReport = 0; }; // tests only
 module.exports = router;

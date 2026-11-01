@@ -191,6 +191,42 @@ describe('daily caps', () => {
     expect(res.body.error).toMatch(/try again in (a few minutes|about an hour|about \d+ hours)/);
   });
 
+  describe('when Redis is down', () => {
+    const Sentry = require('@sentry/node');
+    beforeEach(() => {
+      bossyRouter.resetCapFallback();
+      redis.incr.mockRejectedValue(new Error('Connection is closed.'));
+      Sentry.captureException.mockClear();
+    });
+    afterEach(() => {
+      redis.incr.mockImplementation(async (k) => {
+        const n = (mockCounts.get(k) || 0) + 1;
+        mockCounts.set(k, n);
+        return n;
+      });
+    });
+
+    test('chat keeps working and the guest cap still applies', async () => {
+      expect((await chat({ message: '1' })).status).toBe(200);
+      expect((await chat({ message: '2' })).status).toBe(200);
+      const res = await chat({ message: '3' });
+      expect(res.status).toBe(429);
+      expect(mockCreate).toHaveBeenCalledTimes(2); // the capped message never reached the model
+    });
+
+    test('signed-in users keep their own, separate cap', async () => {
+      await chat({ message: 'guest' });
+      for (let i = 0; i < 3; i++) expect((await chat({ message: 'x' }, token)).status).toBe(200);
+      expect((await chat({ message: 'x' }, token)).status).toBe(429);
+    });
+
+    test('the outage is reported once, not on every message', async () => {
+      for (let i = 0; i < 3; i++) await chat({ message: String(i) });
+      const capReports = Sentry.captureException.mock.calls.filter(([, ctx]) => ctx?.tags?.area === 'bossy-cap');
+      expect(capReports).toHaveLength(1);
+    });
+  });
+
   test('the cap day rolls over at Texas (US Central) midnight, not UTC midnight', () => {
     const { capClock } = bossyRouter;
     // Daylight time (CDT, UTC-5): midnight is 05:00 UTC.
