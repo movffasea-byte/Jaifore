@@ -42,7 +42,7 @@ const MAX_LINES              = 50;
 const MAX_LINE_QTY           = 99;
 const LOW_STOCK_THRESHOLD    = 5;
 
-const FRONTEND_URL  = (process.env.FRONTEND_URL || 'https://jai-fore.vercel.app').replace(/\/$/, '');
+const FRONTEND_URL  = (process.env.FRONTEND_URL || 'https://jaifore.org').replace(/\/$/, '');
 
 // Set STRIPE_AUTOMATIC_TAX=true in Railway ONLY after the account owner has
 // switched on Stripe Tax and added the registrations. Until then checkout

@@ -12,7 +12,7 @@ const { pool } = require('./database');
 const { cacheGet, cacheSet } = require('./redis');
 const { FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_FEE_CENTS } = require('./shippingRules');
 
-const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://jai-fore.vercel.app').replace(/\/$/, '');
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://jaifore.org').replace(/\/$/, '');
 
 const MAX_RESULTS = 6;
 const LOW_STOCK_THRESHOLD = 5;

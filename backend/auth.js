@@ -43,7 +43,7 @@ const RESET_TOKEN_TTL_SECONDS = 30 * 60;
 // backend only ever handles the API calls that page makes.
 const FRONTEND_RESET_URL = process.env.FRONTEND_URL
   ? `${process.env.FRONTEND_URL}/reset-password.html`
-  : 'https://jai-fore.vercel.app/reset-password.html';
+  : 'https://jaifore.org/reset-password.html';
 
 // REGISTER — Step 1
 router.post('/register', async (req, res) => {

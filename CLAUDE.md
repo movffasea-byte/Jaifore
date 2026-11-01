@@ -13,7 +13,7 @@ These rules take precedence over any conflicting default or instruction.
 Two independently deployed halves:
 
 - `backend/`: Node 22 + Express 5 (CommonJS) API, deployed on **Railway** (`https://jai-fore-production.up.railway.app`). PostgreSQL via `pg`, Redis via `ioredis`, Stripe, Resend/Nodemailer, Sentry, web-push, Anthropic SDK (Bossy Bot).
-- `frontend/`: plain static HTML/CSS/JS, no framework and no build step. Deployed on **Vercel** (`https://jai-fore.vercel.app`). `frontend/package.json` holds build-time image tooling only (`sharp`).
+- `frontend/`: plain static HTML/CSS/JS, no framework and no build step. Deployed on **Vercel** at `https://jaifore.org`, with `www` redirecting to it. The old `https://jai-fore.vercel.app` still works and stays in the CORS allowlist. `frontend/package.json` holds build-time image tooling only (`sharp`).
 
 ## Commands
 

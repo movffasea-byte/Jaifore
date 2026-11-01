@@ -31,7 +31,7 @@ router.get('/:slug', async (req, res) => {
       // Inactive or unknown slug — send to the homepage rather than a bare
       // 404, since this is a physical flyer in someone's hand, not an API
       // consumer that can meaningfully act on an error response.
-      return res.redirect(302, process.env.FRONTEND_URL || 'https://jai-fore.vercel.app');
+      return res.redirect(302, process.env.FRONTEND_URL || 'https://jaifore.org');
     }
 
     const qr = rows[0];
@@ -48,7 +48,7 @@ router.get('/:slug', async (req, res) => {
     return res.redirect(302, qr.destination_url);
   } catch (err) {
     console.error('[qr] redirect lookup failed:', err.message);
-    return res.redirect(302, process.env.FRONTEND_URL || 'https://jai-fore.vercel.app');
+    return res.redirect(302, process.env.FRONTEND_URL || 'https://jaifore.org');
   }
 });
 
