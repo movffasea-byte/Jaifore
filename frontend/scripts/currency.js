@@ -16,7 +16,9 @@
      does the work once and every caller gets the same promise.
    ================================ */
 
-const EXCHANGE_API_KEY = '18fefffb14881d99346b100d';
+// Rates come from our backend, which holds the exchange-rate API key and
+// caches the rates for the whole site. Never put that key in this file.
+const FX_RATES_URL     = 'https://jai-fore-production.up.railway.app/api/fx';
 const BASE_CURRENCY    = 'USD'; // all prices stored in USD (database truth)
 
 const FX_CACHE_KEY     = 'jaifore_fx_v1';
@@ -134,14 +136,12 @@ function initCurrency() {
           writeFxCache('USD', 1, countryCode);
         } else {
           // Step 3 — live rate from USD to the visitor's currency
-          const rateData = await fetchJsonWithTimeout(
-            `https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/pair/${BASE_CURRENCY}/${detected.code}`,
-            FX_TIMEOUT_MS
-          );
+          const rateData = await fetchJsonWithTimeout(FX_RATES_URL, FX_TIMEOUT_MS);
+          const rate     = Number(rateData?.rates?.[detected.code]);
 
-          if (rateData.result === 'success' && rateData.conversion_rate > 0) {
+          if (rateData?.base === BASE_CURRENCY && rate > 0) {
             currencyInfo = detected;
-            exchangeRate = rateData.conversion_rate;
+            exchangeRate = rate;
             writeFxCache(detected.code, exchangeRate, countryCode);
           } else {
             useUSD();

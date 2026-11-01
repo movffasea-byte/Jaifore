@@ -152,6 +152,7 @@ app.use('/api/uploads', generalLimiter, require('./routes/uploads'));
 app.use('/api/push',    generalLimiter, require('./routes/push'));
 app.use('/api/bossy',   generalLimiter, require('./routes/bossy'));
 app.use('/api/bossy-admin', generalLimiter, require('./routes/bossyAdmin'));
+app.use('/api/fx',      generalLimiter, require('./routes/fx'));
 
 // CSP reports get their own limiter so a noisy page can't use up a visitor's
 // general API allowance.
