@@ -3,7 +3,7 @@
    scripts/dashboard.js
    ================================ */
 
-const API = 'https://jai-fore-production.up.railway.app';
+const API = window.JAIFORE_API;
 
 // ── AUTH GUARD ───────────────────────────────────────
 const token = localStorage.getItem('jaifore_token');

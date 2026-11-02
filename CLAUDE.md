@@ -52,7 +52,7 @@ CI (`.github/workflows/ci.yml`) runs only `npm run test:unit` in `backend/` on N
 
 ## Frontend notes
 
-- Each script in `frontend/scripts/` (and `admin/admin.js`, `data/cart.js`) hardcodes `const API = 'https://jai-fore-production.up.railway.app'`. There is no shared config, so a backend URL change must touch all of them.
+- The backend URL lives only in `frontend/scripts/config.js` (`window.JAIFORE_API`), loaded before the other scripts on every page. A new page that calls the API must load it first. `admin/admin.js` falls back to `location.origin` because the backend also serves `/admin` without the rest of `frontend/`.
 - Values duplicated across the stack must stay in sync. For example, `MAX_DESIGNS` in `frontend/scripts/configurator.js` must match `MAX_DESIGNS_PER_LINE` in `backend/pricing.js`. Look for "Keep in sync" comments.
 - **Security headers and CSP** live in `frontend/vercel.json`. The full policy is report-only for now, and violations are logged by `backend/routes/cspReport.js` as `[csp]` lines in the Railway logs. A new external host (script, font, API, image CDN) must be added to that policy or it will break once the policy is enforced. The service worker re-fetches Google Fonts, so those hosts are in `connect-src` too.
 - `sw.js` is a service worker that caches only the app shell and never API traffic. Bump `CACHE_VERSION` when changing cached shell behaviour.

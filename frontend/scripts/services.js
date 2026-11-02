@@ -8,7 +8,7 @@
    designs need a print size, stock only applies to apparel.
    ================================ */
 
-const API = 'https://jai-fore-production.up.railway.app';
+const API = window.JAIFORE_API;
 
 // The products table has no `sizes` column, so apparel uses this list unless a
 // product ever comes back with its own `sizes` array.

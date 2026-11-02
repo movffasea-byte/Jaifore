@@ -3,7 +3,7 @@
    scripts/wishlist.js
    ================================ */
 
-const API = 'https://jai-fore-production.up.railway.app';
+const API = window.JAIFORE_API;
 
 // ── AUTH GUARD ───────────────────────────────────────
 // Identical convention to dashboard.js — wishlist is logged-in only per

@@ -12,7 +12,7 @@
    state machine can drive them later.
    ================================ */
 (function () {
-  const API = 'https://jai-fore-production.up.railway.app';
+  const API = window.JAIFORE_API;
   const IMG = 'images/bossy/';
   const STORAGE_KEY = 'bossy:chat';
   const TEASER_KEY = 'bossy:teaser';

@@ -2,7 +2,7 @@
    JAIFORE — RESET PASSWORD PAGE
    frontend/scripts/reset-password.js
    ================================ */
-const API = 'https://jai-fore-production.up.railway.app';
+const API = window.JAIFORE_API;
 
 const params = new URLSearchParams(window.location.search);
 const token  = params.get('token');

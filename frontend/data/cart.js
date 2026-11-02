@@ -24,12 +24,8 @@
 
 let cart = JSON.parse(localStorage.getItem('jaifore_cart') || '[]');
 
-// Same Railway backend URL used in loginsys.js's `const API`. That constant
-// is scoped to loginsys.js only, so cart.js needs its own copy rather than
-// assuming a global — if this URL ever changes, update it in both places
-// (or better, promote it to a single shared config script loaded on every
-// page, so it only needs to change once).
-const CART_API_BASE = 'https://jai-fore-production.up.railway.app/api/cart';
+// Backend URL comes from scripts/config.js, which every page loads first
+const CART_API_BASE = `${window.JAIFORE_API}/api/cart`;
 
 function getToken() {
   return localStorage.getItem('jaifore_token');

@@ -18,7 +18,7 @@
 
 // Rates come from our backend, which holds the exchange-rate API key and
 // caches the rates for the whole site. Never put that key in this file.
-const FX_RATES_URL     = 'https://jai-fore-production.up.railway.app/api/fx';
+const FX_RATES_URL     = `${window.JAIFORE_API}/api/fx`;
 const BASE_CURRENCY    = 'USD'; // all prices stored in USD (database truth)
 
 const FX_CACHE_KEY     = 'jaifore_fx_v1';

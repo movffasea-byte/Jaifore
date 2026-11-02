@@ -3,7 +3,7 @@
    frontend/admin/admin.js
    ================================ */
 
-const API = 'https://jai-fore-production.up.railway.app';
+const API = window.JAIFORE_API || location.origin; // the backend also serves /admin same-origin
 
 // Chart.js glass-theme defaults — the CDN script can fail to load, so guard it
 if (typeof Chart !== 'undefined') {

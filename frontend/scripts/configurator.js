@@ -3,7 +3,7 @@
    scripts/configurator.js
    ================================ */
 
-const API = 'https://jai-fore-production.up.railway.app';
+const API = window.JAIFORE_API;
 
 // ── MOCKUPS ──────────────────────────────────────────
 const MOCKUPS = {
