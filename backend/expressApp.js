@@ -84,12 +84,11 @@ app.post(
 );
 
 // ── JSON BODY PARSING ──────────────────────────────────
-// Cart, wishlist and checkout requests can carry customer-uploaded artwork
-// (as base64 text), which is far bigger than the 100kb default. Those paths
-// get a larger limit; everything else keeps the small default. The first
-// parser to run marks the body as parsed, so the global one below skips them.
-// (Uploading artwork to file storage instead is the proper long-term fix.)
-app.use(['/api/stripe', '/api/cart', '/api/wishlist'], express.json({ limit: '25mb' }));
+// Artwork goes to file storage through /api/uploads, so cart, wishlist and
+// checkout only carry its URL (inlineArtwork.js refuses old base64 items).
+// A full cart can still pass the 100kb default, so those paths get 1mb.
+// The first parser to run marks the body as parsed, so the global one below skips them.
+app.use(['/api/stripe', '/api/cart', '/api/wishlist'], express.json({ limit: '1mb' }));
 app.use('/api/uploads', express.json({ limit: '8mb' }));
 app.use(express.json());
 

@@ -8,6 +8,7 @@ const router  = express.Router();
 
 const { authenticate } = require('../auth');
 const { pool: db }     = require('../database');
+const { hasInlineArtwork, REUPLOAD_MESSAGE } = require('../inlineArtwork');
 
 // ── CONFIG SIGNATURE ─────────────────────────────────
 // Identical algorithm to wishlist.js's server-side copy and cart.js's
@@ -102,6 +103,7 @@ router.post('/', authenticate, async (req, res) => {
   if (!productId || !name || price == null) {
     return res.status(400).json({ error: 'productId, name, and price are required.' });
   }
+  if (hasInlineArtwork(req.body)) return res.status(400).json({ error: REUPLOAD_MESSAGE });
 
   if (!isValidCartLine({ category, price, printSize })) {
     return res.status(400).json({
@@ -218,6 +220,7 @@ router.post('/merge', authenticate, async (req, res) => {
   if (!Array.isArray(localCart)) {
     return res.status(400).json({ error: 'localCart must be an array.' });
   }
+  if (hasInlineArtwork(localCart)) return res.status(400).json({ error: REUPLOAD_MESSAGE });
 
   const client = await db.connect();
   try {

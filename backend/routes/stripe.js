@@ -31,6 +31,7 @@ const { sendOrderConfirmation, sendAdminOrderAlert, sendLowStockAlert } = requir
 const { sendAdminPush } = require('../push');
 const { FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_FEE_CENTS } = require('../shippingRules'); // $60+ ships free, else flat $15
 const { PricingError, priceApparelDesigns, toCents, cleanText } = require('../pricing');
+const { hasInlineArtwork, REUPLOAD_MESSAGE } = require('../inlineArtwork');
 
 const router = express.Router();
 
@@ -76,6 +77,7 @@ async function priceCart(rawItems) {
   if (rawItems.length > MAX_LINES) {
     throw new CartError('Your cart has too many different items. Please split it into smaller orders.');
   }
+  if (hasInlineArtwork(rawItems)) throw new CartError(REUPLOAD_MESSAGE);
 
   const productIds = [...new Set(rawItems.map(i => Number(i.id)).filter(Number.isInteger))];
   if (!productIds.length) throw new CartError('Your cart contains an invalid item.');

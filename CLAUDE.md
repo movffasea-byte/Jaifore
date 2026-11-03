@@ -34,7 +34,7 @@ CI (`.github/workflows/ci.yml`) runs only `npm run test:unit` in `backend/` on N
 - Middleware order in `expressApp.js` matters:
   - Sentry init comes first.
   - The Stripe webhook (`/api/stripe/webhook`) is registered with `express.raw` **before** `express.json()` so signature verification sees the raw bytes.
-  - `/api/stripe`, `/api/cart` and `/api/wishlist` get a 25mb JSON limit (base64 artwork) and `/api/uploads` gets 8mb. Everything else uses the default.
+  - `/api/stripe`, `/api/cart` and `/api/wishlist` get a 1mb JSON limit and `/api/uploads` gets 8mb. Artwork travels as a Supabase URL; `inlineArtwork.js` refuses old base64 (data: URL) items with a re-upload message. Everything else uses the default.
   - Rate limiters: `authLimiter` (8 per 15 min) on `/api/auth`, `paymentLimiter` (20) only on `/api/stripe/create-checkout-session`, and `generalLimiter` (300) on the rest.
   - When adding a route, mount it there with a limiter. PATCH must stay in the CORS `methods` list.
 - **Orders are created by the Stripe webhook**, not by `/api/orders`. Checkout goes through `routes/stripe.js`, which loads the DB rows and calls the pure functions in `pricing.js`. Shipping constants live in `shippingRules.js`, which is shared by checkout and Bossy Bot.

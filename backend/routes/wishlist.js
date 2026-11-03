@@ -19,6 +19,7 @@ const { authenticate } = require('../auth'); // adjust path to match where auth.
 // db is whatever your existing routes use (pg Pool / client) — swap this
 // require for however products.js / orders.js already import it.
 const { pool: db } = require('../database');
+const { hasInlineArtwork, REUPLOAD_MESSAGE } = require('../inlineArtwork');
 
 // ── CONFIG SIGNATURE ─────────────────────────────────
 // Deliberately the SAME algorithm as cart.js's configSignature(), so a
@@ -94,6 +95,7 @@ router.post('/', authenticate, async (req, res) => {
   if (!productId || !name || price == null) {
     return res.status(400).json({ error: 'productId, name, and price are required.' });
   }
+  if (hasInlineArtwork(req.body)) return res.status(400).json({ error: REUPLOAD_MESSAGE });
 
   const signature = configSignature({ customDesigns, gender, printSize });
 
