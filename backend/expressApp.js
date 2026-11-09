@@ -100,6 +100,17 @@ const authLimiter = rateLimit({
   max: 8,
   standardHeaders: true,
   legacyHeaders: false,
+  // The email step of sign-in has its own limiter below
+  skip: (req) => req.path === '/check-email',
+  message: { error: 'Too many attempts. Please try again in 15 minutes.' }
+});
+
+// Email-first sign-in reveals whether an account exists, so cap lookups per IP
+const checkEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: { error: 'Too many attempts. Please try again in 15 minutes.' }
 });
 
@@ -126,6 +137,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/qr', require('./routes/qr'));
 
+app.use('/api/auth/check-email', checkEmailLimiter);
 app.use('/api/auth', authLimiter, authRouter);
 
 // Orders no longer take payments (Stripe's webhook creates them), so this is

@@ -116,6 +116,20 @@ router.post('/resend-otp', async (req, res) => {
 });
 
 // LOGIN
+// CHECK EMAIL — step one of the email-first sign-in. Says whether an account
+// exists so the page can ask for a password or offer registration. This does
+// reveal registered emails, so it has its own tight limiter in expressApp.js.
+router.post('/check-email', async (req, res) => {
+  const email = typeof req.body.email === 'string' ? req.body.email.toLowerCase().trim() : '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+    return res.status(400).json({ error: 'Enter a valid email address.' });
+  }
+  try {
+    const result = await pool.query('SELECT 1 FROM users WHERE email = $1', [email]);
+    return res.status(200).json({ exists: result.rows.length > 0 });
+  } catch (err) { return serverError(res, err, 'Check email'); }
+});
+
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });

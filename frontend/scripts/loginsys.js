@@ -55,16 +55,64 @@ function redirectAfterLogin(user) {
   else window.location.href = 'services.html';
 }
 
-// LOGIN
+// LOGIN — email first, then password (step 2 opens once the account is found)
+const loginEmailInput = document.getElementById('login-email');
+const loginPasswordInput = document.getElementById('login-password');
+let loginStep = 'email';
+
+function showLoginStep(step) {
+  loginStep = step;
+  const onPassword = step === 'password';
+  document.getElementById('login-step-email').classList.toggle('hidden', onPassword);
+  document.getElementById('login-step-password').classList.toggle('hidden', !onPassword);
+  document.getElementById('login-btn-text').textContent = onPassword ? 'Log In' : 'Next';
+  if (onPassword) {
+    document.getElementById('login-identity-email').textContent = loginEmailInput.value.trim();
+    loginPasswordInput.value = '';
+    loginPasswordInput.focus();
+  } else {
+    loginEmailInput.focus();
+  }
+}
+
+document.getElementById('login-change-email').addEventListener('click', (e) => {
+  e.preventDefault();
+  showMsg('login-msg', '', '');
+  showLoginStep('email');
+});
+
+async function checkLoginEmail(form) {
+  const email = loginEmailInput.value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('login-msg', 'Enter a valid email address.', 'error'); return; }
+  setLoading(form, true);
+  try {
+    const res = await fetch(`${API}/api/auth/check-email`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { showMsg('login-msg', data.error || 'Something went wrong. Try again.', 'error'); return; }
+    if (data.exists) { showLoginStep('password'); return; }
+    // No account yet: carry the email over to registration
+    document.querySelector('.tab[data-tab="register"]').click();
+    document.getElementById('reg-email').value = email;
+    showMsg('register-msg', 'No account uses that email yet. Create one below.', '');
+    document.getElementById('reg-name').focus();
+  } catch { showMsg('login-msg', 'Network error. Try again.', 'error'); }
+  finally { setLoading(form, false); }
+}
+
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
-  setLoading(form, true);
   showMsg('login-msg', '', '');
+  if (loginStep === 'email') { await checkLoginEmail(form); return; }
+  if (!loginPasswordInput.value) { showMsg('login-msg', 'Enter your password.', 'error'); return; }
+  setLoading(form, true);
   try {
     const res = await fetch(`${API}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: document.getElementById('login-email').value.trim(), password: document.getElementById('login-password').value })
+      body: JSON.stringify({ email: loginEmailInput.value.trim(), password: loginPasswordInput.value })
     });
     const data = await res.json();
     if (!res.ok) {

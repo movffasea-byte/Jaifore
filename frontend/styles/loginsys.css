@@ -237,6 +237,28 @@ input:focus{
   color:var(--purple)
 }
 
+/* Email-first sign-in: the chosen email shown above the password step */
+.login-identity{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:0.5rem;
+  margin-bottom:1rem;
+  font-size:0.9rem;
+  overflow-wrap:anywhere
+}
+
+.login-change{
+  font-size:0.78rem;
+  color:var(--muted);
+  transition:color 0.2s
+}
+
+.login-change:hover{
+  color:var(--purple)
+}
+
 /* FORGOT PASSWORD */
 #forgot-section{
   display:flex;

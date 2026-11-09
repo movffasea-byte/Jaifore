@@ -83,6 +83,28 @@ describe('requireAdmin middleware', () => {
   });
 });
 
+describe('POST /api/auth/check-email', () => {
+  it('says an existing account exists, matching case-insensitively', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
+    const res = await request(app).post('/api/auth/check-email').send({ email: ' ADA@test.dev ' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ exists: true });
+    expect(mockPool.query.mock.calls[0][1]).toEqual(['ada@test.dev']);
+  });
+
+  it('says an unknown email has no account', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app).post('/api/auth/check-email').send({ email: 'nobody@test.dev' });
+    expect(res.body).toEqual({ exists: false });
+  });
+
+  it('rejects a malformed email without touching the database', async () => {
+    const res = await request(app).post('/api/auth/check-email').send({ email: 'not-an-email' });
+    expect(res.status).toBe(400);
+    expect(mockPool.query).not.toHaveBeenCalled();
+  });
+});
+
 describe('POST /api/auth/login', () => {
   let hash;
   beforeAll(async () => { hash = await bcrypt.hash('correct-horse', 4); });
