@@ -5,6 +5,7 @@
    Reads logo/rooted3.png (transparent background, not deployed) and writes:
      logo/jaifore-96.webp      40px nav / footer logo
      logo/jaifore-480.webp     hero / offline / login logo
+     logo/jaifore-1024.webp    texture for the 3D hero logo (scripts/hero-3d.js)
      icons/*.png, logo/favicon-32.png   app and tab icons
      logo/admin-192.webp   admin logo on a dark square
 
@@ -31,6 +32,8 @@ async function main() {
     await (await square(width, 0.02, clear)).webp({ quality: 88, alphaQuality: 90 })
       .toFile(path.join(ROOT, 'logo', `jaifore-${width}.webp`));
   }
+  await (await square(1024, 0, clear)).webp({ quality: 84, alphaQuality: 95 })
+    .toFile(path.join(ROOT, 'logo', 'jaifore-1024.webp'));
   await (await square(32, 0.04, clear)).png().toFile(path.join(ROOT, 'logo', 'favicon-32.png'));
   await (await square(192, 0.08, dark)).png().toFile(path.join(ROOT, 'icons', 'icon-192.png'));
   await (await square(512, 0.08, dark)).png().toFile(path.join(ROOT, 'icons', 'icon-512.png'));
