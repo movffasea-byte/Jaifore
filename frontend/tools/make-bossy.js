@@ -2,7 +2,7 @@
    JAIFORE — BUILD THE BOSSY BOT MASCOT IMAGES
    frontend/tools/make-bossy.js
 
-   Reads images/bossy/148.png (transparent full-body master, not deployed) and
+   Reads images/bossy/peace-bossy-bot.png (transparent full-body master, not deployed) and
    writes four files to images/bossy/:
      bossy-head.webp / .png   160x160 head badge on black for the corner launcher
                               (the CSS rounds it)
@@ -18,7 +18,7 @@ const path = require('path');
 const sharp = require('sharp');
 
 const OUT = path.join(__dirname, '..', 'images', 'bossy');
-const SRC = path.join(OUT, '148.png');
+const SRC = path.join(OUT, 'peace-bossy-bot.png');
 // Square around the head and crown in the 1122x1402 master (source px).
 const HEAD_CROP = { left: 120, top: 10, width: 880, height: 880 };
 
