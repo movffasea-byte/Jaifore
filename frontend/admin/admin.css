@@ -6,7 +6,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Admin palette comes from the admin logo (logo/jaifore-admin-source.jpg): black anchor, violet rope, mint and pink lettering, cream-sage rope */
+  /* Admin palette comes from the admin logo (logo/rooted3.png): black anchor with purple, teal, lime and cream rope */
   --bg:        #08070f;
   --surface:   #12101f;
   --surface2:  #1a1730;

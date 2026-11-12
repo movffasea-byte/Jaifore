@@ -6,7 +6,7 @@
      logo/jaifore-96.webp      40px nav / footer logo
      logo/jaifore-480.webp     hero / offline / login logo
      icons/*.png, logo/favicon-32.png   app and tab icons
-     logo/admin-192.webp, logo/admin-512.webp   admin logo on a dark square
+     logo/admin-192.webp   admin logo on a dark square
 
    Run from frontend/:  npm run logo
    ================================ */
@@ -36,7 +36,7 @@ async function main() {
   await (await square(512, 0.08, dark)).png().toFile(path.join(ROOT, 'icons', 'icon-512.png'));
   await (await square(180, 0.08, dark)).png().toFile(path.join(ROOT, 'icons', 'apple-touch-icon.png'));
   await (await square(512, 0.20, dark)).png().toFile(path.join(ROOT, 'icons', 'icon-maskable-512.png'));  // safe zone
-  for (const size of [192, 512]) {
+  for (const size of [192]) {
     await (await square(size, 0.06, dark)).webp({ quality: 86 })
       .toFile(path.join(ROOT, 'logo', `admin-${size}.webp`));
   }
