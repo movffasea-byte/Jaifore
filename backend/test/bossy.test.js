@@ -402,6 +402,12 @@ describe('tools', () => {
       expect(paramsFor(/print_size_ids/)).toEqual(['Graphic Design', ['%faith%', '%peace%'], 4]);
     });
 
+    test('designs are picked at random so the whole catalog gets shown', async () => {
+      await runSuggest({ garment: 'tee' });
+      const [sql] = mockQuery.mock.calls.find(([s]) => /print_size_ids/.test(s));
+      expect(sql).toMatch(/ORDER BY random\(\)/);
+    });
+
     test('"sweatshirt" is a hoodie, not a tee', async () => {
       const { result } = await runSuggest({ garment: 'sweatshirt' });
       expect(result.garment_type).toBe('hoodie');

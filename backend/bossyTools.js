@@ -260,7 +260,7 @@ async function suggestDesigns({ garment, style } = {}) {
   const designRows = (await pool.query(
     `SELECT id, name, description, image_url, thumb_url, print_size_ids
        FROM products WHERE ${designWhere}
-      ORDER BY created_at DESC LIMIT $${designParams.length}`,
+      ORDER BY random() LIMIT $${designParams.length}`,   // random, so every design gets shown over time
     designParams
   )).rows;
 
