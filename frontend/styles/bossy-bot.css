@@ -225,6 +225,15 @@ body:has(#bossyLauncher) .back-to-top-btn {
 .bossy-card img { flex: none; width: 48px; height: 48px; border-radius: var(--radius-sm); object-fit: cover; background: var(--bg-soft); }
 .bossy-card-name { font: 600 var(--text-sm) / 1.3 var(--font-body); }
 .bossy-card-price { font: 400 var(--text-xs) var(--font-body); color: var(--muted); }
+/* Garment card with a "Design it in Studio" link under it (suggest_designs) */
+.bossy-card-row { display: flex; flex-direction: column; gap: 0.3rem; }
+.bossy-studio {
+  align-self: flex-start; padding: 0.35rem 0.75rem; border-radius: 999px;
+  background: var(--purple-fill); color: var(--on-purple); text-decoration: none;
+  font: 600 var(--text-xs) / 1.2 var(--font-body);
+}
+.bossy-studio:hover { background: var(--purple-hover); }
+.bossy-studio:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
 
 .bossy-form { display: flex; gap: 0.5rem; padding: 0.6rem; border-top: 1px solid var(--border-soft); background: var(--surface); }
 .bossy-input {

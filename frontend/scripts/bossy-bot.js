@@ -152,7 +152,16 @@
       const info = el('span');
       info.append(el('span', 'bossy-card-name', p.name), el('br'), el('span', 'bossy-card-price', priceText(p)));
       a.append(img, info);
-      wrap.append(a);
+      if (typeof p.studio_link === 'string' && p.studio_link) {
+        const row = el('div', 'bossy-card-row');
+        const studio = el('a', 'bossy-studio', 'Design it in Studio');
+        studio.href = p.studio_link;
+        studio.setAttribute('aria-label', `Design ${p.name} in Studio`);
+        row.append(a, studio);
+        wrap.append(row);
+      } else {
+        wrap.append(a);
+      }
     }
     return wrap;
   }

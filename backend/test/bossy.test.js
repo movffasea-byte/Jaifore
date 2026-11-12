@@ -362,6 +362,65 @@ describe('tools', () => {
     expect(res.body.actions).toEqual([{ type: 'open_contact' }]);
   });
 
+  describe('suggest_designs', () => {
+    const SWEATS = { id: 21, name: 'Jogger Sweatpants', description: 'Fleece', price: '40.00', image_url: 's.jpg',
+      thumb_url: null, in_stock: true, stock: 20 };
+    const FAITH = { id: 31, name: 'Know God Know Peace', description: 'Faith print', image_url: 'f.jpg',
+      thumb_url: 'ft.jpg', print_size_ids: [1] };
+    const runSuggest = async (input, { garments = [SWEATS], designs = [FAITH] } = {}) => {
+      mockQuery.mockImplementation(async (sql) => {
+        if (/print_pricing/.test(sql)) return { rows: PRINTS };
+        if (/print_size_ids/.test(sql)) return { rows: designs };
+        return { rows: garments };
+      });
+      mockCreate
+        .mockResolvedValueOnce(toolUse('suggest_designs', input))
+        .mockResolvedValueOnce(text('Try these.'));
+      const res = await chat({ message: 'what design for sweatpants?' });
+      const second = mockCreate.mock.calls[1][0].messages;
+      const block = second[second.length - 1].content[0];
+      return { res, block, result: block.is_error ? null : JSON.parse(block.content) };
+    };
+    const paramsFor = (re) => mockQuery.mock.calls.find(([sql]) => re.test(sql))[1];
+
+    test('sweatpants: leg placements, garment cards with a Studio link, design cards without', async () => {
+      const { res, result } = await runSuggest({ garment: 'sweatpants' });
+      expect(result.garment_type).toBe('sweatpants');
+      expect(result.placements.map((p) => p.spot)).toContain('Left thigh');
+      expect(result.print_sizes.map((s) => s.size_label)).toEqual(['Small', 'Large']);
+      expect(result.designs[0].print_sizes.map((s) => s.size_label)).toEqual(['Small']);
+      expect(paramsFor(/ILIKE ANY/)).toEqual(['Apparels & Merchandise', expect.arrayContaining(['%sweatpant%', '%jogger%']), 4]);
+
+      const [garmentCards, designCards] = res.body.actions;
+      expect(garmentCards.items[0].studio_link).toContain('configurator.html?product=21');
+      expect(designCards.items[0]).toMatchObject({ id: 31, category: 'design', image_url: 'ft.jpg' });
+      expect(designCards.items[0].studio_link).toBeUndefined();
+    });
+
+    test('style words narrow the design search', async () => {
+      await runSuggest({ garment: 'hoodie', style: 'faith peace' });
+      expect(paramsFor(/print_size_ids/)).toEqual(['Graphic Design', ['%faith%', '%peace%'], 4]);
+    });
+
+    test('"sweatshirt" is a hoodie, not a tee', async () => {
+      const { result } = await runSuggest({ garment: 'sweatshirt' });
+      expect(result.garment_type).toBe('hoodie');
+    });
+
+    test('an unknown garment searches its own name and says the placements are general', async () => {
+      const { res, result } = await runSuggest({ garment: 'apron' }, { garments: [] });
+      expect(result.garment_type).toBeNull();
+      expect(result.placements_note).toMatch(/unknown garment/i);
+      expect(paramsFor(/ILIKE ANY/)[1]).toEqual(['%apron%']);
+      expect(res.body.actions.every((a) => a.items.every((i) => i.category === 'design'))).toBe(true);
+    });
+
+    test('a missing garment is an is_error result', async () => {
+      const { block } = await runSuggest({});
+      expect(block.is_error).toBe(true);
+    });
+  });
+
   test('unknown tool and DB failure become is_error results, not crashes', async () => {
     mockQuery.mockRejectedValue(new Error('db down'));
     mockCreate
@@ -391,8 +450,8 @@ describe('tools', () => {
   test('tool definitions are sent with caching on the last one', async () => {
     await chat({ message: 'hi' });
     const { tools } = mockCreate.mock.calls[0][0];
-    expect(tools.map((t) => t.name)).toEqual(['search_products', 'get_print_pricing', 'get_shipping_rules', 'open_contact']);
-    expect(tools[3].cache_control).toEqual({ type: 'ephemeral' });
+    expect(tools.map((t) => t.name)).toEqual(['search_products', 'suggest_designs', 'get_print_pricing', 'get_shipping_rules', 'open_contact']);
+    expect(tools[4].cache_control).toEqual({ type: 'ephemeral' });
     expect(tools[0].cache_control).toBeUndefined();
   });
 
