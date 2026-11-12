@@ -1167,7 +1167,7 @@ async function openQrStats(id, title) {
           label: 'Scans',
           data: values.length ? values : [0],
           borderColor: '#7fe8b8',
-          backgroundColor: 'rgba(127, 232, 184, 0.18)',
+          backgroundColor: 'rgba(10, 237, 227, 0.18)',
           fill: true,
           tension: 0.3,
         }]

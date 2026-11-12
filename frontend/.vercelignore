@@ -8,3 +8,7 @@ package-lock.json
 /images/*.jpeg
 /images/*.png
 /images/*.webp
+
+# Full-size masters for the logo and Bossy Bot; only their small copies are deployed
+/logo/rooted3.png
+/images/bossy/148.png

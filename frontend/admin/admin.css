@@ -11,11 +11,11 @@
   --surface:   #12101f;
   --surface2:  #1a1730;
   --border:    #2c2745;
-  --purple:    #7b5cb0;   /* logo violet — white text on it is >= 4.5:1 */
-  --purple-lt: #c6aef0;   /* links / accents on dark */
-  --teal:      #7fe8b8;   /* logo mint */
-  --blue:      #f2a9d0;   /* logo pink (name kept) */
-  --sage:      #cfd8b0;   /* logo cream-sage rope */
+  --purple:    #8932bb;   /* logo violet — white text on it is >= 4.5:1 */
+  --purple-lt: #c48ae6;   /* links / accents on dark */
+  --teal:      #0aede3;   /* logo teal */
+  --blue:      #f26efe;   /* logo pink (name kept) */
+  --sage:      #f8f6e0;   /* logo cream rope */
   --ink:       #edebf5;
   --ink-muted: #b4b0c4;
   --danger:    #f06a6a;
@@ -433,7 +433,7 @@ body {
 .badge-pending  { background: #78350f22; color: #f59e0b; border: 1px solid #f59e0b44; }
 .badge-success  { background: #14532d22; color: #4ade80; border: 1px solid #4ade8044; }
 .badge-failed   { background: #7f1d1d22; color: #f87171; border: 1px solid #f8717144; }
-.badge-admin    { background: rgba(123, 92, 176, 0.2); color: var(--purple-lt); border: 1px solid rgba(198, 174, 240, 0.35); }
+.badge-admin    { background: rgba(137, 50, 187, 0.2); color: var(--purple-lt); border: 1px solid rgba(198, 174, 240, 0.35); }
 .badge-user     { background: var(--surface2); color: var(--ink-muted); border: 1px solid var(--border); }
 
 .action-btn {
@@ -869,9 +869,9 @@ body {
   --glass-bg-1:       #06050c;
   --glass-bg-2:       #14102a;
   --glass-bg-3:       #07161a;
-  --blob-purple:      rgba(123, 92, 176, 0.48);
-  --blob-blue:        rgba(242, 169, 208, 0.20);   /* pink glow from the logo (var name kept) */
-  --blob-pink:        rgba(127, 232, 184, 0.20);   /* mint glow from the logo (var name kept) */
+  --blob-purple:      rgba(137, 50, 187, 0.48);
+  --blob-blue:        rgba(242, 110, 254, 0.20);   /* pink glow from the logo (var name kept) */
+  --blob-pink:        rgba(10, 237, 227, 0.20);   /* mint glow from the logo (var name kept) */
 
   /* panels */
   --glass-fill:       rgba(26, 22, 48, 0.58);
@@ -885,7 +885,7 @@ body {
 
   /* text — raised from #888 so it stays >= 4.5:1 on glass */
   --ink-muted:        #b4b0c4;
-  --purple-hover:     #694b9c;                   /* white text stays >= 4.5:1 */
+  --purple-hover:     #742aa0;                   /* white text stays >= 4.5:1 */
 }
 
 body {
@@ -985,7 +985,7 @@ body::before {
 .badge-pending  { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); }
 .badge-success  { background: rgba(74, 222, 128, 0.14); color: #6ee7a0; border-color: rgba(110, 231, 160, 0.4); }
 .badge-failed   { background: rgba(248, 113, 113, 0.16); color: #fca5a5; border-color: rgba(252, 165, 165, 0.4); }
-.badge-admin    { background: rgba(123, 92, 176, 0.22); color: #ddd0f5; border-color: rgba(221, 208, 245, 0.4); }
+.badge-admin    { background: rgba(137, 50, 187, 0.22); color: #ddd0f5; border-color: rgba(221, 208, 245, 0.4); }
 .badge-user     { background: rgba(255, 255, 255, 0.08); color: var(--ink-muted); border-color: var(--glass-border); }
 .badge-lowstock { background: rgba(245, 158, 11, 0.16);  color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); }
 

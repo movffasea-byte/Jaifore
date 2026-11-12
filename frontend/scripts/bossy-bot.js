@@ -161,7 +161,7 @@
     thread.replaceChildren();
 
     const greet = el('div', 'bossy-greet');
-    greet.append(picture('bossy-full', 215, 400, 'Bossy Bot', ''), el('span', null, GREETING));
+    greet.append(picture('bossy-full', 262, 400, 'Bossy Bot', ''), el('span', null, GREETING));
     const gi = greet.querySelector('img'); gi.loading = 'lazy';
     thread.append(greet);
 
@@ -267,7 +267,7 @@
   function loadFullImage() {
     if (fullImageLoaded) return;
     fullImageLoaded = true;
-    avatarSlot.replaceWith(picture('bossy-full', 215, 400, 'Bossy Bot', 'bossy-avatar'));
+    avatarSlot.replaceWith(picture('bossy-full', 262, 400, 'Bossy Bot', 'bossy-avatar'));
     render();
   }
 

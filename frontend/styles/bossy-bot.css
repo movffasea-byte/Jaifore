@@ -11,7 +11,7 @@
   --bossy-size: 80px;
   --bossy-edge: 1.75rem;
   --bossy-bottom: calc(1.75rem + env(safe-area-inset-bottom));
-  --bossy-ink: #000;             /* the mascot art has a pure black background */
+  --bossy-ink: #000;             /* dark backdrop behind the mascot badge and header */
 }
 :root.bossy-calm { --bossy-size: 60px; }
 body.has-tabbar { --bossy-bottom: calc(64px + 12px + env(safe-area-inset-bottom)); }
@@ -54,7 +54,7 @@ body:has(#bossyLauncher) .back-to-top-btn {
 .bossy-glow {
   position: absolute; inset: -22%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(193, 60, 240, 0.55) 0%, rgba(61, 220, 46, 0.25) 45%, transparent 70%);
+  background: radial-gradient(circle, rgba(242, 110, 254, 0.55) 0%, rgba(115, 237, 15, 0.25) 45%, transparent 70%);
   opacity: 0.35;
   pointer-events: none;
   animation: bossy-glow 3.6s ease-in-out infinite;

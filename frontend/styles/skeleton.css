@@ -14,7 +14,7 @@
   --skel-radius: 8px;
   --skel-ink:    var(--ink, #14121c);
   --skel-muted:  var(--muted, #6b6779);
-  --skel-accent: var(--purple-dark, #5d0f78);
+  --skel-accent: var(--purple-dark, #561a78);
 }
 
 .skel {

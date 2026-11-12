@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const current = window.location.pathname.split('/').pop();
   document.querySelectorAll('.footer-legal a').forEach(link => {
     if (link.getAttribute('href') === current) {
-      link.style.color = '#8a1fa8';
+      link.style.color = '#8932bb';
       link.style.fontWeight = '700';
     }
   });

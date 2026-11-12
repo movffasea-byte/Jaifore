@@ -3,10 +3,10 @@
    frontend/styles/tokens.css
 
    The one place to change the brand. Load this FIRST on every page.
-   Colours come from the logo (logo/jaifore-source.jpg): the neon purple rope
-   and green rope on a gunmetal anchor. Neon green and its tints are
+   Colours come from the logo (logo/rooted3.png): neon purple, teal,
+   lime green and cream rope on a black anchor. Neon green, teal and their tints are
    decoration only — they do not pass contrast as text on white; use
-   --green-deep for green text.
+   --green-deep or --teal-deep for green or teal text.
 
    Dark mode: the full dark set is defined below under [data-theme="dark"].
    scripts/theme.js sets data-theme on <html> from the 3-way toggle
@@ -14,19 +14,21 @@
    ================================ */
 :root {
   /* ── Brand ─────────────────────────────────────── */
-  --purple:        #8a1fa8;   /* primary: buttons, links, accents */
-  --purple-dark:   #5d0f78;   /* pressed / strong accents / text on tint */
-  --purple-hover:  #741a90;
-  --purple-soft:   #d27be8;   /* links on dark backgrounds */
-  --purple-tint:   #f6e9fb;   /* selected / highlighted backgrounds */
+  --purple:        #8932bb;   /* primary: buttons, links, accents */
+  --purple-dark:   #561a78;   /* pressed / strong accents / text on tint */
+  --purple-hover:  #742aa0;
+  --purple-soft:   #d29af5;   /* links on dark backgrounds */
+  --purple-tint:   #f3eafa;   /* selected / highlighted backgrounds */
   --purple-light:  var(--purple-hover);  /* legacy name used by services.css */
-  --purple-dim:    rgba(138, 31, 168, 0.08);
-  --purple-glow:   rgba(138, 31, 168, 0.20);
-  --green:         #3ddc2e;   /* neon green rope: decoration, text on dark */
-  --green-deep:    #1f7a1a;   /* green text on light surfaces (>= 4.5:1) */
-  --magenta:       #c13cf0;   /* neon purple glow */
-  --teal:          var(--green);    /* legacy names kept for old rules */
-  --blue:          var(--magenta);
+  --purple-dim:    rgba(137, 50, 187, 0.08);
+  --purple-glow:   rgba(137, 50, 187, 0.20);
+  --green:         #73ed0f;   /* neon green rope: decoration, text on dark */
+  --green-deep:    #2f7a0a;   /* green text on light surfaces (>= 4.5:1) */
+  --magenta:       #f26efe;   /* neon pink-purple glow */
+  --teal:          #0aede3;   /* neon teal rope: decoration, text on dark */
+  --teal-deep:     #087571;   /* teal text on light surfaces (>= 4.5:1) */
+  --cream:         #f8f6e0;   /* cream rope / logo lettering */
+  --blue:          var(--teal);     /* legacy name: second gradient stop */
   --sage:          #8fe07f;
   --on-purple:     #ffffff;   /* text on --purple */
   --purple-fill:   var(--purple);   /* button fills; darker in dark mode so white text passes 4.5:1 */
@@ -102,7 +104,7 @@
   --shadow-sm:    0 1px 3px rgba(20, 18, 28, 0.08);
   --shadow-md:    0 4px 18px rgba(20, 18, 28, 0.10);
   --shadow-lg:    0 12px 40px rgba(20, 18, 28, 0.18);
-  --shadow-nav:   0 4px 24px rgba(138, 31, 168, 0.12);
+  --shadow-nav:   0 4px 24px rgba(137, 50, 187, 0.12);
   --shadow-hard:  4px 4px 0 var(--ink);   /* editorial card hover */
 
   /* ── Layers ────────────────────────────────────── */
@@ -129,14 +131,14 @@
 /* ── Dark theme (switched on by data-theme="dark") ── */
 [data-theme="dark"] {
   color-scheme: dark;
-  --purple-fill:   #8a1fa8;
-  --purple:        #c46ae0;
-  --purple-dark:   #e3b4f2;
-  --purple-hover:  #741a90;
-  --purple-soft:   #d27be8;
-  --purple-tint:   #27102f;
-  --purple-dim:    rgba(196, 106, 224, 0.14);
-  --purple-glow:   rgba(196, 106, 224, 0.30);
+  --purple-fill:   #8932bb;
+  --purple:        #c48ae6;
+  --purple-dark:   #e0c5f2;
+  --purple-hover:  #742aa0;
+  --purple-soft:   #d29af5;
+  --purple-tint:   #24112f;
+  --purple-dim:    rgba(196, 138, 230, 0.14);
+  --purple-glow:   rgba(196, 138, 230, 0.30);
   --bg:            #0b0710;
   --bg-soft:       #150d1d;
   --bg-card:       #150d1d;
