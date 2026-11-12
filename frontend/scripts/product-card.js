@@ -66,7 +66,7 @@ function buildProductCard(product, ctx) {
 
   let actionsHTML;
   if (isApparel) {
-    actionsHTML = `<button class="configure-btn" data-id="${product.id}">🎨 Design</button>
+    actionsHTML = `${product.ready_made ? '' : `<button class="configure-btn" data-id="${product.id}">🎨 Design</button>`}
        <button class="card-action" data-id="${product.id}" ${product.in_stock === false ? 'disabled' : ''}>Add to Cart</button>`;
   } else if (isDesign) {
     actionsHTML = `<button class="card-action" data-id="${product.id}" ${hasPrintSizes ? '' : 'disabled'}>Order Now</button>`;

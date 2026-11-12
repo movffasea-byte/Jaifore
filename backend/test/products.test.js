@@ -30,7 +30,7 @@ const APPAREL = 'Apparels & Merchandise';
 const stored = {
   stock: null, category: APPAREL, second_view: 'back', one_size: false,
   front_male: 'https://jaifore.org/images/a.jpg', back_male: 'https://jaifore.org/images/b.jpg',
-  front_female: null, back_female: null,
+  front_female: null, back_female: null, ready_made: false,
 };
 
 // The first query is the "before" row (PUT) or the INSERT (POST); the
@@ -49,7 +49,7 @@ describe('Studio options on products', () => {
     const res = await request(app).post('/api/products').set(admin)
       .send({ name: 'Mug', category: APPAREL, price: 12 });
     expect(res.status).toBe(201);
-    expect(writeParams().slice(10)).toEqual(['back', false, null, null, null, null]);
+    expect(writeParams().slice(10)).toEqual(['back', false, null, null, null, null, false]);
   });
 
   it('create saves a side view, one size and mockup links', async () => {
@@ -59,7 +59,7 @@ describe('Studio options on products', () => {
     });
     expect(res.status).toBe(201);
     expect(writeParams().slice(10)).toEqual([
-      'side', true, 'https://jaifore.org/images/cap-front-m.jpg', 'https://jaifore.org/images/cap-side-m.jpg', null, null,
+      'side', true, 'https://jaifore.org/images/cap-front-m.jpg', 'https://jaifore.org/images/cap-side-m.jpg', null, null, false,
     ]);
   });
 
@@ -67,8 +67,8 @@ describe('Studio options on products', () => {
     const res = await request(app).put('/api/products/7').set(admin)
       .send({ name: 'Tee', category: APPAREL, price: 15 });
     expect(res.status).toBe(200);
-    expect(writeParams().slice(10, 16)).toEqual([
-      'back', false, stored.front_male, stored.back_male, null, null,
+    expect(writeParams().slice(10, 17)).toEqual([
+      'back', false, stored.front_male, stored.back_male, null, null, false,
     ]);
   });
 
@@ -79,9 +79,20 @@ describe('Studio options on products', () => {
     expect(writeParams().slice(10, 16)).toEqual(['none', true, stored.front_male, null, null, null]);
   });
 
+  it('create and update can mark a product ready-made', async () => {
+    await request(app).post('/api/products').set(admin)
+      .send({ name: 'Anchor Tee', category: APPAREL, price: 30.88, ready_made: true });
+    expect(writeParams()[16]).toBe(true);
+    mockQuery.mockClear();
+    await request(app).put('/api/products/7').set(admin)
+      .send({ name: 'Anchor Tee', category: APPAREL, price: 30.88, ready_made: true });
+    expect(writeParams()[16]).toBe(true);
+  });
+
   test.each([
     [{ second_view: 'top' }, /Second view/],
     [{ one_size: 'yes' }, /One size/],
+    [{ ready_made: 'true' }, /Ready-made/],
     [{ front_male: 'http://jaifore.org/a.jpg' }, /https/],
     [{ back_female: 'javascript:alert(1)' }, /https/],
   ])('rejects bad input %j', async (extra, msg) => {

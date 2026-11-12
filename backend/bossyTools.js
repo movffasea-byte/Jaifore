@@ -244,7 +244,7 @@ async function suggestDesigns({ garment, style } = {}) {
   const garmentRows = (await pool.query(
     `SELECT id, name, description, price, image_url, thumb_url, in_stock, stock
        FROM products
-      WHERE category = $1 AND (name ILIKE ANY($2) OR description ILIKE ANY($2))
+      WHERE category = $1 AND NOT ready_made AND (name ILIKE ANY($2) OR description ILIKE ANY($2))
       ORDER BY created_at DESC LIMIT $3`,
     [CATEGORIES.apparel, words.map((w) => `%${w}%`), MAX_SUGGESTED_GARMENTS]
   )).rows;

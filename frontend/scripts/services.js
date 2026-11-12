@@ -571,7 +571,7 @@ async function openModal(product, category) {
     ? `<button class="modal-link modal-enquire-btn" type="button" style="background:none;border:none;cursor:pointer;padding:0;font:inherit">✉ Enquire About This Site →</button>
        ${liveLinkHref ? `<a href="${liveLinkHref}" target="_blank" class="modal-link">🌐 Visit Live Site →</a>` : ''}`
     : isApparel
-      ? `<button class="modal-configure-btn" onclick="window.location.href='configurator.html?product=${product.id}'">🎨 Design It in Studio</button>
+      ? `${product.ready_made ? '' : `<button class="modal-configure-btn" onclick="window.location.href='configurator.html?product=${product.id}'">🎨 Design It in Studio</button>`}
          <button class="modal-add-btn" ${product.in_stock === false ? 'disabled' : ''}>Add to Cart</button>`
       : `<button class="modal-add-btn" ${hasPrintSizes ? '' : 'disabled'}>Order Now</button>`;
 

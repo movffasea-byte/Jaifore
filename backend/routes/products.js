@@ -43,9 +43,10 @@ function readStudioFields(body) {
     if (!SECOND_VIEWS.includes(body.second_view)) return { error: 'Second view must be back, side or none.' };
     values.second_view = body.second_view;
   }
-  if (body.one_size !== undefined) {
-    if (typeof body.one_size !== 'boolean') return { error: 'One size must be true or false.' };
-    values.one_size = body.one_size;
+  for (const f of ['one_size', 'ready_made']) {
+    if (body[f] === undefined) continue;
+    if (typeof body[f] !== 'boolean') return { error: `${f === 'one_size' ? 'One size' : 'Ready-made'} must be true or false.` };
+    values[f] = body[f];
   }
   for (const f of MOCKUP_FIELDS) {
     if (body[f] === undefined) continue;
@@ -235,11 +236,11 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO products (name, description, price, category, image_url, back_image, in_stock, stock, live_link, print_size_ids,
-         second_view, one_size, front_male, back_male, front_female, back_female)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+         second_view, one_size, front_male, back_male, front_female, back_female, ready_made)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
       [name, description, priceValue, category, image_url, back_image, inStockValue, stockValue, live_link || null, printSizeIdsValue,
        studio.values.second_view || 'back', studio.values.one_size || false,
-       ...MOCKUP_FIELDS.map(f => studio.values[f] || null)]
+       ...MOCKUP_FIELDS.map(f => studio.values[f] || null), studio.values.ready_made || false]
     );
 
     // New product means every cached "list" view is now stale — clear them all.
@@ -273,7 +274,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     // transition below, and fall back to the stored category if the request
     // didn't send one. The Studio fields fall back to their stored values too.
     const before = await pool.query(
-      `SELECT stock, category, second_view, one_size, front_male, back_male, front_female, back_female
+      `SELECT stock, category, second_view, one_size, front_male, back_male, front_female, back_female, ready_made
        FROM products WHERE id = $1`,
       [req.params.id]
     );
@@ -300,11 +301,12 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     const result = await pool.query(
       `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
        image_url=$5, back_image=$6, in_stock=$7, stock=$8, live_link=$9, print_size_ids=$10,
-       second_view=$11, one_size=$12, front_male=$13, back_male=$14, front_female=$15, back_female=$16
-       WHERE id=$17 RETURNING *`,
+       second_view=$11, one_size=$12, front_male=$13, back_male=$14, front_female=$15, back_female=$16,
+       ready_made=$17
+       WHERE id=$18 RETURNING *`,
       [name, description, priceValue, effectiveCategory, image_url, back_image, resolvedInStock, stockValue, live_link || null, printSizeIdsValue,
        keep('second_view') || 'back', keep('one_size') ?? false,
-       ...MOCKUP_FIELDS.map(keep), req.params.id]
+       ...MOCKUP_FIELDS.map(keep), keep('ready_made') ?? false, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found.' });
 

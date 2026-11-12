@@ -84,7 +84,7 @@ async function priceCart(rawItems) {
 
   const [productRes, printRes, catalogRes] = await Promise.all([
     pool.query(
-      `SELECT id, name, price, category, in_stock, stock, image_url, front_male, print_size_ids, second_view, one_size
+      `SELECT id, name, price, category, in_stock, stock, image_url, front_male, print_size_ids, second_view, one_size, ready_made
        FROM products WHERE id = ANY($1::int[])`,
       [productIds]
     ),
@@ -146,6 +146,11 @@ async function priceCart(rawItems) {
       });
       unitCents = priced.unitCents;
       designs   = priced.designs;
+
+      // Ready-made shirts are sold exactly as shown.
+      if (product.ready_made && designs.length) {
+        throw new CartError(`"${product.name}" is a ready-made Jai'fore piece and can't carry extra designs. Please remove it and add it again.`);
+      }
 
       if (designs.length) {
         const g = String(raw.gender || '').toLowerCase();

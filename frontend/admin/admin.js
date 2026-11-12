@@ -514,6 +514,7 @@ const STUDIO_IMAGE_FIELDS = [
 function setStudioFields(p) {
   document.getElementById('pSecondView').value = p.second_view || 'back';
   document.getElementById('pOneSize').value    = p.one_size ? 'true' : 'false';
+  document.getElementById('pReadyMade').value  = p.ready_made ? 'true' : 'false';
   STUDIO_IMAGE_FIELDS.forEach(([elId, key]) => { document.getElementById(elId).value = p[key] || ''; });
 }
 
@@ -593,6 +594,7 @@ document.getElementById('saveProductBtn').addEventListener('click', async () => 
     body.stock      = stockRaw === '' ? null : parseInt(stockRaw, 10);
     body.second_view = document.getElementById('pSecondView').value;
     body.one_size    = document.getElementById('pOneSize').value === 'true';
+    body.ready_made  = document.getElementById('pReadyMade').value === 'true';
     STUDIO_IMAGE_FIELDS.forEach(([elId, key]) => { body[key] = document.getElementById(elId).value.trim(); });
     body.print_size_ids = Array.from(selectedPrintSizeIds);
 

@@ -472,6 +472,10 @@ function showGenderModal() {
 // second_view: 'back' (default), 'side' (caps) or 'none' (cups, bags).
 // one_size: swap the XS-XXL picker for a fixed "One Size".
 function applyStudioOptions() {
+  if (product.ready_made) {
+    location.replace('category.html?cat=apparel');
+    return;
+  }
   const secondBtn = document.querySelector('.view-btn[data-view="back"]');
   if (secondBtn) {
     if (product.second_view === 'none') secondBtn.hidden = true;
