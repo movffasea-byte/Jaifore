@@ -15,7 +15,14 @@ const MOCKUPS = {
 const PRINT_ZONES = {
   front: { top: '22%', left: '25%', width: '50%', height: '30%' },
   back:  { top: '18%', left: '20%', width: '60%', height: '38%' },
+  side:  { top: '30%', left: '30%', width: '40%', height: '25%' }, // caps
 };
+
+// The second view keeps the 'back' key internally (designsByView, saved
+// drafts and carts); a product with second_view 'side' just shows it as Side.
+function zoneFor(view) {
+  return (view === 'back' && product?.second_view === 'side') ? PRINT_ZONES.side : PRINT_ZONES[view];
+}
 
 // ── STATE ───────────────────────────────────────────
 let product           = null;
@@ -237,6 +244,15 @@ async function init() {
       uploadFee     = parseFloat((cheapestPrice / 2).toFixed(2));
     }
 
+    // A product can limit its print sizes (caps and cups offer one). The
+    // upload fee above still uses the cheapest size overall, as checkout does.
+    const allowedIds = (product.print_sizes || []).map(s => s.id);
+    if (allowedIds.length) {
+      printPricing = printPricing.filter(p => allowedIds.includes(p.id));
+      if (printPricing.length === 1) lastPrintSize = printPricing[0];
+    }
+    applyStudioOptions();
+
     renderPrintSizes();
 
     MOCKUPS.male.front   = product.front_male   || product.image_url || '';
@@ -452,6 +468,27 @@ function showGenderModal() {
   requestAnimationFrame(() => overlay.classList.add('visible'));
 }
 
+// ── PER-PRODUCT STUDIO OPTIONS ───────────────────────
+// second_view: 'back' (default), 'side' (caps) or 'none' (cups, bags).
+// one_size: swap the XS-XXL picker for a fixed "One Size".
+function applyStudioOptions() {
+  const secondBtn = document.querySelector('.view-btn[data-view="back"]');
+  if (secondBtn) {
+    if (product.second_view === 'none') secondBtn.hidden = true;
+    else if (product.second_view === 'side') secondBtn.textContent = 'Side';
+  }
+
+  if (product.one_size) {
+    selectedSize = 'One Size';
+    const row = document.querySelector('.size-row');
+    const section = row?.closest('.panel-section');
+    if (section) {
+      section.querySelector('.size-guide-link')?.remove();
+      row.innerHTML = '<button class="sz-btn selected" type="button" disabled>One Size</button>';
+    }
+  }
+}
+
 // ── SELECT GENDER ─────────────────────────────────────
 function selectGender(gender) {
   currentGender = gender;
@@ -542,7 +579,7 @@ function setView(view) {
 
   const zone = document.getElementById('printZone');
   if (zone) {
-    const z = PRINT_ZONES[view];
+    const z = zoneFor(view);
     zone.style.top    = z.top;
     zone.style.left   = z.left;
     zone.style.width  = z.width;
@@ -730,7 +767,7 @@ function addDesign(src, name, price = 0) {
   const cw = container.offsetWidth;
   const ch = container.offsetHeight;
 
-  const zone  = PRINT_ZONES[currentView];
+  const zone  = zoneFor(currentView);
   const zLeft = parseFloat(zone.left)   / 100 * cw;
   const zTop  = parseFloat(zone.top)    / 100 * ch;
   const zW    = parseFloat(zone.width)  / 100 * cw;

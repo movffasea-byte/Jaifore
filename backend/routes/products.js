@@ -32,6 +32,33 @@ function checkLowStockTransition(oldStock, newStock) {
   return oldStock > LOW_STOCK_THRESHOLD && newStock <= LOW_STOCK_THRESHOLD;
 }
 
+// Studio options (migration 005) and the four mockup photos. Returns
+// { values } with only the fields the request sent, or { error }.
+// Fields left out are untouched on update and default on create.
+const SECOND_VIEWS = ['back', 'side', 'none'];
+const MOCKUP_FIELDS = ['front_male', 'back_male', 'front_female', 'back_female'];
+function readStudioFields(body) {
+  const values = {};
+  if (body.second_view !== undefined) {
+    if (!SECOND_VIEWS.includes(body.second_view)) return { error: 'Second view must be back, side or none.' };
+    values.second_view = body.second_view;
+  }
+  if (body.one_size !== undefined) {
+    if (typeof body.one_size !== 'boolean') return { error: 'One size must be true or false.' };
+    values.one_size = body.one_size;
+  }
+  for (const f of MOCKUP_FIELDS) {
+    if (body[f] === undefined) continue;
+    const v = typeof body[f] === 'string' ? body[f].trim() : body[f];
+    if (v === null || v === '') { values[f] = null; continue; }
+    if (typeof v !== 'string' || v.length > 500 || !/^https:\/\/\S+$/.test(v)) {
+      return { error: 'Mockup images must be https links.' };
+    }
+    values[f] = v;
+  }
+  return { values };
+}
+
 function fireLowStockAlert(product) {
   sendLowStockAlert(product).catch(e => {
     console.error('[mailer] Low stock alert failed:', e.message);
@@ -191,6 +218,8 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   if (categoryRequiresPrice(category) && !price) {
     return res.status(400).json({ error: 'Price is required for Apparel & Merchandise.' });
   }
+  const studio = readStudioFields(req.body);
+  if (studio.error) return res.status(400).json({ error: studio.error });
 
   try {
     const tracked = tracksStock(category);
@@ -205,9 +234,12 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     const inStockValue = tracked ? (in_stock ?? true) : true;
 
     const result = await pool.query(
-      `INSERT INTO products (name, description, price, category, image_url, back_image, in_stock, stock, live_link, print_size_ids)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [name, description, priceValue, category, image_url, back_image, inStockValue, stockValue, live_link || null, printSizeIdsValue]
+      `INSERT INTO products (name, description, price, category, image_url, back_image, in_stock, stock, live_link, print_size_ids,
+         second_view, one_size, front_male, back_male, front_female, back_female)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+      [name, description, priceValue, category, image_url, back_image, inStockValue, stockValue, live_link || null, printSizeIdsValue,
+       studio.values.second_view || 'back', studio.values.one_size || false,
+       ...MOCKUP_FIELDS.map(f => studio.values[f] || null)]
     );
 
     // New product means every cached "list" view is now stale — clear them all.
@@ -233,12 +265,20 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   if (categoryRequiresPrice(category) && !price) {
     return res.status(400).json({ error: 'Price is required for Apparel & Merchandise.' });
   }
+  const studio = readStudioFields(req.body);
+  if (studio.error) return res.status(400).json({ error: studio.error });
 
   try {
     // Fetch the pre-update stock (and category) so we can detect a low-stock
     // transition below, and fall back to the stored category if the request
-    // didn't send one.
-    const before = await pool.query('SELECT stock, category FROM products WHERE id = $1', [req.params.id]);
+    // didn't send one. The Studio fields fall back to their stored values too.
+    const before = await pool.query(
+      `SELECT stock, category, second_view, one_size, front_male, back_male, front_female, back_female
+       FROM products WHERE id = $1`,
+      [req.params.id]
+    );
+    const prev = before.rows[0] || {};
+    const keep = f => (f in studio.values ? studio.values[f] : (prev[f] ?? null));
     const oldStock = before.rows.length ? before.rows[0].stock : null;
     const effectiveCategory = category || (before.rows.length ? before.rows[0].category : null);
     const tracked = tracksStock(effectiveCategory);
@@ -259,9 +299,12 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 
     const result = await pool.query(
       `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
-       image_url=$5, back_image=$6, in_stock=$7, stock=$8, live_link=$9, print_size_ids=$10
-       WHERE id=$11 RETURNING *`,
-      [name, description, priceValue, effectiveCategory, image_url, back_image, resolvedInStock, stockValue, live_link || null, printSizeIdsValue, req.params.id]
+       image_url=$5, back_image=$6, in_stock=$7, stock=$8, live_link=$9, print_size_ids=$10,
+       second_view=$11, one_size=$12, front_male=$13, back_male=$14, front_female=$15, back_female=$16
+       WHERE id=$17 RETURNING *`,
+      [name, description, priceValue, effectiveCategory, image_url, back_image, resolvedInStock, stockValue, live_link || null, printSizeIdsValue,
+       keep('second_view') || 'back', keep('one_size') ?? false,
+       ...MOCKUP_FIELDS.map(keep), req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found.' });
 

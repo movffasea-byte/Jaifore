@@ -103,6 +103,16 @@ describe('priceApparelDesigns', () => {
     ])).toThrow(/every design/i);
   });
 
+  it('a product limited to some print sizes rejects any other size', () => {
+    const limited = { allowedPrintIds: [1] };
+    expect(price([{ name: 'Lion', src: CATALOG_URL, printSize: { id: 1 } }], limited).unitCents).toBe(1500 + 200);
+    expect(() => price([{ name: 'Lion', src: CATALOG_URL, printSize: { id: 3 } }], limited)).toThrow(PricingError);
+  });
+
+  it('an empty print-size list means every size is allowed', () => {
+    expect(price([{ name: 'Lion', src: CATALOG_URL, printSize: { id: 3 } }], { allowedPrintIds: [] }).unitCents).toBe(1500 + 800);
+  });
+
   it('cleans design fields and keeps the position data', () => {
     const r = price([{ name: '  Lion  ', src: CATALOG_URL, viewKey: 'male_front', x: '10', y: 5, w: 50, h: 40, printSize: { id: 1 } }]);
     expect(r.designs[0]).toMatchObject({ name: 'Lion', viewKey: 'male_front', x: 10, y: 5, w: 50, h: 40 });

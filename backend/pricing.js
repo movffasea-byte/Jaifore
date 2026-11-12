@@ -47,6 +47,7 @@ function priceApparelDesigns({
   productName = 'this item',
   baseCents,
   rawDesigns,
+  allowedPrintIds,
   lineLevelPrint = null,
   prints,
   catalogDesigns,
@@ -64,7 +65,9 @@ function priceApparelDesigns({
   const designs = list.map(d => {
     const sizeId = Number(d?.printSize?.id ?? lineLevelPrint?.id);
     const print  = prints.get(sizeId);
-    if (!print) {
+    // A product may limit its print sizes (e.g. caps and cups offer one).
+    const limited = Array.isArray(allowedPrintIds) && allowedPrintIds.length;
+    if (!print || (limited && !allowedPrintIds.includes(print.id))) {
       throw new PricingError(`Please choose a print size for every design on "${productName}".`);
     }
 

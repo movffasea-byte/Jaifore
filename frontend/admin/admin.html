@@ -223,6 +223,37 @@
               <label>Back Image URL</label>
               <input type="text" id="pBackImage" placeholder="https://jaifore.org/images/BFH&P.jpg"/>
             </div>
+            <div class="field-group cat-field cat-field-apparel">
+              <label>Studio Second View</label>
+              <select id="pSecondView">
+                <option value="back">Back</option>
+                <option value="side">Side (caps)</option>
+                <option value="none">None, front only (cups, bags)</option>
+              </select>
+            </div>
+            <div class="field-group cat-field cat-field-apparel">
+              <label>Garment Sizes</label>
+              <select id="pOneSize">
+                <option value="false">XS to XXL</option>
+                <option value="true">One size</option>
+              </select>
+            </div>
+            <div class="field-group cat-field cat-field-apparel">
+              <label>Studio Front (Male)</label>
+              <input type="text" id="pFrontMale" placeholder="https://jaifore.org/images/tshirt-front-m.jpg"/>
+            </div>
+            <div class="field-group cat-field cat-field-apparel">
+              <label>Studio Back / Side (Male)</label>
+              <input type="text" id="pBackMale" placeholder="https://jaifore.org/images/tshirt-back-m.jpg"/>
+            </div>
+            <div class="field-group cat-field cat-field-apparel">
+              <label>Studio Front (Female)</label>
+              <input type="text" id="pFrontFemale" placeholder="https://jaifore.org/images/tshirt-front-f.jpg"/>
+            </div>
+            <div class="field-group cat-field cat-field-apparel">
+              <label>Studio Back / Side (Female)</label>
+              <input type="text" id="pBackFemale" placeholder="https://jaifore.org/images/tshirt-back-f.jpg"/>
+            </div>
 
             <!-- WEB DEVELOPMENT-ONLY FIELDS -->
             <div class="field-group cat-field cat-field-webdev">
@@ -241,8 +272,8 @@
             </div>
 
            <!-- GRAPHIC DESIGN-ONLY FIELDS -->
-            <div class="field-group full cat-field cat-field-design">
-              <label>Available Print Sizes <span style="color:var(--ink-muted);font-weight:400">(the design itself is free — prices come from Print Pricing)</span></label>
+            <div class="field-group full cat-field cat-field-prints">
+              <label>Available Print Sizes <span id="printSizeHint" style="color:var(--ink-muted);font-weight:400">(the design itself is free — prices come from Print Pricing)</span></label>
               <div id="printSizeCheckboxes" class="print-size-checkboxes"></div>
             </div>
           </div>

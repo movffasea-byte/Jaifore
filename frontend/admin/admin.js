@@ -443,12 +443,20 @@ function updateFormForCategory(category) {
   const apparelFields = document.querySelectorAll('.cat-field-apparel');
   const webdevFields  = document.querySelectorAll('.cat-field-webdev');
   const designFields  = document.querySelectorAll('.cat-field-design');
+  const printFields   = document.querySelectorAll('.cat-field-prints');
+  const withPrints    = category === 'Graphic Design' || category === 'Apparels & Merchandise';
 
   apparelFields.forEach(el => el.classList.toggle('hidden', category !== 'Apparels & Merchandise'));
   webdevFields.forEach(el  => el.classList.toggle('hidden', category !== 'Web Development'));
   designFields.forEach(el  => el.classList.toggle('hidden', category !== 'Graphic Design'));
+  printFields.forEach(el   => el.classList.toggle('hidden', !withPrints));
 
-  if (category === 'Graphic Design') loadPrintSizeCheckboxes();
+  const hint = document.getElementById('printSizeHint');
+  if (hint) hint.textContent = category === 'Apparels & Merchandise'
+    ? '(leave all unticked to offer every size in the Studio)'
+    : '(the design itself is free — prices come from Print Pricing)';
+
+  if (withPrints) loadPrintSizeCheckboxes();
 }
 
 document.getElementById('pCategory').addEventListener('change', (e) => {
@@ -498,6 +506,17 @@ function renderPrintSizeCheckboxes() {
   });
 }
 
+// Studio options for apparel: second view, one size, and the four mockups.
+const STUDIO_IMAGE_FIELDS = [
+  ['pFrontMale', 'front_male'], ['pBackMale', 'back_male'],
+  ['pFrontFemale', 'front_female'], ['pBackFemale', 'back_female'],
+];
+function setStudioFields(p) {
+  document.getElementById('pSecondView').value = p.second_view || 'back';
+  document.getElementById('pOneSize').value    = p.one_size ? 'true' : 'false';
+  STUDIO_IMAGE_FIELDS.forEach(([elId, key]) => { document.getElementById(elId).value = p[key] || ''; });
+}
+
 // Open Add form
 document.getElementById('openAddProduct').addEventListener('click', () => {
   editingProductId = null;
@@ -508,6 +527,7 @@ document.getElementById('openAddProduct').addEventListener('click', () => {
   document.getElementById('pImage').value     = '';
   document.getElementById('pBackImage').value = '';
   document.getElementById('pLiveLink').value  = '';
+  setStudioFields({});
   document.getElementById('pDesc').value      = '';
   document.getElementById('pStock').value     = 'true';
   document.getElementById('pStockCount').value = '';
@@ -529,6 +549,7 @@ async function openEditProduct(id) {
     document.getElementById('pImage').value     = p.image_url  || '';
     document.getElementById('pBackImage').value = p.back_image || '';
     document.getElementById('pLiveLink').value  = p.live_link  || '';
+    setStudioFields(p);
     document.getElementById('pDesc').value      = p.description || '';
     document.getElementById('pStock').value     = p.in_stock ? 'true' : 'false';
     document.getElementById('pStockCount').value = (p.stock === null || p.stock === undefined) ? '' : p.stock;
@@ -570,6 +591,10 @@ document.getElementById('saveProductBtn').addEventListener('click', async () => 
     body.back_image = document.getElementById('pBackImage').value.trim();
     body.in_stock   = document.getElementById('pStock').value === 'true';
     body.stock      = stockRaw === '' ? null : parseInt(stockRaw, 10);
+    body.second_view = document.getElementById('pSecondView').value;
+    body.one_size    = document.getElementById('pOneSize').value === 'true';
+    STUDIO_IMAGE_FIELDS.forEach(([elId, key]) => { body[key] = document.getElementById(elId).value.trim(); });
+    body.print_size_ids = Array.from(selectedPrintSizeIds);
 
     if (!body.price) { msgEl.textContent = 'Price is required for Apparel & Merchandise.'; msgEl.className = 'form-msg error'; return; }
   }

@@ -84,7 +84,7 @@ async function priceCart(rawItems) {
 
   const [productRes, printRes, catalogRes] = await Promise.all([
     pool.query(
-      `SELECT id, name, price, category, in_stock, stock, image_url, front_male, print_size_ids
+      `SELECT id, name, price, category, in_stock, stock, image_url, front_male, print_size_ids, second_view, one_size
        FROM products WHERE id = ANY($1::int[])`,
       [productIds]
     ),
@@ -125,7 +125,7 @@ async function priceCart(rawItems) {
     if (product.category === APPAREL_CATEGORY) {
       categoryKey = 'apparel';
 
-      size = cleanText(raw.size, 12);
+      size = product.one_size ? 'One Size' : cleanText(raw.size, 12);
       if (!size) throw new CartError(`Please choose a size for "${product.name}".`);
       detailParts.push(`Size ${size}`);
 
@@ -138,6 +138,7 @@ async function priceCart(rawItems) {
         productName:    product.name,
         baseCents,
         rawDesigns:     raw.designs,
+        allowedPrintIds: product.print_size_ids,
         lineLevelPrint: raw.printSize,
         prints,
         catalogDesigns,
@@ -150,7 +151,11 @@ async function priceCart(rawItems) {
         const g = String(raw.gender || '').toLowerCase();
         gender = (g === 'male' || g === 'female') ? g : null;
         if (gender) detailParts.push(gender === 'male' ? 'Male' : 'Female');
-        detailParts.push(designs.map(d => `${d.name || 'Design'} (${d.printSize.size_label})`).join(', '));
+        // Say where each design goes; a cap's second view is its side.
+        const where = d => (/_back$/.test(d.viewKey)
+          ? (product.second_view === 'side' ? 'Side' : 'Back')
+          : 'Front');
+        detailParts.push(designs.map(d => `${d.name || 'Design'} (${d.printSize.size_label}, ${where(d)})`).join(', '));
       }
 
       // Stock only exists for apparel. NULL stock = not tracked.
