@@ -2,7 +2,7 @@
   "name": "Jai'fore",
   "short_name": "Jai'fore",
   "description": "Custom apparel, graphic design and web development — designed by you.",
-  "start_url": "/index.html",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

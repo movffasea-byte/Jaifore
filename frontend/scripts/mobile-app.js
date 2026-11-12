@@ -199,7 +199,7 @@
 
   // ── Tab bar ───────────────────────────────────────────────
   const tabs = [
-    { key: 'home',     label: 'Home',     href: 'index.html',    match: /(^|\/)(index\.html)?$/,
+    { key: 'home',     label: 'Home',     href: 'index.html',    match: /(^|\/)(index(\.html)?)?$/,
       icon: '<path d="M3 11l9-8 9 8v10a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1z"/>' },
     { key: 'shop',     label: 'Shop',     href: 'services.html', match: /services|category/,
       icon: '<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>' },
