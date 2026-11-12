@@ -518,6 +518,72 @@ function setStudioFields(p) {
   STUDIO_IMAGE_FIELDS.forEach(([elId, key]) => { document.getElementById(elId).value = p[key] || ''; });
 }
 
+// ── PRODUCT PHOTO UPLOAD ──────────────────────────────
+// Each "Upload" button sends a photo to the product-images bucket as the
+// next free number and fills its link field. The link is then loaded from
+// jaifore.org to prove the site can serve it.
+const PRODUCT_IMAGE_MAX = 6 * 1024 * 1024; // keep in sync with PRODUCT_MAX_BYTES in backend/routes/uploads.js
+let uploadTarget = null;
+
+function setUploadMsg(text, isError = false) {
+  const el = document.getElementById('uploadMsg');
+  el.textContent = text;
+  el.classList.toggle('error', isError);
+}
+
+document.querySelectorAll('[data-upload-for]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    uploadTarget = btn;
+    document.getElementById('productImageFile').click();
+  });
+});
+
+document.getElementById('productImageFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  const btn = uploadTarget;
+  if (!file || !btn) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    setUploadMsg('Choose a JPG, PNG or WEBP photo.', true); return;
+  }
+  if (file.size > PRODUCT_IMAGE_MAX) {
+    setUploadMsg('That photo is over 6MB. Please make it smaller first.', true); return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+  setUploadMsg(`Uploading ${file.name}…`);
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Could not read that file.'));
+      reader.readAsDataURL(file);
+    });
+    const res = await fetch(`${API}/api/uploads/product-image`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ dataUrl }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Upload failed.');
+
+    document.getElementById(btn.dataset.uploadFor).value = data.url;
+    const seen = await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = `${data.url}?check=${Date.now()}`;
+    });
+    setUploadMsg(seen
+      ? `Uploaded as ${data.name}. Save the product to use it.`
+      : `Uploaded as ${data.name}, but the site can't show it yet. Check that the backend's Supabase project is the one the site reads from.`, !seen);
+  } catch (err) {
+    setUploadMsg(err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Upload';
+  }
+});
+
 // Open Add form
 document.getElementById('openAddProduct').addEventListener('click', () => {
   editingProductId = null;

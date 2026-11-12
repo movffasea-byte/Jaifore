@@ -221,7 +221,7 @@
             </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Back Image URL</label>
-              <input type="text" id="pBackImage" placeholder="https://jaifore.org/images/BFH&P.jpg"/>
+              <div class="upload-row"><input type="text" id="pBackImage" placeholder="https://jaifore.org/images/BFH&P.jpg"/><button type="button" class="upload-btn" data-upload-for="pBackImage">Upload</button></div>
             </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Studio Second View</label>
@@ -247,19 +247,19 @@
             </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Studio Front (Male)</label>
-              <input type="text" id="pFrontMale" placeholder="https://jaifore.org/images/tshirt-front-m.jpg"/>
+              <div class="upload-row"><input type="text" id="pFrontMale" placeholder="https://jaifore.org/images/tshirt-front-m.jpg"/><button type="button" class="upload-btn" data-upload-for="pFrontMale">Upload</button></div>
             </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Studio Back / Side (Male)</label>
-              <input type="text" id="pBackMale" placeholder="https://jaifore.org/images/tshirt-back-m.jpg"/>
+              <div class="upload-row"><input type="text" id="pBackMale" placeholder="https://jaifore.org/images/tshirt-back-m.jpg"/><button type="button" class="upload-btn" data-upload-for="pBackMale">Upload</button></div>
             </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Studio Front (Female)</label>
-              <input type="text" id="pFrontFemale" placeholder="https://jaifore.org/images/tshirt-front-f.jpg"/>
+              <div class="upload-row"><input type="text" id="pFrontFemale" placeholder="https://jaifore.org/images/tshirt-front-f.jpg"/><button type="button" class="upload-btn" data-upload-for="pFrontFemale">Upload</button></div>
             </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Studio Back / Side (Female)</label>
-              <input type="text" id="pBackFemale" placeholder="https://jaifore.org/images/tshirt-back-f.jpg"/>
+              <div class="upload-row"><input type="text" id="pBackFemale" placeholder="https://jaifore.org/images/tshirt-back-f.jpg"/><button type="button" class="upload-btn" data-upload-for="pBackFemale">Upload</button></div>
             </div>
 
             <!-- WEB DEVELOPMENT-ONLY FIELDS -->
@@ -271,7 +271,7 @@
             <!-- SHARED (all categories) -->
             <div class="field-group">
               <label>Image URL</label>
-              <input type="text" id="pImage" placeholder="https://jaifore.org/images/FFH&P.jpg"/>
+              <div class="upload-row"><input type="text" id="pImage" placeholder="https://jaifore.org/images/FFH&P.jpg"/><button type="button" class="upload-btn" data-upload-for="pImage">Upload</button></div>
             </div>
             <div class="field-group full">
               <label>Description</label>
@@ -284,6 +284,8 @@
               <div id="printSizeCheckboxes" class="print-size-checkboxes"></div>
             </div>
           </div>
+          <input type="file" id="productImageFile" accept="image/jpeg,image/png,image/webp" hidden/>
+          <p class="upload-msg" id="uploadMsg" role="status"></p>
           <div class="form-actions">
             <button class="btn-primary small" id="saveProductBtn">Save Product</button>
             <button class="btn-ghost small" id="cancelProductBtn">Cancel</button>

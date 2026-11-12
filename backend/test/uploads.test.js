@@ -156,3 +156,53 @@ it('returns 502 and reports to Sentry when Supabase rejects the upload', async (
   expect(Sentry.captureException).toHaveBeenCalled();
   expect(JSON.stringify(res.body)).not.toContain('Bucket not found');
 });
+
+describe('admin product images', () => {
+  const adminToken = jwt.sign({ id: 1, role: 'admin' }, process.env.JWT_SECRET);
+  const JPG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(32)]);
+  const GIF = Buffer.concat([Buffer.from('GIF89a', 'ascii'), Buffer.alloc(32)]);
+  const send = (body, tok = adminToken) => {
+    const r = request(app).post('/api/uploads/product-image');
+    return (tok ? r.set('Authorization', `Bearer ${tok}`) : r).send(body);
+  };
+  const listing = (...names) => ({ data: names.map(name => ({ name })) });
+
+  it('needs an admin', async () => {
+    expect((await send({ dataUrl: dataUrl('image/jpeg', JPG) }, null)).status).toBe(401);
+    expect((await send({ dataUrl: dataUrl('image/jpeg', JPG) }, token)).status).toBe(403);
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it('stores the photo as the next free number and returns the site link', async () => {
+    axios.post.mockResolvedValueOnce(listing('002.png', '150.jpg', '157.jpg', 'cap.jpg', 'tshirt-front-m.jpg'));
+    const res = await send({ dataUrl: dataUrl('image/jpeg', JPG) });
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ name: '158.jpg', url: 'https://jaifore.org/images/158.jpg' });
+    const [url, , opts] = axios.post.mock.calls[1];
+    expect(url).toBe('https://proj.supabase.co/storage/v1/object/product-images/158.jpg');
+    expect(opts.headers['x-upsert']).toBe('false');
+  });
+
+  it('moves to the next number if one was taken meanwhile', async () => {
+    axios.post
+      .mockResolvedValueOnce(listing('10.jpg'))
+      .mockRejectedValueOnce({ response: { status: 409, data: { message: 'The resource already exists' } } })
+      .mockResolvedValueOnce({ status: 200 });
+    const res = await send({ dataUrl: dataUrl('image/jpeg', JPG) });
+    expect(res.status).toBe(201);
+    expect(res.body.name).toBe('12.jpg');
+  });
+
+  it('refuses GIFs and files that are not images', async () => {
+    expect((await send({ dataUrl: dataUrl('image/gif', GIF) })).status).toBe(400);
+    expect((await send({ dataUrl: dataUrl('image/jpeg', PNG) })).status).toBe(400);
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it('reports a storage failure without leaking its message', async () => {
+    axios.post.mockRejectedValueOnce({ response: { status: 404, data: { message: 'Bucket not found' } } });
+    const res = await send({ dataUrl: dataUrl('image/jpeg', JPG) });
+    expect(res.status).toBe(502);
+    expect(JSON.stringify(res.body)).not.toContain('Bucket not found');
+  });
+});

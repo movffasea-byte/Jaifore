@@ -1115,3 +1115,23 @@ body::before {
 .bossy-msg--user { align-self: flex-end; background: var(--purple); color: #fff; border-bottom-right-radius: 4px; }
 .bossy-msg--bot { align-self: flex-start; background: var(--surface2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
 .bossy-tool { align-self: flex-start; max-width: 85%; padding: 0.3rem 0.7rem; border: 1px dashed var(--border); border-radius: 8px; color: var(--ink-muted); font: 0.75rem ui-monospace, monospace; overflow-wrap: anywhere; }
+
+/* Upload button beside each product image link */
+.upload-row { display: flex; gap: 8px; }
+.upload-row input { flex: 1; min-width: 0; }
+.upload-btn {
+  flex: none;
+  padding: 0 14px;
+  border: 1px solid var(--purple-lt);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--purple-lt);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.upload-btn:hover:not(:disabled) { background: var(--surface2); }
+.upload-btn:focus-visible { outline: 2px solid var(--purple-lt); outline-offset: 2px; }
+.upload-btn:disabled { opacity: .6; cursor: progress; }
+.upload-msg { min-height: 1.2em; margin: 4px 0 0; font-size: .85rem; color: var(--ink-muted); }
+.upload-msg.error { color: var(--danger); }
