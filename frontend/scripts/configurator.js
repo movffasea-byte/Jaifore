@@ -832,8 +832,9 @@ function makeDraggable(el, design) {
 
     function onMove(e) {
       moved = true;
-      design.x = Math.max(0, Math.min(cw - design.w, startL + (e.clientX - startX)));
-      design.y = Math.max(0, Math.min(ch - design.h, startT + (e.clientY - startY)));
+      // Pointer moves in screen pixels; the canvas is scaled by zoomLevel.
+      design.x = Math.max(0, Math.min(cw - design.w, startL + (e.clientX - startX) / zoomLevel));
+      design.y = Math.max(0, Math.min(ch - design.h, startT + (e.clientY - startY) / zoomLevel));
       el.style.left = design.x + 'px';
       el.style.top  = design.y + 'px';
     }
@@ -856,8 +857,8 @@ function makeResizable(el, design) {
     const startW = design.w,  startH = design.h;
 
     function onMove(e) {
-      design.w = Math.max(40, startW + (e.clientX - startX));
-      design.h = Math.max(40, startH + (e.clientY - startY));
+      design.w = Math.max(40, startW + (e.clientX - startX) / zoomLevel);
+      design.h = Math.max(40, startH + (e.clientY - startY) / zoomLevel);
       el.style.width  = design.w + 'px';
       el.style.height = design.h + 'px';
     }
@@ -1212,11 +1213,17 @@ document.getElementById('saveForLaterBtn')?.addEventListener('click', async () =
 });
 
 // ── ZOOM ─────────────────────────────────────────────
-function applyZoom() {
+// Caps (second_view 'side') get auto-fit: the frame keeps its size and the
+// photo zooms in so the small print area fills it.
+function autoFitProduct() {
+  return product?.second_view === 'side';
+}
+
+function applyZoom(animate = true) {
   document.getElementById('zoomLabel').textContent = `${Math.round(zoomLevel * 100)}%`;
 
   const container = document.getElementById('canvasContainer');
-  container.style.transition      = 'transform 0.2s ease';
+  container.style.transition      = animate ? 'transform 0.2s ease' : 'none';
   container.style.transformOrigin = 'top left';
   container.style.transform       = `scale(${zoomLevel})`;
 
@@ -1224,10 +1231,27 @@ function applyZoom() {
   if (outer) {
     outer.style.overflowX = zoomLevel > 1 ? 'auto' : 'hidden';
     outer.style.overflowY = zoomLevel > 1 ? 'auto' : 'hidden';
-    outer.style.minHeight = zoomLevel > 1
+    outer.style.minHeight = zoomLevel > 1 && !autoFitProduct()
       ? `${container.offsetHeight * zoomLevel}px`
       : '';
   }
+}
+
+// Zoom so the print zone fills ~85% of the frame, then scroll it to the centre.
+function fitToPrintZone() {
+  const outer = document.getElementById('canvasOuter');
+  const zone  = document.getElementById('printZone');
+  if (!outer || !zone || !zone.offsetWidth || !zone.offsetHeight) return;
+
+  const fit = Math.min(
+    (outer.clientWidth  * 0.85) / zone.offsetWidth,
+    (outer.clientHeight * 0.85) / zone.offsetHeight,
+  );
+  zoomLevel = Math.max(1, Math.min(ZOOM_MAX, Math.floor(fit * 20) / 20));
+  applyZoom(false);
+
+  outer.scrollLeft = (zone.offsetLeft + zone.offsetWidth  / 2) * zoomLevel - outer.clientWidth  / 2;
+  outer.scrollTop  = (zone.offsetTop  + zone.offsetHeight / 2) * zoomLevel - outer.clientHeight / 2;
 }
 
 document.getElementById('zoomInBtn').addEventListener('click', () => {
@@ -1256,6 +1280,10 @@ function showMsg(text) {
 
 // ── MERCH IMAGE — fade only, no transform ────────────
 document.getElementById('merchMockup').style.transition = 'opacity 0.2s ease';
+// Each new mockup photo (first load and every view switch) re-fits caps.
+document.getElementById('merchMockup').addEventListener('load', () => {
+  if (autoFitProduct()) fitToPrintZone();
+});
 
 // ── START ─────────────────────────────────────────────
 window.JaiforeCurrency?.init().then(() => {
