@@ -131,15 +131,24 @@ router.post('/product-image', authenticate, requireAdmin, async (req, res) => {
       return m ? Math.max(max, Number(m[1])) : max;
     }, 0);
 
+    // Skip numbers the site already ships a web copy for (photos added to
+    // the repo but not uploaded yet), or the shop would show that copy.
+    const site = (process.env.FRONTEND_URL || 'https://jaifore.org').replace(/\/$/, '');
+    let start = highest + 1;
+    for (let tries = 0; tries < 50; tries++, start++) {
+      const shipped = await axios.head(`${site}/images/web/${start}.webp`, { validateStatus: () => true })
+        .then(r => r.status === 200, () => false);
+      if (!shipped) break;
+    }
+
     // Never overwrite: if the number was taken meanwhile, try the next one.
-    for (let n = highest + 1; n <= highest + 3; n++) {
+    for (let n = start; n <= start + 2; n++) {
       const name = `${n}.${image.ext}`;
       try {
         await axios.post(`${base}/storage/v1/object/${bucket}/${name}`, image.buffer, {
           headers: { ...auth, 'Content-Type': image.mime, 'Cache-Control': 'max-age=31536000', 'x-upsert': 'false' },
           maxBodyLength: Infinity,
         });
-        const site = (process.env.FRONTEND_URL || 'https://jaifore.org').replace(/\/$/, '');
         return res.status(201).json({ name, url: `${site}/images/${name}` });
       } catch (err) {
         const taken = err.response?.status === 409 || /exist/i.test(err.response?.data?.message || err.response?.data?.error || '');

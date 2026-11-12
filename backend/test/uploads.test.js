@@ -9,7 +9,7 @@ process.env.SUPABASE_URL = 'https://proj.supabase.co/';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key';
 process.env.SUPABASE_BUCKET = 'artwork';
 
-jest.mock('axios', () => ({ post: jest.fn() }));
+jest.mock('axios', () => ({ post: jest.fn(), head: jest.fn() }));
 jest.mock('@sentry/node', () => ({ captureException: jest.fn() }));
 
 const express = require('express');
@@ -32,6 +32,7 @@ const upload = (body, tok = token) => {
 
 beforeEach(() => {
   axios.post.mockReset().mockResolvedValue({ status: 200 });
+  axios.head.mockReset().mockResolvedValue({ status: 404 });
   jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 afterEach(() => jest.restoreAllMocks());
@@ -181,6 +182,14 @@ describe('admin product images', () => {
     const [url, , opts] = axios.post.mock.calls[1];
     expect(url).toBe('https://proj.supabase.co/storage/v1/object/product-images/158.jpg');
     expect(opts.headers['x-upsert']).toBe('false');
+  });
+
+  it('skips numbers the site already has a web copy for', async () => {
+    axios.post.mockResolvedValueOnce(listing('150.jpg'));
+    axios.head.mockImplementation(async (url) => ({ status: /\/(151|152)\.webp$/.test(url) ? 200 : 404 }));
+    const res = await send({ dataUrl: dataUrl('image/jpeg', JPG) });
+    expect(res.status).toBe(201);
+    expect(res.body.name).toBe('153.jpg');
   });
 
   it('moves to the next number if one was taken meanwhile', async () => {
