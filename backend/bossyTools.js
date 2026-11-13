@@ -53,7 +53,7 @@ const TOOL_DEFINITIONS = [
     input_schema: {
       type: 'object',
       properties: {
-        garment: { type: 'string', description: 'The garment, e.g. sweatpants, hoodie, tee, shorts, cap.' },
+        garment: { type: 'string', description: 'The garment, e.g. sweatpants, hoodie, tee, shorts, beanie.' },
         style:   { type: 'string', description: 'Optional theme or style words, e.g. faith, basketball, minimal, bold.' },
       },
       required: ['garment'],
@@ -151,9 +151,9 @@ const GARMENTS = {
       { spot: 'Back hip', size_hint: 'small', idea: 'a small accent mark' },
     ],
   },
-  cap: {
-    words: ['cap', 'hat', 'beanie'],
-    spots: [{ spot: 'Front panel', size_hint: 'small', idea: 'a compact logo or one short word' }],
+  beanie: {
+    words: ['beanie', 'cap', 'hat'],
+    spots: [{ spot: 'Front cuff', size_hint: 'small', idea: 'a compact logo or one short word' }],
   },
 };
 const MAX_SUGGESTED_GARMENTS = 4;

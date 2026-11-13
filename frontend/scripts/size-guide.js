@@ -31,9 +31,8 @@ const SIZE_GUIDE_DATA = {
       XL: ['[FILL IN]', '[FILL IN]'],
     }
   },
-  // Assumes caps are one-size/adjustable. If yours are actually sized
-  // (S/M/L by head circumference), change this to match Shorts' shape.
-  'Caps': {
+  // Beanies are one size (stretch knit).
+  'Beanies': {
     fields: ['Head Circumference (in)'],
     sizes: {
       'One Size': ['[FILL IN]'],
