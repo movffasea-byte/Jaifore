@@ -460,7 +460,11 @@ document.getElementById('webdevServicesEnquireBtn')?.addEventListener('click', (
 // Returns null when the products couldn't be loaded. (The old made-up
 // fallback products are gone: they had fake ids and prices and could be
 // added to a cart and ordered.)
-async function fetchProducts(category, limit = 3) {
+// One full row on a laptop (4 columns), a 2x2 on phones.
+const SECTION_SIZE = 4;
+
+// readyMade: true/false filters ready-to-wear vs Studio blanks; undefined = all.
+async function fetchProducts(category, limit = SECTION_SIZE, readyMade) {
   const categoryMap = {
     apparel: 'Apparels & Merchandise',
     design:  'Graphic Design',
@@ -468,7 +472,8 @@ async function fetchProducts(category, limit = 3) {
   };
   try {
     const cat = encodeURIComponent(categoryMap[category] || category);
-    const res = await fetchWithTimeout(`${API}/api/products?category=${cat}&limit=${limit}`);
+    const rm  = typeof readyMade === 'boolean' ? `&ready_made=${readyMade}` : '';
+    const res = await fetchWithTimeout(`${API}/api/products?category=${cat}&limit=${limit}${rm}`);
     if (!res.ok) throw new Error();
     const data = await res.json();
     return Array.isArray(data) ? data : data.products || [];
@@ -491,8 +496,9 @@ function renderCard(product, index, category) {
 
 async function loadCategory(category) {
   const grid     = document.getElementById(`${category}-grid`);
-  grid.innerHTML = Array(3).fill('<div class="skeleton-card"></div>').join('');
-  const fetched  = await fetchProducts(category);
+  grid.innerHTML = Array(SECTION_SIZE).fill('<div class="skeleton-card"></div>').join('');
+  // Apparel's main grid shows Studio blanks only; ready-made pieces get their own block.
+  const fetched  = await fetchProducts(category, SECTION_SIZE, category === 'apparel' ? false : undefined);
   const products = fetched || [];
   grid.innerHTML = '';
   loadedProducts[category] = products;
@@ -505,7 +511,25 @@ async function loadCategory(category) {
     grid.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;padding:2rem 0;grid-column:1/-1">No products found.</div>`;
     return;
   }
-  products.slice(0, 3).forEach((p, i) => grid.appendChild(renderCard(p, i, category)));
+  products.slice(0, SECTION_SIZE).forEach((p, i) => grid.appendChild(renderCard(p, i, category)));
+  syncWishlistHearts();
+}
+
+// Bossy Shirt Series: ready-made apparel under the Apparel section. The block
+// stays hidden if there are none or the request fails (the main grid already
+// shows its own error).
+async function loadReadyMade() {
+  const block = document.getElementById('readyMadeBlock');
+  const grid  = document.getElementById('ready-made-grid');
+  if (!block || !grid) return;
+  const items = await fetchProducts('apparel', SECTION_SIZE, true);
+  if (!items || !items.length) { block.hidden = true; return; }
+  // Own key: cart and wishlist lookups search every key, and loadCategory('apparel')
+  // overwrites loadedProducts.apparel.
+  loadedProducts.readyMade = items;
+  grid.innerHTML = '';
+  items.slice(0, SECTION_SIZE).forEach((p, i) => grid.appendChild(renderCard(p, i, 'apparel')));
+  block.hidden = false;
   syncWishlistHearts();
 }
 
@@ -724,6 +748,7 @@ Promise.resolve(window.JaiforeCurrency?.init()).catch(() => {}).then(() => {
   loadWishlistedIds().then(syncWishlistHearts);
   loadRecentlyViewed();
   loadCategory('apparel');
+  loadReadyMade();
   loadCategory('design');
   loadCategory('webdev');
   loadWebdevServices();
