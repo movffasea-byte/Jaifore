@@ -103,3 +103,20 @@ describe('Studio options on products', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 });
+
+describe('ready_made filter on the product list', () => {
+  const listSql = () => mockQuery.mock.calls.find(([sql]) => /FROM products/.test(sql));
+
+  it.each([['true', true], ['false', false]])('ready_made=%s filters to %s', async (q, val) => {
+    const res = await request(app).get(`/api/products?category=${encodeURIComponent(APPAREL)}&ready_made=${q}&limit=4`);
+    expect(res.status).toBe(200);
+    const [sql, params] = listSql();
+    expect(sql).toMatch(/ready_made = \$2/);
+    expect(params).toEqual([APPAREL, val, 4]);
+  });
+
+  it('any other value leaves the list unfiltered', async () => {
+    await request(app).get('/api/products?ready_made=yes');
+    expect(listSql()[0]).not.toMatch(/ready_made/);
+  });
+});

@@ -122,11 +122,15 @@ router.get('/', async (req, res) => {
     // before, so existing callers are unaffected.
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const lite   = req.query.fields === 'lite';
+    // ready_made=true|false splits ready-to-wear items from Studio blanks;
+    // anything else means no filter.
+    const readyMade = req.query.ready_made === 'true' ? true
+      : req.query.ready_made === 'false' ? false : null;
 
     // Cache key folds in every query dimension so different combinations
     // (e.g. same category, different search term) never collide with each other
     // or serve stale results from a different filter combo.
-    const cacheKey = `products:list:${category || 'all'}:${search || 'nosearch'}:${limit || 'nolimit'}:${offset}:${lite ? 'lite' : 'full'}`;
+    const cacheKey = `products:list:${category || 'all'}:${search || 'nosearch'}:${limit || 'nolimit'}:${offset}:${lite ? 'lite' : 'full'}:${readyMade ?? 'any'}`;
 
     const cached = await cacheGet(cacheKey);
     if (cached) {
@@ -144,6 +148,11 @@ router.get('/', async (req, res) => {
     if (category) {
       params.push(category);
       conditions.push(`LOWER(category) = LOWER($${params.length})`);
+    }
+
+    if (readyMade !== null) {
+      params.push(readyMade);
+      conditions.push(`ready_made = $${params.length}`);
     }
 
     if (search) {
