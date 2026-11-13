@@ -387,9 +387,24 @@ async function fetchCategory(cat) {
   return productsByCategory[cat];
 }
 
+// ── READY-MADE BLOCK ─────────────────────────────────
+// Apparel's ready-made pieces (Bossy Shirt Series) sit in their own block
+// below the Studio blanks; same filters and sort, no paging.
+let readyMadeShown = 0;
+function renderReadyMade(items) {
+  const block = document.getElementById('catReadyBlock');
+  const grid  = document.getElementById('cat-ready-grid');
+  readyMadeShown = items.length;
+  if (!block || !grid) return;
+  grid.innerHTML = '';
+  items.forEach((p, i) => grid.appendChild(renderCard(p, i)));
+  block.hidden = !items.length;
+}
+
 // ── FILTERING ────────────────────────────────────────
 function applyFilters() {
   if (failedCategories.has(currentCategory) && productsByCategory[currentCategory] === undefined) {
+    renderReadyMade([]);
     showError('cat-grid', 'We couldn’t load these products right now.', retryCategory);
     document.getElementById('catCount').textContent = '';
     document.getElementById('catEmpty').classList.add('hidden');
@@ -424,10 +439,15 @@ function applyFilters() {
   if (sort === 'name-asc')   result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   if (sort === 'newest')     result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+  const total = result.length;
+  const ready = currentCategory === 'apparel' ? result.filter(p => p.ready_made) : [];
+  if (ready.length) result = result.filter(p => !p.ready_made);
+  renderReadyMade(ready);
+
   filteredProducts = result;
   displayedCount   = 0;
   document.getElementById('cat-grid').innerHTML = '';
-  document.getElementById('catCount').textContent = `${filteredProducts.length} product${filteredProducts.length !== 1 ? 's' : ''}`;
+  document.getElementById('catCount').textContent = `${total} product${total !== 1 ? 's' : ''}`;
   loadNextPage();
 }
 
@@ -436,7 +456,8 @@ function loadNextPage() {
   const slice = filteredProducts.slice(displayedCount, displayedCount + PAGE_SIZE);
 
   if (!filteredProducts.length && displayedCount === 0) {
-    document.getElementById('catEmpty').classList.remove('hidden');
+    // Only ready-made matches: the block below has them, so no empty message.
+    document.getElementById('catEmpty').classList.toggle('hidden', readyMadeShown > 0);
     document.getElementById('loadMoreWrap').classList.add('hidden');
     return;
   }
