@@ -15,7 +15,7 @@ const MOCKUPS = {
 const PRINT_ZONES = {
   front: { top: '22%', left: '25%', width: '50%', height: '30%' },
   back:  { top: '18%', left: '20%', width: '60%', height: '38%' },
-  side:  { top: '30%', left: '30%', width: '40%', height: '25%' }, // caps
+  side:  { top: '30%', left: '30%', width: '40%', height: '25%' }, // caps (side view)
 };
 
 // The second view keeps the 'back' key internally (designsByView, saved
@@ -1213,10 +1213,10 @@ document.getElementById('saveForLaterBtn')?.addEventListener('click', async () =
 });
 
 // ── ZOOM ─────────────────────────────────────────────
-// Caps (second_view 'side') get auto-fit: the frame keeps its size and the
-// photo zooms in so the small print area fills it.
+// One-size items (beanies, cups, bags) and side-view items get auto-fit: the
+// frame keeps its size and the photo zooms in so the small print area fills it.
 function autoFitProduct() {
-  return product?.second_view === 'side';
+  return !!product && (product.one_size || product.second_view === 'side');
 }
 
 function applyZoom(animate = true) {
@@ -1280,7 +1280,7 @@ function showMsg(text) {
 
 // ── MERCH IMAGE — fade only, no transform ────────────
 document.getElementById('merchMockup').style.transition = 'opacity 0.2s ease';
-// Each new mockup photo (first load and every view switch) re-fits caps.
+// Each new mockup photo (first load and every view switch) re-fits one-size and side-view items.
 document.getElementById('merchMockup').addEventListener('load', () => {
   if (autoFitProduct()) fitToPrintZone();
 });
