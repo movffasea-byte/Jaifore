@@ -637,6 +637,9 @@ img {
   white-space: nowrap;
 }
 
+/* Service photos are landscape banners, not 4:5 product shots. */
+.service-card .card-img { aspect-ratio: 3/2; }
+
 .service-card .card-img-placeholder {
   font-size: 2rem;
   opacity: 0.6;

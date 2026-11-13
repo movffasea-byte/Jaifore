@@ -381,37 +381,37 @@ const WEBDEV_SERVICES = [
     id: 'svc-maintenance',
     name: 'Website Maintenance (Monthly)',
     description: 'Ongoing updates, backups, and uptime monitoring for your existing site.',
-    icon: '🛠️'
+    image: 'images/services/maintenance.webp'
   },
   {
     id: 'svc-hosting',
     name: 'Hosting Setup',
     description: 'Domain + hosting configuration, SSL, and deployment — done for you.',
-    icon: '🌐'
+    image: 'images/services/hosting.webp'
   },
   {
     id: 'svc-bugfixes',
     name: 'Bug Fixes & Support',
     description: 'Something broken or behaving oddly? We diagnose and fix issues on your existing site.',
-    icon: '🐞'
+    image: 'images/services/bugfixes.webp'
   },
   {
     id: 'svc-updates',
     name: 'Website Updates',
     description: 'Content changes, new pages, or feature additions to keep your site current.',
-    icon: '✏️'
+    image: 'images/services/updates.webp'
   },
   {
     id: 'svc-security',
     name: 'Security & Backups',
     description: 'Regular backups, security patches, and monitoring to keep your site safe.',
-    icon: '🔒'
+    image: 'images/services/security.webp'
   },
   {
     id: 'svc-performance',
     name: 'Performance & Optimization',
     description: 'Speed audits and optimization so your site loads fast and ranks well.',
-    icon: '🚀'
+    image: 'images/services/performance.webp'
   }
 ];
 
@@ -424,7 +424,7 @@ function renderServiceCard(service, index) {
   // through the single shared button in the section header instead.
   card.innerHTML = `
     <div class="card-img">
-      <div class="card-img-placeholder">${service.icon || '🛠️'}</div>
+      <img src="${service.image}" alt="${service.name}" loading="lazy" decoding="async" width="800" height="533"/>
       <span class="card-badge">Service</span>
     </div>
     <div class="card-body">
@@ -432,6 +432,13 @@ function renderServiceCard(service, index) {
       <div class="card-desc">${service.description}</div>
     </div>
   `;
+
+  // A missing photo falls back to the old plain tile instead of a broken image.
+  card.querySelector('.card-img img').addEventListener('error', (e) => {
+    const ph = document.createElement('div');
+    ph.className = 'card-img-placeholder';
+    e.target.replaceWith(ph);
+  }, { once: true });
 
   return card;
 }
