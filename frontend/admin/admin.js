@@ -198,6 +198,11 @@ function switchTab(name) {
 // carry their own currency (e.g. NGN) and are shown in it.
 const CURRENCY_SYMBOLS = { USD: '$', NGN: '₦', GBP: '£', EUR: '€' };
 
+// Customer-supplied text (names, emails, references) must pass through this before going into innerHTML.
+function escHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function formatMoney(amount, currency = 'USD') {
   const code  = String(currency || 'USD').toUpperCase();
   const value = Number(amount);
@@ -843,19 +848,19 @@ async function loadOrders() {
     data.forEach(o => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>#${o.id}</td>
-        <td>${o.customer_name || '—'}<br><small style="color:var(--ink-muted)">${o.customer_email || ''}</small></td>
+        <td>#${escHtml(o.id)}</td>
+        <td>${escHtml(o.customer_name || '—')}<br><small style="color:var(--ink-muted)">${escHtml(o.customer_email || '')}</small></td>
         <td>${formatMoney(o.total, o.currency)}</td>
-        <td><span class="badge badge-${o.status === 'delivered' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending'}">${o.status}</span></td>
+        <td><span class="badge badge-${o.status === 'delivered' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending'}">${escHtml(o.status)}</span></td>
         <td>${new Date(o.created_at).toLocaleDateString()}</td>
         <td>
-          <select class="status-select" onchange="updateOrderStatus(${o.id}, this.value)">
+          <select class="status-select" onchange="updateOrderStatus(${Number(o.id)}, this.value)">
             <option ${o.status === 'processing' ? 'selected' : ''}>processing</option>
             <option ${o.status === 'shipped'    ? 'selected' : ''}>shipped</option>
             <option ${o.status === 'delivered'  ? 'selected' : ''}>delivered</option>
             <option ${o.status === 'cancelled'  ? 'selected' : ''}>cancelled</option>
           </select>
-          <button class="action-btn danger" onclick="refundOrder(${o.id}, ${o.total}, '${o.currency || 'USD'}')"
+          <button class="action-btn danger" onclick="refundOrder(${Number(o.id)}, ${Number(o.total)}, '${escHtml(o.currency || 'USD')}')"
             ${(o.payment_status === 'refunded' || !o.payment_ref) ? 'disabled' : ''}>
             ${o.payment_status === 'refunded' ? 'Refunded' : 'Refund'}
           </button>
@@ -991,7 +996,7 @@ async function loadDayTransactions(dateStr, dayEl) {
     } else {
       ordersEl.innerHTML = orders.map(o => `
         <div class="tx-item">
-          <span class="tx-item-label">#${o.id} — ${o.customer_name || 'Guest'}</span>
+          <span class="tx-item-label">#${escHtml(o.id)} — ${escHtml(o.customer_name || 'Guest')}</span>
           <span class="tx-item-val">${formatMoney(o.total, o.currency)}</span>
         </div>`).join('');
     }
@@ -1002,8 +1007,8 @@ async function loadDayTransactions(dateStr, dayEl) {
     } else {
       paymentsEl.innerHTML = payments.map(t => `
         <div class="tx-item">
-          <span class="tx-item-label">${t.reference || 'N/A'}</span>
-          <span class="tx-item-val">${formatMoney(t.amount, 'USD')} <span class="badge badge-${t.status === 'success' ? 'success' : 'failed'}">${t.status}</span></span>
+          <span class="tx-item-label">${escHtml(t.reference || 'N/A')}</span>
+          <span class="tx-item-val">${formatMoney(t.amount, 'USD')} <span class="badge badge-${t.status === 'success' ? 'success' : 'failed'}">${escHtml(t.status)}</span></span>
         </div>`).join('');
     }
 
@@ -1027,9 +1032,9 @@ async function loadUsers() {
     data.forEach(u => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${u.name}</td>
-        <td>${u.email}</td>
-        <td><span class="badge badge-${u.role === 'admin' ? 'admin' : 'user'}">${u.role}</span></td>
+        <td>${escHtml(u.name)}</td>
+        <td>${escHtml(u.email)}</td>
+        <td><span class="badge badge-${u.role === 'admin' ? 'admin' : 'user'}">${escHtml(u.role)}</span></td>
         <td><span class="badge badge-${u.verified ? 'success' : 'pending'}">${u.verified ? 'Yes' : 'No'}</span></td>
         <td>${new Date(u.created_at).toLocaleDateString()}</td>`;
       body.appendChild(tr);

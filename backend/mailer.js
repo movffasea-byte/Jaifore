@@ -82,7 +82,7 @@ async function sendOTPEmail(toEmail, name, otp) {
       <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#7b5ea7;margin-top:4px;">Global Creative Studio</div>
     </td></tr>
     <tr><td style="padding:32px 40px;">
-      <p style="font-size:15px;color:#555;margin:0 0 8px;">Hi ${name},</p>
+      <p style="font-size:15px;color:#555;margin:0 0 8px;">Hi ${escapeMailHtml(name)},</p>
       <p style="font-size:15px;color:#555;margin:0 0 32px;line-height:1.6;">Welcome to Jai'fore. Use the code below to verify your account. Expires in <strong>10 minutes</strong>.</p>
       <div style="text-align:center;margin:0 0 32px;">
         <div style="display:inline-block;background:#f5f0e8;border:2px solid #111;padding:20px 40px;">
@@ -114,8 +114,8 @@ async function sendAdminNotification(newUser) {
     <tr><td style="padding:28px 36px;">
       <p style="color:#888;font-size:13px;margin:0 0 20px;">A new user just registered:</p>
       <table width="100%" cellpadding="0" cellspacing="0">
-        <tr><td style="padding:10px 0;border-bottom:1px solid rgba(237,233,224,0.07);"><span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Name</span><div style="font-size:15px;color:#ede9e0;font-weight:600;margin-top:4px;">${newUser.name}</div></td></tr>
-        <tr><td style="padding:10px 0;border-bottom:1px solid rgba(237,233,224,0.07);"><span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Email</span><div style="font-size:15px;color:#ede9e0;margin-top:4px;">${newUser.email}</div></td></tr>
+        <tr><td style="padding:10px 0;border-bottom:1px solid rgba(237,233,224,0.07);"><span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Name</span><div style="font-size:15px;color:#ede9e0;font-weight:600;margin-top:4px;">${escapeMailHtml(newUser.name)}</div></td></tr>
+        <tr><td style="padding:10px 0;border-bottom:1px solid rgba(237,233,224,0.07);"><span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Email</span><div style="font-size:15px;color:#ede9e0;margin-top:4px;">${escapeMailHtml(newUser.email)}</div></td></tr>
         <tr><td style="padding:10px 0;"><span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Joined</span><div style="font-size:15px;color:#ede9e0;margin-top:4px;">${formatDateTime()}</div></td></tr>
       </table>
     </td></tr>
@@ -148,7 +148,7 @@ async function sendOrderConfirmation(toEmail, name, order) {
       <!-- HERO -->
       <tr><td style="padding:32px 40px 20px;">
         <div style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#111;margin-bottom:8px;">Order Confirmed ✓</div>
-        <p style="font-size:15px;color:#555;margin:0 0 4px;line-height:1.6;">Hi ${name},</p>
+        <p style="font-size:15px;color:#555;margin:0 0 4px;line-height:1.6;">Hi ${escapeMailHtml(name)},</p>
         <p style="font-size:15px;color:#555;margin:0;line-height:1.6;">
           Thank you for your order. We've received your payment and your order is now being processed.
         </p>
@@ -207,10 +207,10 @@ async function sendOrderConfirmation(toEmail, name, order) {
       <tr><td style="padding:0 40px 28px;">
         <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#888;margin-bottom:8px;">Shipping To</div>
         <div style="font-size:14px;color:#555;line-height:1.8;">
-          ${shipping.name || name}<br>
-          ${shipping.address}<br>
-          ${shipping.city ? shipping.city + (shipping.state ? ', ' + shipping.state : '') : ''}
-          ${shipping.phone ? `<br>${shipping.phone}` : ''}
+          ${escapeMailHtml(shipping.name || name)}<br>
+          ${escapeMailHtml(shipping.address)}<br>
+          ${shipping.city ? escapeMailHtml(shipping.city + (shipping.state ? ', ' + shipping.state : '')) : ''}
+          ${shipping.phone ? `<br>${escapeMailHtml(shipping.phone)}` : ''}
         </div>
       </td></tr>` : ''}
 
@@ -235,7 +235,7 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
   const orderId  = String(order.id).padStart(5, '0');
 
   const itemSummary = Array.isArray(items)
-    ? items.map(i => `${i.qty || 1}× ${i.name || 'Item'}${i.size ? ` (${i.size})` : ''}${formatDesignLines(i)}`).join('<br>')
+    ? items.map(i => `${Number(i.qty) || 1}× ${escapeMailHtml(i.name || 'Item')}${i.size ? ` (${escapeMailHtml(i.size)})` : ''}${formatDesignLines(i)}`).join('<br>')
     : '—';
 
   await deliver({
@@ -264,8 +264,8 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
 
           <tr><td style="padding:12px 0;border-bottom:1px solid rgba(237,233,224,0.07);">
             <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Customer</span>
-            <div style="font-size:15px;color:#ede9e0;font-weight:600;margin-top:4px;">${customerName}</div>
-            <div style="font-size:13px;color:#777;margin-top:2px;">${customerEmail}</div>
+            <div style="font-size:15px;color:#ede9e0;font-weight:600;margin-top:4px;">${escapeMailHtml(customerName)}</div>
+            <div style="font-size:13px;color:#777;margin-top:2px;">${escapeMailHtml(customerEmail)}</div>
           </td></tr>
 
           <tr><td style="padding:12px 0;border-bottom:1px solid rgba(237,233,224,0.07);">
@@ -275,14 +275,14 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
 
           <tr><td style="padding:12px 0;border-bottom:1px solid rgba(237,233,224,0.07);">
             <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Payment</span>
-            <div style="font-size:15px;color:#ede9e0;margin-top:4px;">${order.payment_method || 'card'} · Ref: ${order.payment_ref || '—'}</div>
+            <div style="font-size:15px;color:#ede9e0;margin-top:4px;">${escapeMailHtml(order.payment_method || 'card')} · Ref: ${escapeMailHtml(order.payment_ref || '—')}</div>
           </td></tr>
 
           ${shipping?.address ? `
           <tr><td style="padding:12px 0;">
             <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Ship To</span>
             <div style="font-size:14px;color:#ede9e0;margin-top:4px;line-height:1.8;">
-              ${shipping.address}${shipping.city ? ', ' + shipping.city : ''}${shipping.state ? ', ' + shipping.state : ''}
+              ${escapeMailHtml(shipping.address)}${shipping.city ? ', ' + escapeMailHtml(shipping.city) : ''}${shipping.state ? ', ' + escapeMailHtml(shipping.state) : ''}
             </div>
           </td></tr>` : ''}
 
@@ -316,7 +316,7 @@ async function sendWelcomeEmail(toEmail, name) {
 
       <!-- HERO -->
       <tr><td style="padding:36px 40px 28px;">
-        <div style="font-family:Georgia,serif;font-size:24px;font-weight:900;color:#111;margin-bottom:12px;">Welcome aboard, ${name.split(' ')[0]}.</div>
+        <div style="font-family:Georgia,serif;font-size:24px;font-weight:900;color:#111;margin-bottom:12px;">Welcome aboard, ${escapeMailHtml(name.split(' ')[0])}.</div>
         <p style="font-size:15px;color:#555;margin:0 0 16px;line-height:1.7;">
           Your account is verified and ready. Jai'fore brings custom apparel, graphic design, and web development together under one studio — built for creators who want their ideas made real, wherever they are in the world.
         </p>
@@ -370,7 +370,7 @@ async function sendPasswordResetEmail(toEmail, name, resetLink) {
       <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#7b5ea7;margin-top:4px;">Global Creative Studio</div>
     </td></tr>
     <tr><td style="padding:32px 40px;">
-      <p style="font-size:15px;color:#555;margin:0 0 8px;">Hi ${name},</p>
+      <p style="font-size:15px;color:#555;margin:0 0 8px;">Hi ${escapeMailHtml(name)},</p>
       <p style="font-size:15px;color:#555;margin:0 0 32px;line-height:1.6;">We received a request to reset your password. Click the button below to choose a new one. This link expires in <strong>30 minutes</strong>.</p>
       <div style="text-align:center;margin:0 0 32px;">
         <a href="${resetLink}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:14px 36px;font-size:14px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">Reset Password</a>
@@ -417,7 +417,7 @@ async function sendOrderStatusUpdate(toEmail, name, order, newStatus) {
         <div style="display:inline-block;background:${cfg.color};padding:6px 16px;margin-bottom:16px;">
           <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#fff;font-weight:700;">${cfg.label}</span>
         </div>
-        <p style="font-size:15px;color:#555;margin:0 0 4px;line-height:1.6;">Hi ${name},</p>
+        <p style="font-size:15px;color:#555;margin:0 0 4px;line-height:1.6;">Hi ${escapeMailHtml(name)},</p>
         <p style="font-size:15px;color:#555;margin:0;line-height:1.6;">${cfg.message}</p>
       </td></tr>
 
@@ -474,7 +474,7 @@ async function sendRefundNotification(toEmail, name, order, refundAmount) {
         <div style="display:inline-block;background:#a13a3a;padding:6px 16px;margin-bottom:16px;">
           <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#fff;font-weight:700;">Refunded</span>
         </div>
-        <p style="font-size:15px;color:#555;margin:0 0 4px;line-height:1.6;">Hi ${name},</p>
+        <p style="font-size:15px;color:#555;margin:0 0 4px;line-height:1.6;">Hi ${escapeMailHtml(name)},</p>
         <p style="font-size:15px;color:#555;margin:0;line-height:1.6;">
           A refund of <strong>${formatCurrency(amount, currency)}</strong> has been issued for your order. It should reflect on your original payment method within 5–10 business days, depending on your bank or card provider.
         </p>
@@ -545,8 +545,8 @@ async function sendAdminRefundAlert(order, customerName, customerEmail, refundAm
 
           <tr><td style="padding:12px 0;border-bottom:1px solid rgba(237,233,224,0.07);">
             <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Customer</span>
-            <div style="font-size:15px;color:#ede9e0;font-weight:600;margin-top:4px;">${customerName}</div>
-            <div style="font-size:13px;color:#777;margin-top:2px;">${customerEmail}</div>
+            <div style="font-size:15px;color:#ede9e0;font-weight:600;margin-top:4px;">${escapeMailHtml(customerName)}</div>
+            <div style="font-size:13px;color:#777;margin-top:2px;">${escapeMailHtml(customerEmail)}</div>
           </td></tr>
 
           <tr><td style="padding:12px 0;border-bottom:1px solid rgba(237,233,224,0.07);">
@@ -556,7 +556,7 @@ async function sendAdminRefundAlert(order, customerName, customerEmail, refundAm
 
           <tr><td style="padding:12px 0;">
             <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#555;">Payment Ref</span>
-            <div style="font-size:15px;color:#ede9e0;margin-top:4px;">${order.payment_ref || '—'}</div>
+            <div style="font-size:15px;color:#ede9e0;margin-top:4px;">${escapeMailHtml(order.payment_ref || '—')}</div>
           </td></tr>
 
         </table>
@@ -595,7 +595,7 @@ async function sendLowStockAlert(product) {
         <div style="display:inline-block;background:${badgeColor};padding:6px 16px;margin-bottom:16px;">
           <span style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#fff;font-weight:700;">${stockLabel}</span>
         </div>
-        <div style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#ede9e0;">${product.name}</div>
+        <div style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#ede9e0;">${escapeMailHtml(product.name)}</div>
         <div style="font-size:13px;color:#555;margin-top:4px;">Product ID #${product.id} · ${formatDateTime()}</div>
       </td></tr>
 

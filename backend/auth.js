@@ -22,6 +22,16 @@ const otpKey = (email) => `otp:${email}`;
 // The count survives resend-otp, so asking for a new code buys no extra guesses.
 const MAX_OTP_ATTEMPTS = 5;
 const MIN_PASSWORD_LENGTH = 8;
+// users.name is VARCHAR(100). Names show up in emails and the admin dashboard.
+const MAX_NAME_LENGTH = 100;
+
+// Returns the trimmed name, or null when it isn't a usable string.
+function cleanName(name) {
+  if (typeof name !== 'string') return null;
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > MAX_NAME_LENGTH || /[\u0000-\u001f<>]/.test(trimmed)) return null;
+  return trimmed;
+}
 
 // Logs the real error and reports it; the client only ever sees a generic message.
 function serverError(res, err, what) {
@@ -47,8 +57,10 @@ const FRONTEND_RESET_URL = process.env.FRONTEND_URL
 
 // REGISTER — Step 1
 router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required.' });
+  const { email, password } = req.body;
+  if (!req.body.name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required.' });
+  const name = cleanName(req.body.name);
+  if (!name) return res.status(400).json({ error: `Name must be up to ${MAX_NAME_LENGTH} characters, without < or >.` });
   if (password.length < MIN_PASSWORD_LENGTH) return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
   try {
     const existing = await pool.query('SELECT id, verified FROM users WHERE email = $1', [email.toLowerCase().trim()]);
@@ -56,7 +68,7 @@ router.post('/register', async (req, res) => {
     const hashed = await bcrypt.hash(password, 12);
     const otp = generateOTP();
     const key = email.toLowerCase().trim();
-    await cacheSet(otpKey(key), { otp, userData: { name: name.trim(), email: key, password: hashed } }, OTP_TTL_SECONDS);
+    await cacheSet(otpKey(key), { otp, userData: { name, email: key, password: hashed } }, OTP_TTL_SECONDS);
     await sendOTPEmail(email, name, otp);
     return res.status(200).json({ message: 'OTP sent to your email.' });
   } catch (err) { return serverError(res, err, 'Register'); }
@@ -156,8 +168,10 @@ router.get('/me', authenticate, async (req, res) => {
 
 // UPDATE PROFILE
 router.put('/update-profile', authenticate, async (req, res) => {
-  const { name, currentPassword, newPassword } = req.body;
-  if (!name) return res.status(400).json({ error: 'Name is required.' });
+  const { currentPassword, newPassword } = req.body;
+  if (!req.body.name) return res.status(400).json({ error: 'Name is required.' });
+  const name = cleanName(req.body.name);
+  if (!name) return res.status(400).json({ error: `Name must be up to ${MAX_NAME_LENGTH} characters, without < or >.` });
   try {
     const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
     const user   = result.rows[0];

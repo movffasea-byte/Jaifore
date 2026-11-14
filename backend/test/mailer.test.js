@@ -10,7 +10,7 @@ process.env.MAIL_FROM_ADDRESS = 'orders@jaifore.test';
 const mockSend = jest.fn().mockResolvedValue({ id: 'em_1' });
 jest.mock('resend', () => ({ Resend: jest.fn(() => ({ emails: { send: mockSend } })) }));
 
-const { sendOrderConfirmation, sendAdminOrderAlert, sendOTPEmail, generateOTP } = require('../mailer');
+const { sendOrderConfirmation, sendAdminOrderAlert, sendOTPEmail, generateOTP, sendAdminNotification, sendWelcomeEmail, sendPasswordResetEmail, sendOrderStatusUpdate, sendRefundNotification, sendAdminRefundAlert } = require('../mailer');
 const { formatDateTime, formatDate } = require('../businessTime');
 
 const order = (extra = {}) => ({
@@ -67,7 +67,7 @@ describe('order emails', () => {
       items: [{ name: '<b>Cups</b>', size: '<img src=x onerror=alert(1)>', qty: 1, price: 10 }],
     }));
     const { html } = lastEmail();
-    expect(html).not.toContain('<img src=x');
+    expect(html).not.toContain('<img');
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
     expect(html).toContain('&lt;b&gt;Cups&lt;/b&gt;');
   });
@@ -99,5 +99,28 @@ describe('businessTime', () => {
   test('the date is the Texas date, not the UTC date', () => {
     // 03:00 UTC on Nov 1 is still the evening of Oct 31 in Texas.
     expect(formatDate(new Date('2026-11-01T03:00:00Z'))).toBe('October 31, 2026');
+  });
+});
+
+describe('customer text is escaped in every email', () => {
+  const evil = '<img src=x onerror=alert(1)>';
+  const shipping = { cost: 15, name: evil, address: evil, city: evil, state: evil, phone: evil };
+  const badOrder = order({ shipping, items: [{ name: evil, size: evil, qty: 1, price: 10 }], payment_ref: evil, payment_method: evil });
+
+  test.each([
+    ['OTP', () => sendOTPEmail('a@b.com', evil, '1234')],
+    ['admin registration', () => sendAdminNotification({ name: evil, email: evil })],
+    ['order confirmation', () => sendOrderConfirmation('a@b.com', evil, badOrder)],
+    ['admin order alert', () => sendAdminOrderAlert(badOrder, evil, evil)],
+    ['welcome', () => sendWelcomeEmail('a@b.com', evil)],
+    ['password reset', () => sendPasswordResetEmail('a@b.com', evil, 'https://jaifore.org/reset')],
+    ['status update', () => sendOrderStatusUpdate('a@b.com', evil, badOrder, 'shipped')],
+    ['refund', () => sendRefundNotification('a@b.com', evil, badOrder, 10)],
+    ['admin refund alert', () => sendAdminRefundAlert(badOrder, evil, evil, 10)],
+  ])('%s', async (_label, send) => {
+    await send();
+    const { html } = lastEmail();
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img'); // welcome uses only the first word
   });
 });

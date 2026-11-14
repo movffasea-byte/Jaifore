@@ -166,6 +166,17 @@ describe('registration and OTP', () => {
     expect(res.status).toBe(400);
   });
 
+  it.each([
+    ['contains markup', '<script>x</script>'],
+    ['is longer than 100 characters', 'a'.repeat(101)],
+    ['is not a string', ['Ada']],
+  ])('rejects a name that %s without touching the database', async (_label, name) => {
+    const res = await request(app).post('/api/auth/register').send({ name, email: 'a@test.dev', password: 'longenough1' });
+    expect(res.status).toBe(400);
+    expect(mockPool.query).not.toHaveBeenCalled();
+    expect(redisMock.cacheSet).not.toHaveBeenCalled();
+  });
+
   it('returns 409 when a verified account already exists', async () => {
     mockPool.query.mockResolvedValueOnce({ rows: [{ id: 1, verified: true }] });
     const res = await request(app).post('/api/auth/register').send({ name: 'A', email: 'a@test.dev', password: 'longenough1' });
@@ -298,6 +309,30 @@ describe('PUT /api/auth/update-profile', () => {
       .send({ name: 'Ada', currentPassword: 'whatever', newPassword: 'short' });
     expect(res.status).toBe(400);
     expect(mockPool.query).toHaveBeenCalledTimes(1); // no UPDATE ran
+  });
+
+  it.each([
+    ['contains markup', '<img src=x onerror=alert(1)>'],
+    ['is longer than 100 characters', 'a'.repeat(101)],
+    ['is not a string', { first: 'Ada' }],
+  ])('rejects a name that %s without touching the database', async (_label, name) => {
+    const res = await request(app).put('/api/auth/update-profile')
+      .set('Authorization', `Bearer ${sign({ id: 3 })}`)
+      .send({ name });
+    expect(res.status).toBe(400);
+    expect(mockPool.query).not.toHaveBeenCalled();
+  });
+
+  it('stores the trimmed name', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ id: 3, password: 'hash' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 3, name: 'Ada Obi', email: 'a@test.dev', role: 'user' }] });
+    const res = await request(app).put('/api/auth/update-profile')
+      .set('Authorization', `Bearer ${sign({ id: 3 })}`)
+      .send({ name: '  Ada Obi  ' });
+    expect(res.status).toBe(200);
+    expect(mockPool.query.mock.calls[1][1]).toEqual(['Ada Obi', 3]);
   });
 });
 
