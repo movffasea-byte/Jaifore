@@ -9,6 +9,7 @@ const { authenticate, requireAdmin } = require('../middleware');
 const { cacheGet, cacheSet, cacheInvalidate } = require('../redis');
 const Sentry = require('@sentry/node');
 const { sendLowStockAlert } = require('../mailer');
+const printZones = require('../printZones');
 
 const CACHE_TTL = 300; // 5 minutes — product catalog changes rarely, read often
 const LOW_STOCK_THRESHOLD = 5; // item 14 — anything at or below this triggers an alert
@@ -58,6 +59,17 @@ function readStudioFields(body) {
     values[f] = v;
   }
   return { values };
+}
+
+// Print targets (what each view prints on) and boxes the admin adjusted by
+// hand. Returns { targets, manual, redetect } or { error }. targets is
+// undefined when the request left it out (update keeps the stored ones).
+function readPrintFields(body) {
+  const t = printZones.readTargets(body.print_targets);
+  if (t.error) return { error: t.error };
+  const m = printZones.readManualZones(body.print_zones_manual);
+  if (m.error) return { error: m.error };
+  return { targets: t.value, manual: m.value, redetect: body.redetect_zones === true };
 }
 
 function fireLowStockAlert(product) {
@@ -230,9 +242,16 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   }
   const studio = readStudioFields(req.body);
   if (studio.error) return res.status(400).json({ error: studio.error });
+  const print = readPrintFields(req.body);
+  if (print.error) return res.status(400).json({ error: print.error });
 
   try {
     const tracked = tracksStock(category);
+    const targets = print.targets || {};
+    const { zones, status: zoneStatus } = await printZones.resolveZones({
+      photos: { ...Object.fromEntries(MOCKUP_FIELDS.map(f => [f, studio.values[f] || null])), image_url },
+      targets, previous: null, manual: print.manual,
+    });
 
     // Non-apparel products never get a stock count (NULL = "not tracked"),
     // so they can never appear in low-stock banners/alerts or be decremented.
@@ -245,11 +264,12 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO products (name, description, price, category, image_url, back_image, in_stock, stock, live_link, print_size_ids,
-         second_view, one_size, front_male, back_male, front_female, back_female, ready_made)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+         second_view, one_size, front_male, back_male, front_female, back_female, ready_made, print_targets, print_zones)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
       [name, description, priceValue, category, image_url, back_image, inStockValue, stockValue, live_link || null, printSizeIdsValue,
        studio.values.second_view || 'back', studio.values.one_size || false,
-       ...MOCKUP_FIELDS.map(f => studio.values[f] || null), studio.values.ready_made || false]
+       ...MOCKUP_FIELDS.map(f => studio.values[f] || null), studio.values.ready_made || false,
+       JSON.stringify(targets), JSON.stringify(zones)]
     );
 
     // New product means every cached "list" view is now stale — clear them all.
@@ -264,7 +284,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     }
 
     const [product] = await attachPrintSizes([result.rows[0]]);
-    res.status(201).json(product);
+    res.status(201).json({ ...product, zone_status: zoneStatus });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -277,18 +297,28 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   }
   const studio = readStudioFields(req.body);
   if (studio.error) return res.status(400).json({ error: studio.error });
+  const print = readPrintFields(req.body);
+  if (print.error) return res.status(400).json({ error: print.error });
 
   try {
     // Fetch the pre-update stock (and category) so we can detect a low-stock
     // transition below, and fall back to the stored category if the request
     // didn't send one. The Studio fields fall back to their stored values too.
     const before = await pool.query(
-      `SELECT stock, category, second_view, one_size, front_male, back_male, front_female, back_female, ready_made
+      `SELECT stock, category, second_view, one_size, front_male, back_male, front_female, back_female, ready_made,
+         image_url, print_targets, print_zones
        FROM products WHERE id = $1`,
       [req.params.id]
     );
     const prev = before.rows[0] || {};
     const keep = f => (f in studio.values ? studio.values[f] : (prev[f] ?? null));
+
+    // Print areas: re-detected only for slots whose photo or target changed.
+    const targets = print.targets !== undefined ? print.targets : (prev.print_targets || {});
+    const { zones, status: zoneStatus } = await printZones.resolveZones({
+      photos: { ...Object.fromEntries(MOCKUP_FIELDS.map(f => [f, keep(f)])), image_url: image_url ?? prev.image_url ?? null },
+      targets, previous: prev.print_zones, manual: print.manual, redetect: print.redetect,
+    });
     const oldStock = before.rows.length ? before.rows[0].stock : null;
     const effectiveCategory = category || (before.rows.length ? before.rows[0].category : null);
     const tracked = tracksStock(effectiveCategory);
@@ -311,11 +341,12 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
       `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
        image_url=$5, back_image=$6, in_stock=$7, stock=$8, live_link=$9, print_size_ids=$10,
        second_view=$11, one_size=$12, front_male=$13, back_male=$14, front_female=$15, back_female=$16,
-       ready_made=$17
-       WHERE id=$18 RETURNING *`,
+       ready_made=$17, print_targets=$18, print_zones=$19
+       WHERE id=$20 RETURNING *`,
       [name, description, priceValue, effectiveCategory, image_url, back_image, resolvedInStock, stockValue, live_link || null, printSizeIdsValue,
        keep('second_view') || 'back', keep('one_size') ?? false,
-       ...MOCKUP_FIELDS.map(keep), keep('ready_made') ?? false, req.params.id]
+       ...MOCKUP_FIELDS.map(keep), keep('ready_made') ?? false,
+       JSON.stringify(targets), JSON.stringify(zones), req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found.' });
 
@@ -329,7 +360,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     }
 
     const [product] = await attachPrintSizes([result.rows[0]]);
-    res.json(product);
+    res.json({ ...product, zone_status: zoneStatus });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

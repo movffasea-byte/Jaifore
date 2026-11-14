@@ -16,6 +16,9 @@ jest.mock('../redis', () => ({
 }));
 jest.mock('@sentry/node', () => ({ captureException: jest.fn() }));
 jest.mock('../mailer', () => ({ sendLowStockAlert: jest.fn().mockResolvedValue() }));
+const mockClaude = jest.fn();
+jest.mock('@anthropic-ai/sdk', () =>
+  jest.fn().mockImplementation(() => ({ beta: { messages: { create: (...a) => mockClaude(...a) } } })));
 
 const express = require('express');
 const request = require('supertest');
@@ -49,7 +52,7 @@ describe('Studio options on products', () => {
     const res = await request(app).post('/api/products').set(admin)
       .send({ name: 'Mug', category: APPAREL, price: 12 });
     expect(res.status).toBe(201);
-    expect(writeParams().slice(10)).toEqual(['back', false, null, null, null, null, false]);
+    expect(writeParams().slice(10)).toEqual(['back', false, null, null, null, null, false, '{}', '{}']);
   });
 
   it('create saves a side view, one size and mockup links', async () => {
@@ -59,7 +62,7 @@ describe('Studio options on products', () => {
     });
     expect(res.status).toBe(201);
     expect(writeParams().slice(10)).toEqual([
-      'side', true, 'https://jaifore.org/images/cap-front-m.jpg', 'https://jaifore.org/images/cap-side-m.jpg', null, null, false,
+      'side', true, 'https://jaifore.org/images/cap-front-m.jpg', 'https://jaifore.org/images/cap-side-m.jpg', null, null, false, '{}', '{}',
     ]);
   });
 
@@ -118,5 +121,39 @@ describe('ready_made filter on the product list', () => {
   it('any other value leaves the list unfiltered', async () => {
     await request(app).get('/api/products?ready_made=yes');
     expect(listSql()[0]).not.toMatch(/ready_made/);
+  });
+});
+
+describe('print areas on save', () => {
+  const BAG = 'https://jaifore.org/images/tote-bag-front-f.jpg';
+  const savedJson = (i) => JSON.parse(writeParams()[i]);
+
+  it('finds the box for a new print target and returns its status', async () => {
+    mockClaude.mockResolvedValue({ stop_reason: 'end_turn', content: [{ type: 'text', text:
+      JSON.stringify({ found: true, left: 0.06, top: 0.31, width: 0.29, height: 0.18 }) }] });
+    const res = await request(app).put('/api/products/7').set(admin).send({
+      name: 'Bags', category: APPAREL, price: 15, front_female: BAG, print_targets: { front: 'bag' },
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.zone_status).toEqual({ front_female: 'found', front_male: 'found' });
+    expect(savedJson(17)).toEqual({ front: 'bag' });
+    expect(savedJson(18).front_female).toEqual({ left: 0.06, top: 0.31, width: 0.29, height: 0.18, url: BAG, target: 'bag' });
+  });
+
+  it('still saves when Claude fails, with a failed status', async () => {
+    mockClaude.mockRejectedValue(new Error('overloaded'));
+    const res = await request(app).put('/api/products/7').set(admin).send({
+      name: 'Bags', category: APPAREL, price: 15, front_female: BAG, print_targets: { front: 'bag' },
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.zone_status).toEqual({ front_female: 'failed', front_male: 'failed' });
+    expect(savedJson(18)).toEqual({});
+  });
+
+  it('rejects an unknown print target before touching the database', async () => {
+    const res = await request(app).put('/api/products/7').set(admin)
+      .send({ name: 'Bags', category: APPAREL, price: 15, print_targets: { front: 'rocket' } });
+    expect(res.status).toBe(400);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
