@@ -21,8 +21,27 @@ const PRINT_ZONES = {
 // The second view keeps the 'back' key internally (designsByView, saved
 // drafts and carts); a product with second_view 'side' just shows it as Side.
 function zoneFor(view) {
+  const own = ownZone(view);
+  if (own) {
+    const pct = n => `${n * 100}%`;
+    return { top: pct(own.top), left: pct(own.left), width: pct(own.width), height: pct(own.height) };
+  }
   return (view === 'back' && product?.second_view === 'side') ? PRINT_ZONES.side : PRINT_ZONES[view];
 }
+
+// A product's own print area for the photo on screen: the box Claude found
+// on that mockup when the admin saved it (backend/printZones.js). Null when
+// the product has none, or it was found on a different photo.
+function ownZone(view = currentView, gender = currentGender || 'male') {
+  const z = product?.print_zones?.[`${view}_${gender}`];
+  return z && z.url === MOCKUPS[gender]?.[view] ? z : null;
+}
+
+// View button names per print target. Keep in sync with TARGETS in backend/printZones.js.
+const TARGET_LABELS = {
+  top_front: 'Front', top_back: 'Back', bag: 'Bag', leg_left: 'Left leg',
+  leg_right: 'Right leg', beanie: 'Front', cup: 'Front',
+};
 
 // ── STATE ───────────────────────────────────────────
 let product           = null;
@@ -481,6 +500,11 @@ function applyStudioOptions() {
     if (product.second_view === 'none') secondBtn.hidden = true;
     else if (product.second_view === 'side') secondBtn.textContent = 'Side';
   }
+  // Named print targets ("Left leg", "Bag"...) label the view buttons.
+  const targets = product.print_targets || {};
+  const frontBtn = document.querySelector('.view-btn[data-view="front"]');
+  if (frontBtn && TARGET_LABELS[targets.front]) frontBtn.textContent = TARGET_LABELS[targets.front];
+  if (secondBtn && TARGET_LABELS[targets.back]) secondBtn.textContent = TARGET_LABELS[targets.back];
 
   if (product.one_size) {
     selectedSize = 'One Size';
@@ -577,8 +601,12 @@ function setView(view) {
 
   mockup.style.opacity = '0';
   setTimeout(() => {
+    const sameSrc = mockup.getAttribute('src') === jfWeb(src);
     mockup.src           = jfWeb(src);
     mockup.style.opacity = '1';
+    // Two views can share one scene photo (e.g. left leg / right leg), which
+    // fires no new load event, so re-frame here.
+    if (sameSrc && mockup.complete) refitView();
   }, 200);
 
   const zone = document.getElementById('printZone');
@@ -833,8 +861,10 @@ function makeDraggable(el, design) {
     function onMove(e) {
       moved = true;
       // Pointer moves in screen pixels; the canvas is scaled by zoomLevel.
-      design.x = Math.max(0, Math.min(cw - design.w, startL + (e.clientX - startX) / zoomLevel));
-      design.y = Math.max(0, Math.min(ch - design.h, startT + (e.clientY - startY) / zoomLevel));
+      // Products with their own print area keep designs inside it.
+      const b = ownZoneBox() || { x: 0, y: 0, w: cw, h: ch };
+      design.x = Math.max(b.x, Math.min(b.x + b.w - design.w, startL + (e.clientX - startX) / zoomLevel));
+      design.y = Math.max(b.y, Math.min(b.y + b.h - design.h, startT + (e.clientY - startY) / zoomLevel));
       el.style.left = design.x + 'px';
       el.style.top  = design.y + 'px';
     }
@@ -859,6 +889,11 @@ function makeResizable(el, design) {
     function onMove(e) {
       design.w = Math.max(40, startW + (e.clientX - startX) / zoomLevel);
       design.h = Math.max(40, startH + (e.clientY - startY) / zoomLevel);
+      const b = ownZoneBox();
+      if (b) {
+        design.w = Math.max(20, Math.min(design.w, b.x + b.w - design.x));
+        design.h = Math.max(20, Math.min(design.h, b.y + b.h - design.y));
+      }
       el.style.width  = design.w + 'px';
       el.style.height = design.h + 'px';
     }
@@ -1281,9 +1316,76 @@ function showMsg(text) {
 // ── MERCH IMAGE — fade only, no transform ────────────
 document.getElementById('merchMockup').style.transition = 'opacity 0.2s ease';
 // Each new mockup photo (first load and every view switch) re-fits one-size and side-view items.
-document.getElementById('merchMockup').addEventListener('load', () => {
-  if (autoFitProduct()) fitToPrintZone();
+document.getElementById('merchMockup').addEventListener('load', () => refitView());
+
+// ── ITEM-ONLY VIEW ───────────────────────────────────
+// A view with its own print area shows only that item: the frame takes the
+// box's shape, the photo is scaled and shifted so the box fills it, and the
+// zoom buttons are hidden. Everything else on the photo stays out of sight.
+let itemFramed = false;
+
+function clearItemFrame() {
+  const outer = document.getElementById('canvasOuter');
+  const container = document.getElementById('canvasContainer');
+  if (outer) Object.assign(outer.style, { width: '', height: '', minHeight: '', overflowX: '', overflowY: '', marginLeft: '', marginRight: '' });
+  container.style.width = '';
+  container.style.transform = '';
+  document.getElementById('zoomInBtn').parentElement.hidden = false;
+  itemFramed = false;
+  zoomLevel = 1;
+  applyZoom(false);
+}
+
+function fitToItem(own) {
+  const outer = document.getElementById('canvasOuter');
+  const container = document.getElementById('canvasContainer');
+  const cw = container.offsetWidth, ch = container.offsetHeight;
+  if (!outer || !cw || !ch) return;
+
+  const zoneW = own.width * cw, zoneH = own.height * ch;
+  // Fill the frame's width, but keep the frame from growing taller than
+  // most of the screen (a full trouser leg is tall and thin).
+  const maxH = Math.max(240, window.innerHeight * 0.7);
+  const s = Math.min(cw / zoneW, maxH / zoneH);
+
+  container.style.width      = `${cw}px`; // design positions are px of this width
+  container.style.transition = 'none';
+  container.style.transformOrigin = 'top left';
+  container.style.transform  = `translate(${-own.left * cw * s}px, ${-own.top * ch * s}px) scale(${s})`;
+  Object.assign(outer.style, {
+    width: `${zoneW * s}px`, height: `${zoneH * s}px`, minHeight: '', overflowX: 'hidden', overflowY: 'hidden',
+    marginLeft: 'auto', marginRight: 'auto',
+  });
+  outer.scrollLeft = outer.scrollTop = 0;
+  document.getElementById('zoomInBtn').parentElement.hidden = true;
+  zoomLevel = s; // drag and resize divide pointer moves by this
+  itemFramed = true;
+}
+
+// Re-frames the canvas for the current view and photo.
+function refitView() {
+  const own = ownZone();
+  if (itemFramed) clearItemFrame();
+  if (own) fitToItem(own);
+  else if (autoFitProduct()) fitToPrintZone();
+}
+
+let refitTimer;
+window.addEventListener('resize', () => {
+  if (!itemFramed) return;
+  clearTimeout(refitTimer);
+  refitTimer = setTimeout(refitView, 150);
 });
+
+// Keeps a design inside the product's own print area (when it has one).
+// Returns the box in container px, or null for products without one.
+function ownZoneBox() {
+  const own = ownZone();
+  if (!own) return null;
+  const container = document.getElementById('canvasContainer');
+  const cw = container.offsetWidth, ch = container.offsetHeight;
+  return { x: own.left * cw, y: own.top * ch, w: own.width * cw, h: own.height * ch };
+}
 
 // ── START ─────────────────────────────────────────────
 window.JaiforeCurrency?.init().then(() => {
