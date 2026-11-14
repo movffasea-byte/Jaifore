@@ -231,6 +231,40 @@
                 <option value="none">None, front only (cups, bags)</option>
               </select>
             </div>
+            <!-- Print areas: Claude finds the box on each Studio photo when you save
+                 (backend/printZones.js). Keep the option values in sync with TARGETS there. -->
+            <div class="field-group cat-field cat-field-apparel">
+              <label>Front View Prints On</label>
+              <select id="pTargetFront" class="print-target">
+                <option value="">Default shared box</option>
+                <option value="top_front">Front of the top (shirt, tee, hoodie)</option>
+                <option value="top_back">Back of the top</option>
+                <option value="bag">Tote bag</option>
+                <option value="leg_left">Left leg (trousers, sweatpants, shorts)</option>
+                <option value="leg_right">Right leg</option>
+                <option value="beanie">Beanie front</option>
+                <option value="cup">Cup / mug</option>
+              </select>
+            </div>
+            <div class="field-group cat-field cat-field-apparel">
+              <label>Second View Prints On</label>
+              <select id="pTargetBack" class="print-target">
+                <option value="">Default shared box</option>
+                <option value="top_front">Front of the top (shirt, tee, hoodie)</option>
+                <option value="top_back">Back of the top</option>
+                <option value="bag">Tote bag</option>
+                <option value="leg_left">Left leg (trousers, sweatpants, shorts)</option>
+                <option value="leg_right">Right leg</option>
+                <option value="beanie">Beanie front</option>
+                <option value="cup">Cup / mug</option>
+              </select>
+            </div>
+            <div class="field-group cat-field cat-field-apparel zone-preview-group">
+              <label>Print Areas</label>
+              <p class="zone-help">Found automatically when you save. If a box looks wrong, drag it or pull its corner to fix it, then save.</p>
+              <div id="zonePreview" class="zone-preview"></div>
+              <label class="zone-redetect"><input type="checkbox" id="pRedetect"/> Find the print areas again when I save</label>
+            </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Sold As</label>
               <select id="pReadyMade">

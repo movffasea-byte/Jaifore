@@ -516,6 +516,80 @@ function setStudioFields(p) {
   document.getElementById('pOneSize').value    = p.one_size ? 'true' : 'false';
   document.getElementById('pReadyMade').value  = p.ready_made ? 'true' : 'false';
   STUDIO_IMAGE_FIELDS.forEach(([elId, key]) => { document.getElementById(elId).value = p[key] || ''; });
+  const targets = p.print_targets || {};
+  document.getElementById('pTargetFront').value = targets.front || '';
+  document.getElementById('pTargetBack').value  = targets.back || '';
+  document.getElementById('pRedetect').checked  = false;
+  storedZones = p.print_zones || {};
+  manualZones = {};
+  renderZonePreview(p.image_url || '');
+}
+
+// ── PRINT AREA PREVIEW ────────────────────────────────
+// Shows the box Claude found on each Studio photo. Dragging a box (or its
+// corner) marks it as hand-fixed; it is sent as print_zones_manual on save.
+let storedZones = {};
+let manualZones = {};
+const ZONE_SLOT_NAMES = { front_male: 'Front (male)', back_male: 'Second (male)', front_female: 'Front (female)', back_female: 'Second (female)' };
+const ZONE_STATUS_TEXT = { found: 'found', kept: 'unchanged', manual: 'fixed by hand', not_found: 'not found, try again', failed: 'could not check, try again' };
+
+function renderZonePreview(mainImage) {
+  const wrap = document.getElementById('zonePreview');
+  wrap.innerHTML = '';
+  STUDIO_IMAGE_FIELDS.forEach(([elId, slot]) => {
+    const url  = document.getElementById(elId).value.trim() || mainImage;
+    const zone = manualZones[slot] || storedZones[slot];
+    if (!url || !zone || (zone.url !== url && !manualZones[slot])) return;
+
+    const card = document.createElement('div');
+    card.className = 'zone-card';
+    card.innerHTML = `<div class="zone-photo"><img alt="" src="${url}"/><div class="zone-box"><span class="zone-handle"></span></div></div>
+      <div class="zone-name">${ZONE_SLOT_NAMES[slot]}${manualZones[slot] || zone.manual ? ' · fixed by hand' : ''}</div>`;
+    wrap.appendChild(card);
+    const box = card.querySelector('.zone-box');
+    const place = z => Object.assign(box.style, {
+      left: `${z.left * 100}%`, top: `${z.top * 100}%`, width: `${z.width * 100}%`, height: `${z.height * 100}%`,
+    });
+    place(zone);
+    makeZoneEditable(card.querySelector('.zone-photo'), box, slot, { left: zone.left, top: zone.top, width: zone.width, height: zone.height }, place);
+  });
+  if (!wrap.children.length) wrap.innerHTML = '<p class="zone-help">No print areas yet. Pick what each view prints on, then save.</p>';
+}
+
+function makeZoneEditable(photo, box, slot, start, place) {
+  box.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const resizing = e.target.classList.contains('zone-handle');
+    const rect = photo.getBoundingClientRect();
+    const from = { x: e.clientX, y: e.clientY };
+    const base = { ...(manualZones[slot] || start) };
+    const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+    function onMove(ev) {
+      const dx = (ev.clientX - from.x) / rect.width, dy = (ev.clientY - from.y) / rect.height;
+      const z = { ...base };
+      if (resizing) {
+        z.width  = clamp(base.width + dx, 0.03, 1 - base.left);
+        z.height = clamp(base.height + dy, 0.03, 1 - base.top);
+      } else {
+        z.left = clamp(base.left + dx, 0, 1 - base.width);
+        z.top  = clamp(base.top + dy, 0, 1 - base.height);
+      }
+      manualZones[slot] = z;
+      place(z);
+    }
+    function onUp() {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    }
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  });
+}
+
+// Short "Print areas: ..." line for the save message.
+function describeZoneStatus(status) {
+  const parts = Object.entries(status || {}).map(([slot, s]) => `${ZONE_SLOT_NAMES[slot]} ${ZONE_STATUS_TEXT[s] || s}`);
+  return parts.length ? ` Print areas: ${parts.join(', ')}.` : '';
 }
 
 // ── PRODUCT PHOTO UPLOAD ──────────────────────────────
@@ -662,6 +736,12 @@ document.getElementById('saveProductBtn').addEventListener('click', async () => 
     body.one_size    = document.getElementById('pOneSize').value === 'true';
     body.ready_made  = document.getElementById('pReadyMade').value === 'true';
     STUDIO_IMAGE_FIELDS.forEach(([elId, key]) => { body[key] = document.getElementById(elId).value.trim(); });
+    body.print_targets = {
+      front: document.getElementById('pTargetFront').value || null,
+      back:  document.getElementById('pTargetBack').value || null,
+    };
+    if (Object.keys(manualZones).length) body.print_zones_manual = manualZones;
+    body.redetect_zones = document.getElementById('pRedetect').checked;
     body.print_size_ids = Array.from(selectedPrintSizeIds);
 
     if (!body.price) { msgEl.textContent = 'Price is required for Apparel & Merchandise.'; msgEl.className = 'form-msg error'; return; }
@@ -680,13 +760,29 @@ document.getElementById('saveProductBtn').addEventListener('click', async () => 
   try {
     const url    = editingProductId ? `${API}/api/products/${editingProductId}` : `${API}/api/products`;
     const method = editingProductId ? 'PUT' : 'POST';
+    if (body.print_targets && (body.print_targets.front || body.print_targets.back)) {
+      msgEl.textContent = 'Saving… finding the print areas can take a few seconds.';
+      msgEl.className   = 'form-msg';
+    }
     const res    = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
     const data   = await res.json();
 
     if (!res.ok) { msgEl.textContent = data.error || 'Failed.'; msgEl.className = 'form-msg error'; return; }
 
-    msgEl.textContent = editingProductId ? 'Product updated.' : 'Product added.';
-    msgEl.className   = 'form-msg success';
+    const zoneNote = describeZoneStatus(data.zone_status);
+    const zoneTrouble = /not found|could not/.test(zoneNote);
+    msgEl.textContent = (editingProductId ? 'Product updated.' : 'Product added.') + zoneNote;
+    msgEl.className   = zoneTrouble ? 'form-msg error' : 'form-msg success';
+    if (zoneTrouble) {
+      // Keep the form open so the admin can try again; a new product is now
+      // an edit, so a second save updates it instead of adding a duplicate.
+      if (!editingProductId && data.id) editingProductId = data.id;
+      storedZones = data.print_zones || {};
+      manualZones = {};
+      document.getElementById('pRedetect').checked = false;
+      renderZonePreview(data.image_url || '');
+      return;
+    }
     setTimeout(() => {
       document.getElementById('productForm').classList.add('hidden');
       editingProductId = null;
