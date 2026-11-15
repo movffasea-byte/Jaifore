@@ -44,9 +44,10 @@ function readStudioFields(body) {
     if (!SECOND_VIEWS.includes(body.second_view)) return { error: 'Second view must be back, side or none.' };
     values.second_view = body.second_view;
   }
-  for (const f of ['one_size', 'ready_made']) {
+  const FLAG_LABELS = { one_size: 'One size', ready_made: 'Ready-made', allow_backorder: 'Accept orders when out of stock' };
+  for (const f of Object.keys(FLAG_LABELS)) {
     if (body[f] === undefined) continue;
-    if (typeof body[f] !== 'boolean') return { error: `${f === 'one_size' ? 'One size' : 'Ready-made'} must be true or false.` };
+    if (typeof body[f] !== 'boolean') return { error: `${FLAG_LABELS[f]} must be true or false.` };
     values[f] = body[f];
   }
   for (const f of MOCKUP_FIELDS) {
@@ -264,12 +265,12 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO products (name, description, price, category, image_url, back_image, in_stock, stock, live_link, print_size_ids,
-         second_view, one_size, front_male, back_male, front_female, back_female, ready_made, print_targets, print_zones)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
+         second_view, one_size, front_male, back_male, front_female, back_female, ready_made, print_targets, print_zones, allow_backorder)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *`,
       [name, description, priceValue, category, image_url, back_image, inStockValue, stockValue, live_link || null, printSizeIdsValue,
        studio.values.second_view || 'back', studio.values.one_size || false,
        ...MOCKUP_FIELDS.map(f => studio.values[f] || null), studio.values.ready_made || false,
-       JSON.stringify(targets), JSON.stringify(zones)]
+       JSON.stringify(targets), JSON.stringify(zones), studio.values.allow_backorder || false]
     );
 
     // New product means every cached "list" view is now stale — clear them all.
@@ -306,7 +307,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     // didn't send one. The Studio fields fall back to their stored values too.
     const before = await pool.query(
       `SELECT stock, category, second_view, one_size, front_male, back_male, front_female, back_female, ready_made,
-         image_url, print_targets, print_zones
+         allow_backorder, image_url, print_targets, print_zones
        FROM products WHERE id = $1`,
       [req.params.id]
     );
@@ -341,12 +342,12 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
       `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
        image_url=$5, back_image=$6, in_stock=$7, stock=$8, live_link=$9, print_size_ids=$10,
        second_view=$11, one_size=$12, front_male=$13, back_male=$14, front_female=$15, back_female=$16,
-       ready_made=$17, print_targets=$18, print_zones=$19
-       WHERE id=$20 RETURNING *`,
+       ready_made=$17, print_targets=$18, print_zones=$19, allow_backorder=$20
+       WHERE id=$21 RETURNING *`,
       [name, description, priceValue, effectiveCategory, image_url, back_image, resolvedInStock, stockValue, live_link || null, printSizeIdsValue,
        keep('second_view') || 'back', keep('one_size') ?? false,
        ...MOCKUP_FIELDS.map(keep), keep('ready_made') ?? false,
-       JSON.stringify(targets), JSON.stringify(zones), req.params.id]
+       JSON.stringify(targets), JSON.stringify(zones), keep('allow_backorder') ?? false, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found.' });
 

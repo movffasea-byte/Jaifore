@@ -48,6 +48,41 @@ describe('delivery failures', () => {
   });
 });
 
+describe('delivery window in order emails', () => {
+  const dated = { shipping_method: 'standard', est_delivery_min: '2026-11-27', est_delivery_max: '2026-12-02' };
+
+  test('the confirmation shows the promised window and the chosen option', async () => {
+    await sendOrderConfirmation('a@b.com', 'Ada', order(dated));
+    const { html } = lastEmail();
+    expect(html).toContain('Estimated delivery');
+    expect(html).toContain('Standard');
+    expect(html).toContain('Fri, Nov 27 – Wed, Dec 2');
+    expect(html).not.toContain('restocked first');
+  });
+
+  test('a backordered order says part of it is being restocked', async () => {
+    await sendOrderConfirmation('a@b.com', 'Ada', order({ ...dated, backordered: true }));
+    expect(lastEmail().html).toContain('restocked first');
+  });
+
+  test('orders from before delivery options have no delivery row', async () => {
+    await sendOrderConfirmation('a@b.com', 'Ada', order());
+    expect(lastEmail().html).not.toContain('Estimated delivery');
+  });
+
+  test('a delivery date that arrives as a Date from the DATE column does not shift a day', async () => {
+    await sendOrderConfirmation('a@b.com', 'Ada', order({ ...dated, est_delivery_min: new Date('2026-11-27T00:00:00Z'), est_delivery_max: new Date('2026-12-02T00:00:00Z') }));
+    expect(lastEmail().html).toContain('Fri, Nov 27 – Wed, Dec 2');
+  });
+
+  test('the admin alert flags a backorder and the promised window', async () => {
+    await sendAdminOrderAlert(order({ ...dated, backordered: true }), 'Ada', 'a@b.com');
+    const { html } = lastEmail();
+    expect(html).toContain('BACKORDER');
+    expect(html).toContain('promised Fri, Nov 27');
+  });
+});
+
 describe('order emails', () => {
   test('item prices use the order currency', async () => {
     await sendOrderConfirmation('a@b.com', 'Ada', order());

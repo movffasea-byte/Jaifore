@@ -365,7 +365,12 @@ describe('tools', () => {
     await chat({ message: 'prices and shipping?' });
     const results = mockCreate.mock.calls[1][0].messages.at(-1).content.map((r) => JSON.parse(r.content));
     expect(results[0].sizes[1]).toEqual({ id: 2, size_label: 'Large', dimensions: '16x20', price: 35 });
-    expect(results[1]).toEqual({ currency: 'USD', flat_fee: 15, free_from: 60, web_dev_exempt: true });
+    expect(results[1]).toMatchObject({ currency: 'USD', flat_fee: 15, free_from: 60, web_dev_exempt: true });
+    expect(results[1].delivery_options.map((o) => [o.id, o.business_days])).toEqual([
+      ['express', '3-5'], ['standard', '5-8'], ['no_rush', '8-10'],
+    ]);
+    expect(results[1].delivery_options[0].price).toBe(19.99);
+    expect(results[1].estimates_assume).toMatch(/restocked/);
   });
 
   test('open_contact adds an open_contact action', async () => {
@@ -477,7 +482,9 @@ describe('tools', () => {
 
   test('shipping rules match what checkout enforces', () => {
     const rules = require('../shippingRules');
-    expect(rules).toEqual({ FREE_SHIPPING_THRESHOLD_CENTS: 6000, SHIPPING_FEE_CENTS: 1500 });
+    expect(rules.FREE_SHIPPING_THRESHOLD_CENTS).toBe(6000);
+    expect(rules.SHIPPING_FEE_CENTS).toBe(1500);
+    expect(rules.EXPRESS_FEE_CENTS).toBe(1999);
     expect(require('fs').readFileSync(require.resolve('../routes/stripe'), 'utf8'))
       .toMatch(/require\('\.\.\/shippingRules'\)/);
   });

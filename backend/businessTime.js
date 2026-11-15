@@ -25,4 +25,37 @@ function formatDate(date = new Date()) {
   });
 }
 
-module.exports = { BUSINESS_TIMEZONE, formatDateTime, formatDate };
+// The business's calendar date for an instant, as "2026-11-26".
+function businessDateString(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: BUSINESS_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(date));
+  const get = (type) => parts.find((p) => p.type === type).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+// n business days (Mon-Fri) after the business's date for `from`, as "YYYY-MM-DD".
+// Weekends are skipped; public holidays are not (carriers vary, so estimates stay ranges).
+function addBusinessDays(from, n) {
+  const [y, m, d] = businessDateString(from).split('-').map(Number);
+  const cursor = new Date(Date.UTC(y, m - 1, d));
+  let left = n;
+  while (left > 0) {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    const day = cursor.getUTCDay();
+    if (day !== 0 && day !== 6) left--;
+  }
+  return cursor.toISOString().slice(0, 10);
+}
+
+// "Wed, Nov 26" from a "YYYY-MM-DD" string or a Date stored from a DATE column.
+// Calendar dates carry no zone, so they are read as UTC to avoid shifting a day.
+function formatDateOnly(value) {
+  const iso = value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', {
+    timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric',
+  });
+}
+
+module.exports = { BUSINESS_TIMEZONE, formatDateTime, formatDate, businessDateString, addBusinessDays, formatDateOnly };

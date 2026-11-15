@@ -54,7 +54,7 @@ describe('Studio options on products', () => {
     const res = await request(app).post('/api/products').set(admin)
       .send({ name: 'Mug', category: APPAREL, price: 12 });
     expect(res.status).toBe(201);
-    expect(writeParams().slice(10)).toEqual(['back', false, null, null, null, null, false, '{}', '{}']);
+    expect(writeParams().slice(10)).toEqual(['back', false, null, null, null, null, false, '{}', '{}', false]);
   });
 
   it('create saves a side view, one size and mockup links', async () => {
@@ -64,8 +64,19 @@ describe('Studio options on products', () => {
     });
     expect(res.status).toBe(201);
     expect(writeParams().slice(10)).toEqual([
-      'side', true, 'https://jaifore.org/images/cap-front-m.jpg', 'https://jaifore.org/images/cap-side-m.jpg', null, null, false, '{}', '{}',
+      'side', true, 'https://jaifore.org/images/cap-front-m.jpg', 'https://jaifore.org/images/cap-side-m.jpg', null, null, false, '{}', '{}', false,
     ]);
+  });
+
+  it('create saves allow_backorder and rejects a non-boolean', async () => {
+    const ok = await request(app).post('/api/products').set(admin)
+      .send({ name: 'Tee', category: APPAREL, price: 15, allow_backorder: true });
+    expect(ok.status).toBe(201);
+    expect(writeParams().at(-1)).toBe(true);
+    const bad = await request(app).post('/api/products').set(admin)
+      .send({ name: 'Tee', category: APPAREL, price: 15, allow_backorder: 'yes' });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error).toMatch(/out of stock/);
   });
 
   it('update keeps stored Studio fields the request leaves out', async () => {
@@ -75,6 +86,20 @@ describe('Studio options on products', () => {
     expect(writeParams().slice(10, 17)).toEqual([
       'back', false, stored.front_male, stored.back_male, null, null, false,
     ]);
+  });
+
+  it('update keeps the stored allow_backorder when the request leaves it out', async () => {
+    stored.allow_backorder = true;
+    await request(app).put('/api/products/7').set(admin).send({ name: 'Tee', category: APPAREL, price: 15 });
+    expect(writeParams().at(-2)).toBe(true);
+    delete stored.allow_backorder;
+  });
+
+  it('update changes allow_backorder when sent', async () => {
+    stored.allow_backorder = true;
+    await request(app).put('/api/products/7').set(admin).send({ name: 'Tee', category: APPAREL, price: 15, allow_backorder: false });
+    expect(writeParams().at(-2)).toBe(false);
+    delete stored.allow_backorder;
   });
 
   it('update can switch to front only and clear a mockup', async () => {

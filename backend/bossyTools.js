@@ -10,7 +10,9 @@
 
 const { pool } = require('./database');
 const { cacheGet, cacheSet } = require('./redis');
-const { FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_FEE_CENTS } = require('./shippingRules');
+const {
+  FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_FEE_CENTS, EXPRESS_FEE_CENTS, OPTIONS, backorderExtraDays, priceCents,
+} = require('./shippingRules');
 
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://jaifore.org').replace(/\/$/, '');
 
@@ -66,7 +68,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'get_shipping_rules',
-    description: 'Get the shipping rules: flat fee, free-shipping threshold, and exemptions.',
+    description: 'Get the shipping rules: the three delivery options (Express, Standard, No-Rush) with prices and business-day estimates, the free-shipping threshold, backorder delays and exemptions.',
     input_schema: { type: 'object', properties: {} },
   },
   {
@@ -325,6 +327,16 @@ function getShippingRules() {
       flat_fee: SHIPPING_FEE_CENTS / 100,
       free_from: FREE_SHIPPING_THRESHOLD_CENTS / 100,
       web_dev_exempt: true,
+      delivery_options: OPTIONS.map((o) => ({
+        id: o.id,
+        name: o.label,
+        business_days: `${o.minDays}-${o.maxDays}`,
+        price: o.id === 'express' ? EXPRESS_FEE_CENTS / 100
+          : o.id === 'no_rush' ? 0
+          : `${priceCents('standard', FREE_SHIPPING_THRESHOLD_CENTS - 1) / 100}, free from ${FREE_SHIPPING_THRESHOLD_CENTS / 100}`,
+      })),
+      estimates_assume: 'items in stock. If an item must be restocked first, Express is not offered and the others take about ' + backorderExtraDays() + ' more business days.',
+      customs_note: 'International orders may take longer; customs delays are not included.',
     },
     summary: 'shipping rules',
     actions: [],

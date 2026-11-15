@@ -29,7 +29,11 @@ const { cacheInvalidate } = require('../redis');
 const stripe = require('../stripeClient');
 const { sendOrderConfirmation, sendAdminOrderAlert, sendLowStockAlert } = require('../mailer');
 const { sendAdminPush } = require('../push');
-const { FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_FEE_CENTS } = require('../shippingRules'); // $60+ ships free, else flat $15
+const {
+  FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_FEE_CENTS, DEFAULT_OPTION_ID,
+  buildOptions, findOption, deliveryDays, priceCents: shippingPriceCents,
+} = require('../shippingRules'); // Express / Standard / No-Rush; Standard is free from $60
+const { addBusinessDays } = require('../businessTime');
 const { PricingError, priceApparelDesigns, toCents, cleanText } = require('../pricing');
 const { hasInlineArtwork, REUPLOAD_MESSAGE } = require('../inlineArtwork');
 
@@ -84,7 +88,7 @@ async function priceCart(rawItems) {
 
   const [productRes, printRes, catalogRes] = await Promise.all([
     pool.query(
-      `SELECT id, name, price, category, in_stock, stock, image_url, front_male, print_size_ids, second_view, one_size, ready_made
+      `SELECT id, name, price, category, in_stock, stock, image_url, front_male, print_size_ids, second_view, one_size, ready_made, allow_backorder
        FROM products WHERE id = ANY($1::int[])`,
       [productIds]
     ),
@@ -104,6 +108,7 @@ async function priceCart(rawItems) {
 
   const lines = [];
   const stockNeeded = new Map(); // productId -> total quantity across lines
+  const backorderedNames = new Set(); // products that must be restocked before they ship
 
   for (const raw of rawItems) {
     const product = products.get(Number(raw.id));
@@ -167,7 +172,9 @@ async function priceCart(rawItems) {
       if (product.stock !== null && product.stock !== undefined) {
         stockNeeded.set(product.id, (stockNeeded.get(product.id) || 0) + qty);
       } else if (product.in_stock === false) {
-        throw new CartError(`"${product.name}" is out of stock.`);
+        // Untracked count but marked out of stock: only orderable as a backorder.
+        if (!product.allow_backorder) throw new CartError(`"${product.name}" is out of stock.`);
+        backorderedNames.add(product.name);
       }
 
     } else if (product.category === DESIGN_CATEGORY) {
@@ -212,6 +219,8 @@ async function priceCart(rawItems) {
   for (const [productId, needed] of stockNeeded) {
     const product = products.get(productId);
     if (needed > product.stock) {
+      // A product that accepts backorders is still orderable; it ships after a restock.
+      if (product.allow_backorder) { backorderedNames.add(product.name); continue; }
       throw new CartError(
         product.stock > 0
           ? `Only ${product.stock} of "${product.name}" left in stock.`
@@ -221,11 +230,21 @@ async function priceCart(rawItems) {
   }
 
   const subtotalCents = lines.reduce((sum, l) => sum + l.unitCents * l.qty, 0);
-  // Every purchasable line is a physical product, so all of it counts toward shipping.
-  const shippingCents = subtotalCents === 0 ? 0
-    : (subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : SHIPPING_FEE_CENTS);
+  return { lines, subtotalCents, backordered: backorderedNames.size > 0, backorderedNames: [...backorderedNames] };
+}
 
-  return { lines, subtotalCents, shippingCents };
+// The delivery option the customer picked, checked against this cart. Every
+// purchasable line is a physical product, so the whole subtotal counts toward
+// free Standard shipping. Express is refused for backordered carts.
+function chooseShipping(priced, requestedId) {
+  const id = requestedId === undefined || requestedId === null || requestedId === '' ? DEFAULT_OPTION_ID : requestedId;
+  const option = findOption(id, priced.backordered);
+  if (!option) {
+    throw new CartError(priced.backordered && id === 'express'
+      ? 'Express delivery is not available while an item in your cart is being restocked. Please choose Standard or No-Rush.'
+      : 'Please choose a delivery option.');
+  }
+  return { option, shippingCents: shippingPriceCents(option.id, priced.subtotalCents) };
 }
 
 function sendCartError(res, err, context) {
@@ -241,6 +260,7 @@ function sendCartError(res, err, context) {
 router.post('/quote', authenticate, async (req, res) => {
   try {
     const priced = await priceCart(req.body.items);
+    const { option, shippingCents } = chooseShipping(priced, req.body.shipping_method);
     res.json({
       currency: 'USD',
       lines: priced.lines.map(l => ({
@@ -251,10 +271,17 @@ router.post('/quote', authenticate, async (req, res) => {
         line_total: (l.unitCents * l.qty) / 100,
       })),
       subtotal:               priced.subtotalCents / 100,
-      shipping_fee:           priced.shippingCents / 100,
+      shipping_fee:           shippingCents / 100,
       free_shipping_threshold: FREE_SHIPPING_THRESHOLD_CENTS / 100,
       flat_shipping_fee:      SHIPPING_FEE_CENTS / 100,
-      total_before_tax:       (priced.subtotalCents + priced.shippingCents) / 100,
+      total_before_tax:       (priced.subtotalCents + shippingCents) / 100,
+      shipping_method:        option.id,
+      backordered:            priced.backordered,
+      backordered_items:      priced.backorderedNames,
+      shipping_options: buildOptions({ subtotalCents: priced.subtotalCents, backordered: priced.backordered }).map(o => ({
+        id: o.id, label: o.label, price: o.price_cents / 100,
+        min_days: o.min_days, max_days: o.max_days, earliest: o.earliest, latest: o.latest,
+      })),
       tax_enabled:            AUTOMATIC_TAX,
     });
   } catch (err) { sendCartError(res, err, 'quote'); }
@@ -276,6 +303,8 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
     }
 
     const priced = await priceCart(req.body.items);
+    const { option, shippingCents } = chooseShipping(priced, req.body.shipping_method);
+    const { minDays, maxDays } = deliveryDays(option, priced.backordered);
     // The mobile app sends source:'mobile' so Stripe returns to its deep link.
     const isMobile = req.body.source === 'mobile';
 
@@ -300,8 +329,12 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
       shipping_options: [{
         shipping_rate_data: {
           type: 'fixed_amount',
-          fixed_amount: { amount: priced.shippingCents, currency: 'usd' },
-          display_name: priced.shippingCents === 0 ? 'Free shipping' : 'Standard shipping',
+          fixed_amount: { amount: shippingCents, currency: 'usd' },
+          display_name: `${option.label} delivery${shippingCents === 0 ? ' (free)' : ''}`,
+          delivery_estimate: {
+            minimum: { unit: 'business_day', value: minDays },
+            maximum: { unit: 'business_day', value: maxDays },
+          },
           ...(AUTOMATIC_TAX ? { tax_behavior: 'exclusive' } : {}),
         },
       }],
@@ -327,9 +360,9 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
     }));
 
     await pool.query(
-      `INSERT INTO pending_checkouts (session_id, user_id, items, contact, subtotal_cents, shipping_cents)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [session.id, req.user.id, JSON.stringify(orderItems), JSON.stringify(contact), priced.subtotalCents, priced.shippingCents]
+      `INSERT INTO pending_checkouts (session_id, user_id, items, contact, subtotal_cents, shipping_cents, shipping_method, backordered)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [session.id, req.user.id, JSON.stringify(orderItems), JSON.stringify(contact), priced.subtotalCents, shippingCents, option.id, priced.backordered]
     );
 
     res.json({ url: session.url });
@@ -462,11 +495,18 @@ async function fulfillSession(session) {
       ? session.payment_intent
       : session.payment_intent?.id || null;
 
+    // The delivery window is counted from the moment of payment.
+    const shippingMethod = pending.shipping_method || DEFAULT_OPTION_ID;
+    const chosen = findOption(shippingMethod, false); // not null: only valid ids are ever saved
+    const days = deliveryDays(chosen, pending.backordered);
+    const paidAt = new Date();
+
     const insert = await client.query(
       `INSERT INTO orders
          (user_id, items, total, shipping, payment_ref, payment_status, payment_method, currency,
-          subtotal, shipping_fee, tax_amount, stripe_session_id, stripe_payment_intent_id)
-       VALUES ($1, $2, $3, $4, $5, 'paid', $6, 'USD', $7, $8, $9, $10, $11)
+          subtotal, shipping_fee, tax_amount, stripe_session_id, stripe_payment_intent_id,
+          shipping_method, backordered, est_delivery_min, est_delivery_max)
+       VALUES ($1, $2, $3, $4, $5, 'paid', $6, 'USD', $7, $8, $9, $10, $11, $12, $13, $14, $15)
        ON CONFLICT (stripe_session_id) WHERE stripe_session_id IS NOT NULL DO NOTHING
        RETURNING *`,
       [
@@ -478,6 +518,8 @@ async function fulfillSession(session) {
         session.payment_method_types?.[0] || 'card',
         subtotal, shippingFee, tax,
         session.id, paymentIntentId,
+        shippingMethod, !!pending.backordered,
+        addBusinessDays(paidAt, days.minDays), addBusinessDays(paidAt, days.maxDays),
       ]
     );
 

@@ -5,7 +5,7 @@
 const crypto = require('crypto');
 const { Resend } = require('resend');
 
-const { formatDateTime, formatDate } = require('./businessTime');
+const { formatDateTime, formatDate, formatDateOnly } = require('./businessTime');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -124,6 +124,26 @@ async function sendAdminNotification(newUser) {
   });
 }
 
+const DELIVERY_LABELS = { express: 'Express', standard: 'Standard', no_rush: 'No-Rush' };
+
+// The delivery window a customer was promised, as an email row. Orders from before
+// delivery options existed have no dates, so they get no row.
+function deliveryRowHtml(order) {
+  if (!order.est_delivery_min || !order.est_delivery_max) return '';
+  const from = formatDateOnly(order.est_delivery_min);
+  const to = formatDateOnly(order.est_delivery_max);
+  const range = from === to ? from : `${from} – ${to}`;
+  const method = DELIVERY_LABELS[order.shipping_method];
+  return `
+      <tr><td style="padding:0 40px 24px;">
+        <div style="background:#f5f0e8;border:1px solid #d8d0c4;padding:16px 20px;">
+          <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:4px;">Estimated delivery${method ? ` · ${escapeMailHtml(method)}` : ''}</div>
+          <div style="font-size:15px;font-weight:700;color:#111;">${escapeMailHtml(range)}</div>
+          ${order.backordered ? '<div style="font-size:13px;color:#555;margin-top:6px;">Part of your order is being restocked first, so this estimate is a little later than usual. We will email you as soon as it ships.</div>' : ''}
+        </div>
+      </td></tr>`;
+}
+
 /* ── 3. ORDER CONFIRMATION (customer) ── */
 async function sendOrderConfirmation(toEmail, name, order) {
   const items   = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
@@ -173,6 +193,8 @@ async function sendOrderConfirmation(toEmail, name, order) {
           </tr>
         </table>
       </td></tr>
+
+      ${deliveryRowHtml(order)}
 
       <!-- ITEMS TABLE -->
       <tr><td style="padding:0 40px 24px;">
@@ -256,6 +278,8 @@ async function sendAdminOrderAlert(order, customerName, customerEmail) {
       <tr><td style="padding:28px 36px 20px;">
         <div style="font-family:Georgia,serif;font-size:28px;font-weight:900;color:#9b7ec8;">${formatCurrency(order.total, currency)}</div>
         <div style="font-size:13px;color:#555;margin-top:4px;">Order #JF${orderId} · ${formatDateTime()}</div>
+        ${order.shipping_method ? `<div style="font-size:13px;color:#9b7ec8;margin-top:8px;">${escapeMailHtml(DELIVERY_LABELS[order.shipping_method] || order.shipping_method)} delivery${order.est_delivery_min && order.est_delivery_max ? ` · promised ${escapeMailHtml(formatDateOnly(order.est_delivery_min))} – ${escapeMailHtml(formatDateOnly(order.est_delivery_max))}` : ''}</div>` : ''}
+        ${order.backordered ? '<div style="font-size:13px;font-weight:700;color:#e0a030;margin-top:6px;">BACKORDER: an item in this order must be restocked before it can ship.</div>' : ''}
       </td></tr>
 
       <!-- DETAILS -->
