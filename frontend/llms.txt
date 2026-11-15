@@ -1,10 +1,11 @@
 # Jai'fore
 
-> Jai'fore (Jai'fore Media, United States) sells custom printed apparel and merchandise, graphic design, and web development. Customers can design their own pieces in an online Design Studio or shop ready-made items. Prices are in US dollars, paid by card through Stripe, and we ship worldwide.
+> Jai'fore (Jai'fore Media, based in Memphis, Texas, USA) sells custom printed apparel and merchandise, graphic design, and web development. Customers can design their own pieces in an online Design Studio or shop ready-made items. Prices are in US dollars, paid by card through Stripe, and we ship worldwide.
 
 ## Key facts
-- Free shipping on physical orders of $60 or more; flat $15 below that. Web development is by enquiry.
-- Custom orders take 5-14 business days to produce and ship.
+- Three delivery options, with estimated dates shown at checkout. In stock: Express 3-5 business days ($19.99), Standard 5-8 business days (free on physical orders of $60 or more, otherwise $15), No-Rush 8-10 business days (free).
+- If an item has to be restocked first, Express is not offered and delivery takes about 5 more business days.
+- International orders may take longer (customs not included). Web development is by enquiry.
 - Orders can be cancelled within 2 hours of placement if production has not started.
 - Contact: hello@jaifore.org (replies within 2 business days).
 

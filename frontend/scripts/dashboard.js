@@ -108,6 +108,7 @@ async function loadOrders() {
           <div class="order-id">Order #${o.id}</div>
           <div class="order-date">${new Date(o.created_at).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' })}</div>
           <div class="order-items">${items.length} item${items.length !== 1 ? 's' : ''}</div>
+          ${deliveryText(o) ? `<div class="order-eta">${deliveryText(o)}</div>` : ''}
         </div>
         <div style="text-align:right">
           <div class="order-total">${formatPrice(o.total)}</div>
@@ -118,6 +119,27 @@ async function loadOrders() {
   } catch (err) {
     showError(list, friendlyError(err), loadOrders);
   }
+}
+
+// ── DELIVERY ESTIMATE ─────────────────────────────────
+const DELIVERY_NAMES = { express: 'Express', standard: 'Standard', no_rush: 'No-Rush' };
+
+// "2026-11-25..." -> "Wed, Nov 25". Calendar dates carry no zone, so read them as UTC.
+function formatDay(value) {
+  const [y, m, d] = String(value).slice(0, 10).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', {
+    timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric',
+  });
+}
+
+// "Arriving Fri, Nov 27 – Wed, Dec 2 · Standard", or '' for finished orders and
+// orders placed before delivery estimates existed.
+function deliveryText(o) {
+  if (!o.est_delivery_min || !o.est_delivery_max || o.status === 'delivered' || o.status === 'cancelled') return '';
+  const from = formatDay(o.est_delivery_min);
+  const to   = formatDay(o.est_delivery_max);
+  const method = DELIVERY_NAMES[o.shipping_method];
+  return `Arriving ${from === to ? from : `${from} \u2013 ${to}`}${method ? ` \u00b7 ${method}` : ''}`;
 }
 
 // ── STATUS TIMELINE (item 15) ─────────────────────────
@@ -211,6 +233,10 @@ function openOrderDetail(orderId) {
   statusEl.className   = `order-status status-${order.status}`;
   document.getElementById('orderModalDate').textContent =
     new Date(order.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const etaEl = document.getElementById('orderModalEta');
+  etaEl.textContent = deliveryText(order) + (order.backordered && deliveryText(order) ? ' (part of this order is being restocked first)' : '');
+  etaEl.hidden = !etaEl.textContent;
 
   const itemsEl = document.getElementById('orderModalItems');
   itemsEl.innerHTML = items.length

@@ -520,6 +520,7 @@ function setStudioFields(p) {
   document.getElementById('pSecondView').value = p.second_view || 'back';
   document.getElementById('pOneSize').value    = p.one_size ? 'true' : 'false';
   document.getElementById('pReadyMade').value  = p.ready_made ? 'true' : 'false';
+  document.getElementById('pBackorder').value  = p.allow_backorder ? 'true' : 'false';
   STUDIO_IMAGE_FIELDS.forEach(([elId, key]) => { document.getElementById(elId).value = p[key] || ''; });
   const targets = p.print_targets || {};
   document.getElementById('pTargetFront').value = targets.front || '';
@@ -740,6 +741,7 @@ document.getElementById('saveProductBtn').addEventListener('click', async () => 
     body.second_view = document.getElementById('pSecondView').value;
     body.one_size    = document.getElementById('pOneSize').value === 'true';
     body.ready_made  = document.getElementById('pReadyMade').value === 'true';
+    body.allow_backorder = document.getElementById('pBackorder').value === 'true';
     STUDIO_IMAGE_FIELDS.forEach(([elId, key]) => { body[key] = document.getElementById(elId).value.trim(); });
     body.print_targets = {
       front: document.getElementById('pTargetFront').value || null,
@@ -836,6 +838,24 @@ async function openPrintOriginal(path) {
   }
 }
 
+// "2026-11-25..." -> "Wed, Nov 25" (calendar dates carry no zone, so read as UTC).
+function formatDay(value) {
+  const [y, m, d] = String(value).slice(0, 10).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' });
+}
+const DELIVERY_NAMES = { express: 'Express', standard: 'Standard', no_rush: 'No-Rush' };
+
+// Under the status badge: the option the customer chose, the date promised, and a backorder flag.
+function deliveryCell(o) {
+  const parts = [];
+  if (o.shipping_method) {
+    const when = o.est_delivery_max ? ` · by ${formatDay(o.est_delivery_max)}` : '';
+    parts.push(`<small style="color:var(--ink-muted)">${escHtml(DELIVERY_NAMES[o.shipping_method] || o.shipping_method)}${escHtml(when)}</small>`);
+  }
+  if (o.backordered) parts.push('<small style="color:#f59e0b;font-weight:700">BACKORDER, restock first</small>');
+  return parts.length ? `<br>${parts.join('<br>')}` : '';
+}
+
 async function loadOrders() {
   showTableSkeleton('ordersBody', 6, 6);
   try {
@@ -851,7 +871,7 @@ async function loadOrders() {
         <td>#${escHtml(o.id)}</td>
         <td>${escHtml(o.customer_name || '—')}<br><small style="color:var(--ink-muted)">${escHtml(o.customer_email || '')}</small></td>
         <td>${formatMoney(o.total, o.currency)}</td>
-        <td><span class="badge badge-${o.status === 'delivered' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending'}">${escHtml(o.status)}</span></td>
+        <td><span class="badge badge-${o.status === 'delivered' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending'}">${escHtml(o.status)}</span>${deliveryCell(o)}</td>
         <td>${new Date(o.created_at).toLocaleDateString()}</td>
         <td>
           <select class="status-select" onchange="updateOrderStatus(${Number(o.id)}, this.value)">

@@ -35,6 +35,7 @@ let quote      = null;
 let quoteError = '';
 let quoteSeq   = 0; // ignores slow, out-of-date quote responses
 let quotePending = false; // true while the server quote is in flight (summary shows skeletons)
+let shippingMethod = 'standard'; // the delivery option the customer picked (the server re-checks it)
 
 // ── HELPERS ──────────────────────────────────────────
 function escapeHtml(str) {
@@ -356,7 +357,9 @@ function renderSummary() {
   totalEl.textContent    = formatPrice(quote.total_before_tax);
   taxEl.textContent      = quote.tax_enabled ? 'Calculated at payment' : '—';
 
-  if (quote.shipping_fee > 0) {
+  if (quote.shipping_method !== 'standard') {
+    hintEl.textContent = ''; // the free-shipping nudge is about Standard delivery
+  } else if (quote.shipping_fee > 0) {
     const remaining = quote.free_shipping_threshold - quote.subtotal;
     hintEl.textContent = `Add ${formatPrice(remaining)} more for free shipping.`;
   } else {
@@ -387,21 +390,31 @@ async function refreshQuote() {
   quotePending = true;
   renderSummary();
 
-  const res = await apiPost('/api/stripe/quote', { items: cart }, FETCH_TIMEOUT_MS);
+  const res = await apiPost('/api/stripe/quote', { items: cart, shipping_method: shippingMethod }, FETCH_TIMEOUT_MS);
   if (seq !== quoteSeq) return; // a newer request has superseded this one
   quotePending = false;
 
   if (res.status === 401 || res.status === 403) { redirectToLogin(); return; }
 
+  // The chosen option stopped being available (e.g. Express once an item needs restocking):
+  // fall back to Standard and say so, rather than showing an error.
+  if (!res.ok && res.status === 400 && shippingMethod !== 'standard' && /delivery/i.test(res.data?.error || '')) {
+    shippingMethod = 'standard';
+    refreshQuote().then(() => showMsg(res.data.error));
+    return;
+  }
+
   if (res.ok) {
     quote = res.data;
     quoteError = '';
+    shippingMethod = quote.shipping_method || shippingMethod;
   } else {
     quote = null;
     quoteError = res.data?.error || 'We couldn\u2019t price your cart right now. Please try again.';
   }
 
   renderItems();
+  renderDelivery();
   showMsg(quoteError);
 
   // A failed quote gets a Retry, so the summary never sits on "—" forever
@@ -415,6 +428,49 @@ async function refreshQuote() {
     document.getElementById('checkoutMsg').appendChild(retry);
   }
 }
+
+// ── DELIVERY OPTIONS ──────────────────────────────────
+// "2026-11-25" -> "Wed, Nov 25". Calendar dates carry no zone, so read them as UTC.
+function formatDay(iso) {
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', {
+    timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric',
+  });
+}
+
+function renderDelivery() {
+  const section = document.getElementById('deliverySection');
+  const list    = document.getElementById('deliveryOptions');
+  const noteEl  = document.getElementById('deliveryNote');
+  const options = quote?.shipping_options;
+
+  if (!options?.length) { section.hidden = true; return; }
+  section.hidden = false;
+
+  if (quote.backordered) {
+    noteEl.textContent = `${(quote.backordered_items || []).join(', ') || 'An item in your cart'} will be restocked before it ships, so delivery takes a little longer and Express is not available.`;
+    noteEl.classList.add('is-warning');
+  } else {
+    noteEl.textContent = '';
+    noteEl.classList.remove('is-warning');
+  }
+
+  list.innerHTML = options.map(o => `
+    <label class="delivery-option">
+      <input type="radio" name="deliveryMethod" value="${escapeHtml(o.id)}" ${o.id === quote.shipping_method ? 'checked' : ''}/>
+      <span class="delivery-text">
+        <span class="delivery-name">${escapeHtml(o.label)}</span>
+        <span class="delivery-dates">Get it ${escapeHtml(formatDay(o.earliest))} – ${escapeHtml(formatDay(o.latest))}</span>
+      </span>
+      <span class="delivery-price${o.price === 0 ? ' is-free' : ''}">${o.price === 0 ? 'Free' : formatPrice(o.price)}</span>
+    </label>`).join('');
+}
+
+document.getElementById('deliveryOptions').addEventListener('change', (e) => {
+  if (e.target.name !== 'deliveryMethod') return;
+  shippingMethod = e.target.value;
+  refreshQuote();
+});
 
 // ── PREFILL USER INFO ─────────────────────────────────
 function prefillUser() {
@@ -476,7 +532,7 @@ async function placeOrder() {
   setLoading(true);
   showMsg('Taking you to secure payment...');
 
-  const res = await apiPost('/api/stripe/create-checkout-session', { items: cart, contact });
+  const res = await apiPost('/api/stripe/create-checkout-session', { items: cart, contact, shipping_method: shippingMethod });
 
   if (res.status === 401 || res.status === 403) { redirectToLogin(); return; }
 
