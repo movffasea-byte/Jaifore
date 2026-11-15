@@ -1,0 +1,6 @@
+# Jai'fore: all crawlers, including AI crawlers, are welcome on the public pages.
+# Private pages are kept out of search with noindex, not listed here.
+User-agent: *
+Allow: /
+
+Sitemap: https://jaifore.org/sitemap.xml
