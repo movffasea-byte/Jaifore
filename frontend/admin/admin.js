@@ -360,9 +360,9 @@ async function loadRevenueChart(period = 'daily') {
 
 function formatRevenueLabel(dateStr, period) {
   const d = new Date(dateStr);
-  if (period === 'monthly') return d.toLocaleDateString('en-NG', { month: 'short', year: '2-digit' });
-  if (period === 'weekly')  return `Wk of ${d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}`;
-  return d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
+  if (period === 'monthly') return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  if (period === 'weekly')  return `Wk of ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 document.querySelectorAll('.period-btn').forEach(btn => {
@@ -1367,7 +1367,7 @@ async function openQrStats(id, title) {
 
     document.getElementById('qrStatsTotal').textContent = `${data.totalScans} total scan${data.totalScans !== 1 ? 's' : ''}`;
 
-    const labels = data.dailyScans.map(d => new Date(d.day).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' }));
+    const labels = data.dailyScans.map(d => new Date(d.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
     const values = data.dailyScans.map(d => d.count);
 
     const ctx = document.getElementById('qrStatsChart').getContext('2d');

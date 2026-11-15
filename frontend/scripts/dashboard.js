@@ -106,7 +106,7 @@ async function loadOrders() {
       card.innerHTML = `
         <div>
           <div class="order-id">Order #${o.id}</div>
-          <div class="order-date">${new Date(o.created_at).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' })}</div>
+          <div class="order-date">${new Date(o.created_at).toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' })}</div>
           <div class="order-items">${items.length} item${items.length !== 1 ? 's' : ''}</div>
           ${deliveryText(o) ? `<div class="order-eta">${deliveryText(o)}</div>` : ''}
         </div>
@@ -150,7 +150,7 @@ const TIMELINE_STAGES = ['processing', 'shipped', 'delivered'];
 const TIMELINE_LABELS = { processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' };
 
 function formatTimelineDate(iso) {
-  return new Date(iso).toLocaleDateString('en-NG', {
+  return new Date(iso).toLocaleDateString('en-US', {
     day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit'
   });
 }
@@ -232,7 +232,7 @@ function openOrderDetail(orderId) {
   statusEl.textContent = order.status;
   statusEl.className   = `order-status status-${order.status}`;
   document.getElementById('orderModalDate').textContent =
-    new Date(order.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+    new Date(order.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const etaEl = document.getElementById('orderModalEta');
   etaEl.textContent = deliveryText(order) + (order.backordered && deliveryText(order) ? ' (part of this order is being restocked first)' : '');
