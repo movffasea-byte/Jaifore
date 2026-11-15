@@ -34,6 +34,9 @@ const guestCap = () => Number(process.env.BOSSY_GUEST_DAILY_CAP) || 15;
 // guest message also counts against this much higher per-IP ceiling: that is
 // what keeps total spend bounded.
 const guestIpCap = () => Number(process.env.BOSSY_GUEST_IP_DAILY_CAP) || 150;
+// Accounts are free to make, so signed-in users also count against a per-IP ceiling
+// (higher than guests', since a household or office can share one address).
+const userIpCap = () => Number(process.env.BOSSY_USER_IP_DAILY_CAP) || 300;
 
 // Caps reset at midnight in the business's time zone (businessTime.js), not
 // the server's (Railway runs UTC). Set from the server, never from the browser,
@@ -112,7 +115,7 @@ async function bump(day, who) {
 // Counts this message against today's allowance.
 // Returns { allowed, resetIn, limit } where resetIn is seconds until local
 // midnight and limit says which cap was hit ('own' or 'network').
-//   signed in:          per user
+//   signed in:          per user, plus a per-IP ceiling
 //   guest with guestId: per browser, plus the shared per-IP ceiling
 //   guest without one:  per IP (older clients, e.g. the mobile app)
 async function checkDailyCap(req, guestId) {
@@ -120,7 +123,9 @@ async function checkDailyCap(req, guestId) {
   const deny = (limit) => ({ allowed: false, resetIn, limit });
 
   if (req.user?.id) {
-    return (await bump(day, `user:${req.user.id}`)) <= userCap() ? { allowed: true } : deny('own');
+    if ((await bump(day, `user:${req.user.id}`)) > userCap()) return deny('own');
+    if ((await bump(day, `userip:${req.ip}`)) > userIpCap()) return deny('network');
+    return { allowed: true };
   }
   if (!guestId) {
     return (await bump(day, `ip:${req.ip}`)) <= guestCap() ? { allowed: true } : deny('own');

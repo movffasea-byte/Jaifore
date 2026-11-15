@@ -42,7 +42,7 @@ router.get('/:slug', async (req, res) => {
     // tradeoff for not making a real person wait on an analytics insert.
     db.query(
       `INSERT INTO qr_scans (qr_code_id, user_agent) VALUES ($1, $2)`,
-      [qr.id, req.headers['user-agent'] || null]
+      [qr.id, (req.headers['user-agent'] || '').slice(0, 255) || null]
     ).catch(err => console.error('[qr] scan log failed:', err.message));
 
     return res.redirect(302, qr.destination_url);

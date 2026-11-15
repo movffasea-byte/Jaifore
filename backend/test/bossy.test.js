@@ -171,6 +171,18 @@ describe('daily caps', () => {
     expect(redis.incr).toHaveBeenCalledWith(expect.stringMatching(/^bossy:cap:\d{4}-\d{2}-\d{2}:user:7$/));
   });
 
+  test('signed-in users also share a per-IP ceiling, so many new accounts cannot dodge the caps', async () => {
+    process.env.BOSSY_USER_DAILY_CAP = '100';
+    process.env.BOSSY_USER_IP_DAILY_CAP = '2';
+    const other = jwt.sign({ id: 8, role: 'user' }, process.env.JWT_SECRET);
+    expect((await chat({ message: 'x' }, token)).status).toBe(200);
+    expect((await chat({ message: 'x' }, other)).status).toBe(200);
+    expect((await chat({ message: 'x' }, token)).status).toBe(429);
+    expect(redis.incr).toHaveBeenCalledWith(expect.stringMatching(/^bossy:cap:\d{4}-\d{2}-\d{2}:userip:/));
+    delete process.env.BOSSY_USER_IP_DAILY_CAP;
+    process.env.BOSSY_USER_DAILY_CAP = '3';
+  });
+
   test('invalid token falls back to guest limits', async () => {
     await chat({ message: 'x' }, 'not-a-jwt');
     expect(redis.incr).toHaveBeenCalledWith(expect.stringMatching(/^bossy:cap:\d{4}-\d{2}-\d{2}:ip:/));

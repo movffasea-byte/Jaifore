@@ -11,6 +11,8 @@ process.env.SUPABASE_BUCKET = 'artwork';
 
 jest.mock('axios', () => ({ post: jest.fn(), head: jest.fn() }));
 jest.mock('@sentry/node', () => ({ captureException: jest.fn() }));
+jest.mock('../redis', () => ({ cacheIncr: jest.fn() }));
+const { cacheIncr } = require('../redis');
 
 const express = require('express');
 const request = require('supertest');
@@ -33,11 +35,37 @@ const upload = (body, tok = token) => {
 };
 
 beforeEach(() => {
+  cacheIncr.mockReset().mockResolvedValue(1);
   axios.post.mockReset().mockResolvedValue({ status: 200 });
   axios.head.mockReset().mockResolvedValue({ status: 404 });
   jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 afterEach(() => jest.restoreAllMocks());
+
+describe('per-user upload quota', () => {
+  afterEach(() => { delete process.env.UPLOAD_USER_DAILY_CAP; });
+
+  it('counts each valid upload against the user and stops at the cap', async () => {
+    process.env.UPLOAD_USER_DAILY_CAP = '2';
+    cacheIncr.mockResolvedValueOnce(2).mockResolvedValueOnce(3);
+    expect((await upload({ dataUrl: dataUrl('image/png', PNG) })).status).toBe(201);
+    const over = await upload({ dataUrl: dataUrl('image/png', PNG) });
+    expect(over.status).toBe(429);
+    expect(cacheIncr).toHaveBeenCalledWith('uploads:42', 86400);
+    expect(axios.post).toHaveBeenCalledTimes(1); // nothing stored for the blocked one
+  });
+
+  it('does not count a file that is not a valid image', async () => {
+    const res = await upload({ dataUrl: dataUrl('image/png', Buffer.from('not a png')) });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(cacheIncr).not.toHaveBeenCalled();
+  });
+
+  it('lets the upload through when Redis cannot count', async () => {
+    cacheIncr.mockResolvedValueOnce(null);
+    expect((await upload({ dataUrl: dataUrl('image/png', PNG) })).status).toBe(201);
+  });
+});
 
 describe('private originals', () => {
   const adminToken = jwt.sign({ id: 1, role: 'admin' }, process.env.JWT_SECRET);

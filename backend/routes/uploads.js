@@ -19,6 +19,11 @@ const crypto = require('crypto');
 const axios = require('axios');
 const Sentry = require('@sentry/node');
 const { authenticate, requireAdmin } = require('../middleware');
+const { cacheIncr } = require('../redis');
+
+// Artwork uploads per customer per rolling 24 hours (window starts at their first upload).
+// Every upload is stored twice in Supabase, so this bounds storage cost from one account.
+const uploadDailyCap = () => Number(process.env.UPLOAD_USER_DAILY_CAP) || 30;
 
 const router = express.Router();
 
@@ -62,6 +67,13 @@ router.post('/', authenticate, async (req, res) => {
   const image = readImage(req.body?.dataUrl);
   if (image.error) return res.status(image.status).json({ error: image.error });
   const { mime, ext, buffer } = image;
+
+  // Counted only for valid images. If Redis can't count, let the upload through:
+  // the route's rate limiter still applies and customers shouldn't be blocked by a cache outage.
+  const used = await cacheIncr(`uploads:${req.user.id}`, 24 * 60 * 60);
+  if (used !== null && used > uploadDailyCap()) {
+    return res.status(429).json({ error: 'Daily upload limit reached. Please try again tomorrow.' });
+  }
 
   const objectPath = `${req.user.id}/${crypto.randomUUID()}.${ext}`;
   const base = SUPABASE_URL.replace(/\/$/, '');

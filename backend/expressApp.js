@@ -135,7 +135,7 @@ app.get('/', (req, res) => {
   res.json({ message: "Jai'fore backend is live 🚀" });
 });
 
-app.use('/api/qr', require('./routes/qr'));
+app.use('/api/qr', generalLimiter, require('./routes/qr'));
 
 app.use('/api/auth/check-email', checkEmailLimiter);
 app.use('/api/auth', authLimiter, authRouter);
