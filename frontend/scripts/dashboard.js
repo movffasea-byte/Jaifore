@@ -6,7 +6,7 @@
 const API = window.JAIFORE_API;
 
 // ── AUTH GUARD ───────────────────────────────────────
-const token = localStorage.getItem('jaifore_token');
+let token = localStorage.getItem('jaifore_token');
 const user  = JSON.parse(localStorage.getItem('jaifore_user') || 'null');
 
 if (!token || !user) {
@@ -324,6 +324,9 @@ document.getElementById('pfSaveBtn').addEventListener('click', async () => {
     const data = await res.json();
 
     if (!res.ok) { msgEl.textContent = data.error || 'Update failed.'; msgEl.className = 'pf-msg error'; return; }
+
+    // A password change revokes old tokens; keep the fresh one the server sent.
+    if (data.token) { token = data.token; localStorage.setItem('jaifore_token', data.token); }
 
     // Update local storage
     const updated = { ...user, name };

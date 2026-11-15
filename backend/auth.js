@@ -14,6 +14,15 @@ const { generateOTP, sendOTPEmail, sendAdminNotification, sendWelcomeEmail, send
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
+
+// `tv` is the user's token_version; authUser.js rejects tokens whose tv is stale.
+function signToken(user, expiresIn) {
+  return jwt.sign(
+    { id: user.id, name: user.name, email: user.email, role: user.role, tv: user.token_version || 0 },
+    JWT_SECRET,
+    { expiresIn }
+  );
+}
 // Pending registrations live in Redis as otp:<email> -> { otp, userData } so a
 // Railway restart between "OTP sent" and "OTP entered" doesn't lose them.
 const OTP_TTL_SECONDS = 10 * 60;
@@ -102,13 +111,14 @@ router.post('/verify-otp', async (req, res) => {
     const { name, email: userEmail, password } = pending.userData;
     const result = await pool.query(
       `INSERT INTO users (name, email, password, verified) VALUES ($1,$2,$3,true)
-       ON CONFLICT (email) DO UPDATE SET name=$1, password=$3, verified=true
-       RETURNING id, name, email, role, created_at`,
+       ON CONFLICT (email) DO UPDATE SET name=$1, password=$3, verified=true,
+         token_version = users.token_version + 1
+       RETURNING id, name, email, role, token_version, created_at`,
       [name, userEmail, password]
     );
     const user = result.rows[0];
     await cacheInvalidate(otpKey(key));
-    const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    const token = signToken(user, '7d');
     try { await sendAdminNotification(user); } catch (e) { console.error('Admin notify error:', e.message); }
     sendWelcomeEmail(user.email, user.name).catch(e => console.error('Welcome email error:', e.message));
     return res.status(201).json({ message: 'Account verified.', token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
@@ -152,7 +162,7 @@ router.post('/login', async (req, res) => {
     if (!user.verified) return res.status(403).json({ error: 'Please verify your email first.', needsVerification: true, email: user.email });
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ error: 'Invalid email or password.' });
-    const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '30d' });
+    const token = signToken(user, '30d');
     return res.status(200).json({ message: 'Login successful.', token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (err) { return serverError(res, err, 'Login'); }
 });
@@ -177,6 +187,7 @@ router.put('/update-profile', authenticate, async (req, res) => {
     const user   = result.rows[0];
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
+    let newToken = null;
     if (newPassword) {
       if (String(newPassword).length < MIN_PASSWORD_LENGTH) {
         return res.status(400).json({ error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
@@ -184,13 +195,18 @@ router.put('/update-profile', authenticate, async (req, res) => {
       const match = await bcrypt.compare(currentPassword, user.password);
       if (!match) return res.status(401).json({ error: 'Current password is incorrect.' });
       const hashed = await bcrypt.hash(newPassword, 12);
-      await pool.query('UPDATE users SET name=$1, password=$2 WHERE id=$3', [name, hashed, req.user.id]);
+      const bumped = await pool.query(
+        'UPDATE users SET name=$1, password=$2, token_version = token_version + 1 WHERE id=$3 RETURNING id, name, email, role, token_version',
+        [name, hashed, req.user.id]
+      );
+      // Every older token just died; hand back a fresh one so this session survives.
+      newToken = signToken(bumped.rows[0], '30d');
     } else {
       await pool.query('UPDATE users SET name=$1 WHERE id=$2', [name, req.user.id]);
     }
 
     const updated = await pool.query('SELECT id, name, email, role FROM users WHERE id=$1', [req.user.id]);
-    res.json({ message: 'Profile updated.', user: updated.rows[0] });
+    res.json({ message: 'Profile updated.', user: updated.rows[0], ...(newToken && { token: newToken }) });
   } catch (err) { return serverError(res, err, 'Update profile'); }
 });
 
@@ -259,7 +275,7 @@ router.post('/reset-password', async (req, res) => {
     if (!data) return res.status(400).json({ error: 'This reset link is invalid or has expired.' });
 
     const hashed = await bcrypt.hash(newPassword, 12);
-    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, data.userId]);
+    await pool.query('UPDATE users SET password = $1, token_version = token_version + 1 WHERE id = $2', [hashed, data.userId]);
 
     // One-time use — invalidate immediately so the same link can't be
     // replayed to set the password again later.

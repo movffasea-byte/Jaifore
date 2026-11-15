@@ -10,7 +10,13 @@ process.env.JWT_SECRET = 'test-secret';
 
 const mockPool = { query: jest.fn() };
 
-jest.mock('../database', () => ({ pool: mockPool }));
+// authenticate() looks the user up (role + token_version). Answer that lookup
+// here so per-test mockResolvedValueOnce queues only see the route's own queries.
+let mockDbUser = (id) => ({ role: id === 1 ? 'admin' : 'user', token_version: 0 });
+const mockAuthLookup = (sql, p) => (/SELECT role, token_version FROM users/.test(sql)
+  ? Promise.resolve({ rows: mockDbUser(p[0]) ? [mockDbUser(p[0])] : [] })
+  : null);
+jest.mock('../database', () => ({ pool: { query: (sql, p) => mockAuthLookup(sql, p) || mockPool.query(sql, p) } }));
 jest.mock('../redis', () => ({ cacheGet: jest.fn(), cacheSet: jest.fn(), cacheInvalidate: jest.fn() }));
 jest.mock('../mailer', () => ({
   generateOTP: jest.fn(() => '123456'),
@@ -37,6 +43,7 @@ const sign = (payload, opts = { expiresIn: '1h' }) => jwt.sign(payload, process.
 
 beforeEach(() => {
   mockPool.query.mockReset();
+  mockDbUser = (id) => ({ role: id === 1 ? 'admin' : 'user', token_version: 0 });
   jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 afterEach(() => jest.restoreAllMocks());
@@ -68,6 +75,67 @@ describe('authenticate middleware', () => {
     const res = await request(app).get('/protected').set('Authorization', `Bearer ${sign({ id: 5, role: 'user' })}`);
     expect(res.status).toBe(200);
     expect(res.body.user.id).toBe(5);
+  });
+});
+
+describe('token version and live role', () => {
+  const get = (t) => request(app).get('/protected').set('Authorization', `Bearer ${t}`);
+
+  it('rejects a token issued before the password changed', async () => {
+    mockDbUser = () => ({ role: 'user', token_version: 1 });
+    expect((await get(sign({ id: 5, tv: 0 }))).status).toBe(401);
+  });
+
+  it('treats a token with no version as version 0 (old logins keep working)', async () => {
+    expect((await get(sign({ id: 5 }))).status).toBe(200);
+  });
+
+  it('accepts a token whose version matches the database', async () => {
+    mockDbUser = () => ({ role: 'user', token_version: 2 });
+    expect((await get(sign({ id: 5, tv: 2 }))).status).toBe(200);
+  });
+
+  it('rejects a token for a user that no longer exists', async () => {
+    mockDbUser = () => null;
+    expect((await get(sign({ id: 5 }))).status).toBe(401);
+  });
+
+  it('takes the role from the database, not the token', async () => {
+    mockDbUser = () => ({ role: 'user', token_version: 0 });
+    const res = await request(app).get('/admin-only').set('Authorization', `Bearer ${sign({ id: 9, role: 'admin' })}`);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('password changes revoke old tokens', () => {
+  it('reset-password bumps token_version', async () => {
+    require('../redis').cacheGet.mockResolvedValueOnce({ userId: 3 });
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app).post('/api/auth/reset-password').send({ token: 'abc', newPassword: 'longenough1' });
+    expect(res.status).toBe(200);
+    expect(mockPool.query.mock.calls[0][0]).toMatch(/token_version = token_version \+ 1/);
+  });
+
+  it('update-profile with a new password bumps the version and returns a fresh token', async () => {
+    const hash = await bcrypt.hash('oldpassword1', 4);
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ id: 3, password: hash }] })
+      .mockResolvedValueOnce({ rows: [{ id: 3, name: 'Ada', email: 'a@test.dev', role: 'user', token_version: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 3, name: 'Ada', email: 'a@test.dev', role: 'user' }] });
+    const res = await request(app).put('/api/auth/update-profile')
+      .set('Authorization', `Bearer ${sign({ id: 3 })}`)
+      .send({ name: 'Ada', currentPassword: 'oldpassword1', newPassword: 'newpassword1' });
+    expect(res.status).toBe(200);
+    expect(mockPool.query.mock.calls[1][0]).toMatch(/token_version = token_version \+ 1/);
+    expect(jwt.verify(res.body.token, process.env.JWT_SECRET).tv).toBe(1);
+  });
+
+  it('login signs the current token_version into the token', async () => {
+    const hash = await bcrypt.hash('longenough1', 4);
+    mockPool.query.mockResolvedValueOnce({ rows: [{ id: 3, name: 'A', email: 'a@test.dev', role: 'user', verified: true, password: hash, token_version: 4 }] });
+    const res = await request(app).post('/api/auth/login').send({ email: 'a@test.dev', password: 'longenough1' });
+    expect(res.status).toBe(200);
+    expect(jwt.verify(res.body.token, process.env.JWT_SECRET).tv).toBe(4);
   });
 });
 

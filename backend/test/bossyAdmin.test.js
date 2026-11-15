@@ -12,6 +12,8 @@ jest.mock('@sentry/node', () => ({ captureException: jest.fn() }));
 
 const express = require('express');
 const request = require('supertest');
+// Token DB check is covered in auth.test.js; here a valid signature is enough.
+jest.mock('../authUser', () => ({ verifyUserToken: async (t) => require('jsonwebtoken').verify(t, process.env.JWT_SECRET) }));
 const jwt = require('jsonwebtoken');
 
 const app = express();

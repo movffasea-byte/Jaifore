@@ -12,7 +12,7 @@
 
 const express = require('express');
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
+const { verifyUserToken } = require('../authUser');
 const Sentry = require('@sentry/node');
 const { redis } = require('../redis');
 const { createReply, extractText } = require('../bossyClient');
@@ -57,11 +57,11 @@ function capClock(now = new Date()) {
 }
 
 // Attach req.user when a valid token is present; never reject.
-function optionalAuth(req, res, next) {
+async function optionalAuth(req, res, next) {
   const header = req.headers['authorization'];
   if (header && header.startsWith('Bearer ')) {
     try {
-      req.user = jwt.verify(header.split(' ')[1], process.env.JWT_SECRET);
+      req.user = await verifyUserToken(header.split(' ')[1]);
     } catch {
       // Bad or expired token: treat as a guest.
     }

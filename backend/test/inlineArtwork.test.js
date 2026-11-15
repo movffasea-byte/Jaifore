@@ -27,6 +27,8 @@ jest.mock('@anthropic-ai/sdk', () => jest.fn().mockImplementation(() => ({})));
 
 const express = require('express');
 const request = require('supertest');
+// Token DB check is covered in auth.test.js; here a valid signature is enough.
+jest.mock('../authUser', () => ({ verifyUserToken: async (t) => require('jsonwebtoken').verify(t, process.env.JWT_SECRET) }));
 const jwt = require('jsonwebtoken');
 const { hasInlineArtwork, REUPLOAD_MESSAGE } = require('../inlineArtwork');
 

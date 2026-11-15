@@ -74,9 +74,9 @@ router.post('/', async (req, res) => {
     if (!header || !header.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Unauthorized.' });
     }
-    const jwt = require('jsonwebtoken');
+    const { verifyUserToken } = require('../authUser');
     try {
-      const decoded = jwt.verify(header.split(' ')[1], process.env.JWT_SECRET);
+      const decoded = await verifyUserToken(header.split(' ')[1]);
       if (decoded.role !== 'admin') {
         return res.status(403).json({ error: 'Admin only.' });
       }
