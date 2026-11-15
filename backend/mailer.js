@@ -218,7 +218,7 @@ async function sendOrderConfirmation(toEmail, name, order) {
       <tr><td style="padding:20px 40px;background:#f5f0e8;border-top:1px solid #d8d0c4;">
         <p style="font-size:13px;color:#888;margin:0 0 8px;line-height:1.6;">
           We'll send you another email when your order ships. Questions? Reply to this email or contact us at
-          <a href="mailto:jaifore@outlook.com" style="color:#4a2d7a;text-decoration:none;">jaifore@outlook.com</a>.
+          <a href="mailto:hello@jaifore.org" style="color:#4a2d7a;text-decoration:none;">hello@jaifore.org</a>.
         </p>
         <p style="font-size:12px;color:#aaa;margin:0;">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</p>
       </td></tr>
@@ -347,7 +347,7 @@ async function sendWelcomeEmail(toEmail, name) {
       <tr><td style="padding:20px 40px;border-top:1px solid #d8d0c4;background:#f5f0e8;">
         <p style="font-size:13px;color:#888;margin:0 0 8px;line-height:1.6;">
           Questions any time — reply to this email or write to
-          <a href="mailto:jaifore@outlook.com" style="color:#4a2d7a;text-decoration:none;">jaifore@outlook.com</a>.
+          <a href="mailto:hello@jaifore.org" style="color:#4a2d7a;text-decoration:none;">hello@jaifore.org</a>.
         </p>
         <p style="font-size:12px;color:#aaa;margin:0;">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</p>
       </td></tr>
@@ -504,7 +504,7 @@ async function sendRefundNotification(toEmail, name, order, refundAmount) {
       <tr><td style="padding:20px 40px;border-top:1px solid #d8d0c4;background:#f5f0e8;">
         <p style="font-size:13px;color:#888;margin:0 0 8px;line-height:1.6;">
           If you don't see this reflected after 10 business days, or have any questions, reply to this email or contact us at
-          <a href="mailto:jaifore@outlook.com" style="color:#4a2d7a;text-decoration:none;">jaifore@outlook.com</a>.
+          <a href="mailto:hello@jaifore.org" style="color:#4a2d7a;text-decoration:none;">hello@jaifore.org</a>.
         </p>
         <p style="font-size:12px;color:#aaa;margin:0;">© 2026 Jai'fore Creative Studio. Worldwide. By Design.</p>
       </td></tr>

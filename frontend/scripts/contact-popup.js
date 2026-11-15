@@ -14,7 +14,7 @@
 (function () {
   // Real contact details — update here if any of these ever change.
   const CONTACT = {
-    email: 'jaifore@outlook.com',
+    email: 'hello@jaifore.org',
     // US number, stored in international format (no +, no leading 0)
     // for wa.me; the same number is reused for the tel: link with a
     // leading + added.
