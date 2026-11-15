@@ -17,7 +17,7 @@ const mockAuthLookup = (sql, p) => (/SELECT role, token_version FROM users/.test
   ? Promise.resolve({ rows: mockDbUser(p[0]) ? [mockDbUser(p[0])] : [] })
   : null);
 jest.mock('../database', () => ({ pool: { query: (sql, p) => mockAuthLookup(sql, p) || mockPool.query(sql, p) } }));
-jest.mock('../redis', () => ({ cacheGet: jest.fn(), cacheSet: jest.fn(), cacheInvalidate: jest.fn() }));
+jest.mock('../redis', () => ({ cacheGet: jest.fn(), cacheSet: jest.fn(), cacheInvalidate: jest.fn(), cacheIncr: jest.fn() }));
 jest.mock('../mailer', () => ({
   generateOTP: jest.fn(() => '123456'),
   sendOTPEmail: jest.fn().mockResolvedValue(),
@@ -224,9 +224,10 @@ describe('registration and OTP', () => {
     redisMock.cacheGet.mockImplementation(async (k) => (store.has(k) ? JSON.parse(store.get(k)) : null));
     redisMock.cacheSet.mockImplementation(async (k, v) => { store.set(k, JSON.stringify(v)); });
     redisMock.cacheInvalidate.mockImplementation(async (k) => { store.delete(k); });
+    redisMock.cacheIncr.mockImplementation(async (k) => { const n = (Number(store.get(k)) || 0) + 1; store.set(k, String(n)); return n; });
   });
   afterEach(() => {
-    redisMock.cacheGet.mockReset(); redisMock.cacheSet.mockReset(); redisMock.cacheInvalidate.mockReset();
+    redisMock.cacheGet.mockReset(); redisMock.cacheSet.mockReset(); redisMock.cacheInvalidate.mockReset(); redisMock.cacheIncr.mockReset();
   });
 
   it('rejects a password shorter than 8 characters', async () => {
@@ -324,6 +325,51 @@ describe('registration and OTP', () => {
 
     const res = await request(app).post('/api/auth/verify-otp').send({ email, otp: '000000' });
     expect(res.status).toBe(429);
+  });
+});
+
+describe('6-digit OTP and attempt limit', () => {
+  const redisMock = require('../redis');
+  let store;
+  beforeEach(() => {
+    store = new Map();
+    redisMock.cacheGet.mockImplementation(async (k) => (store.has(k) && k.startsWith('otp:') ? JSON.parse(store.get(k)) : null));
+    redisMock.cacheSet.mockImplementation(async (k, v) => { store.set(k, JSON.stringify(v)); });
+    redisMock.cacheInvalidate.mockImplementation(async (k) => { store.delete(k); });
+    redisMock.cacheIncr.mockImplementation(async (k) => { const n = (Number(store.get(k)) || 0) + 1; store.set(k, String(n)); return n; });
+  });
+  afterEach(() => {
+    redisMock.cacheGet.mockReset(); redisMock.cacheSet.mockReset(); redisMock.cacheInvalidate.mockReset(); redisMock.cacheIncr.mockReset();
+  });
+  const reg = (email) => request(app).post('/api/auth/register').send({ name: 'R', email, password: 'longenough1' });
+  const verify = (email, otp) => request(app).post('/api/auth/verify-otp').send({ email, otp });
+
+  it('rejects a code that is not exactly 6 digits without counting it', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    await reg('len@test.dev');
+    for (const bad of ['1234', '1234567', 'abcdef']) expect((await verify('len@test.dev', bad)).status).toBe(400);
+    expect(redisMock.cacheIncr).not.toHaveBeenCalled();
+  });
+
+  it('registering again does not reset the wrong-code count', async () => {
+    const email = 'again@test.dev';
+    mockPool.query.mockResolvedValue({ rows: [] });
+    await reg(email);
+    for (let i = 0; i < 4; i++) await verify(email, '000000');
+    await reg(email); // attacker asks for a fresh code to get fresh guesses
+    const fifth = await verify(email, '000000');
+    expect(fifth.status).toBe(429);
+    const right = await verify(email, '123456');
+    expect(right.status).toBe(400); // pending registration was discarded
+  });
+
+  it('a successful verify clears the counter', async () => {
+    const email = 'clear@test.dev';
+    mockPool.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: 9, name: 'R', email, role: 'user', token_version: 0 }] });
+    await reg(email);
+    await verify(email, '000000');
+    expect((await verify(email, '123456')).status).toBe(201);
+    expect(store.has(`otp-attempts:${email}`)).toBe(false);
   });
 });
 

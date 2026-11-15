@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const Sentry = require('@sentry/node');
 const { pool } = require('./database');
 const { authenticate } = require('./middleware');
-const { cacheGet, cacheSet, cacheInvalidate } = require('./redis');
+const { cacheGet, cacheSet, cacheInvalidate, cacheIncr } = require('./redis');
 const { generateOTP, sendOTPEmail, sendAdminNotification, sendWelcomeEmail, sendPasswordResetEmail } = require('./mailer');
 
 const router = express.Router();
@@ -27,6 +27,9 @@ function signToken(user, expiresIn) {
 // Railway restart between "OTP sent" and "OTP entered" doesn't lose them.
 const OTP_TTL_SECONDS = 10 * 60;
 const otpKey = (email) => `otp:${email}`;
+// Wrong-code counter, kept apart from the pending registration so registering
+// again (which rewrites that) can't reset it.
+const attemptsKey = (email) => `otp-attempts:${email}`;
 // Wrong codes allowed per pending registration before it is thrown away.
 // The count survives resend-otp, so asking for a new code buys no extra guesses.
 const MAX_OTP_ATTEMPTS = 5;
@@ -97,13 +100,21 @@ router.post('/verify-otp', async (req, res) => {
   const key = email.toLowerCase().trim();
   const pending = await cacheGet(otpKey(key));
   if (!pending) return res.status(400).json({ error: 'No pending registration or OTP expired. Please register again.' });
+  if (!/^\d{6}$/.test(String(otp))) return res.status(400).json({ error: 'Enter the 6-digit code.' });
+  // Every attempt is counted atomically first, so parallel guesses can't slip past the limit.
+  // If Redis can't count, fall back to the count stored on the pending registration.
+  const counted = await cacheIncr(attemptsKey(key), OTP_TTL_SECONDS);
+  const attempts = counted ?? (pending.attempts || 0) + 1;
+  if (attempts > MAX_OTP_ATTEMPTS) {
+    await cacheInvalidate(otpKey(key));
+    return res.status(429).json({ error: 'Too many incorrect codes. Please wait 10 minutes, then register again.' });
+  }
   if (!otpMatches(pending.otp, otp)) {
-    const attempts = (pending.attempts || 0) + 1;
     if (attempts >= MAX_OTP_ATTEMPTS) {
       await cacheInvalidate(otpKey(key));
-      return res.status(429).json({ error: 'Too many incorrect codes. Please register again to get a new one.' });
+      return res.status(429).json({ error: 'Too many incorrect codes. Please wait 10 minutes, then register again.' });
     }
-    await cacheSet(otpKey(key), { ...pending, attempts }, OTP_TTL_SECONDS);
+    if (counted === null) await cacheSet(otpKey(key), { ...pending, attempts }, OTP_TTL_SECONDS);
     const left = MAX_OTP_ATTEMPTS - attempts;
     return res.status(400).json({ error: `Invalid OTP. ${left} ${left === 1 ? 'try' : 'tries'} left.` });
   }
@@ -118,6 +129,7 @@ router.post('/verify-otp', async (req, res) => {
     );
     const user = result.rows[0];
     await cacheInvalidate(otpKey(key));
+    await cacheInvalidate(attemptsKey(key));
     const token = signToken(user, '7d');
     try { await sendAdminNotification(user); } catch (e) { console.error('Admin notify error:', e.message); }
     sendWelcomeEmail(user.email, user.name).catch(e => console.error('Welcome email error:', e.message));

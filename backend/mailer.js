@@ -28,8 +28,8 @@ async function deliver(payload) {
   return data;
 }
 
-// 4 digits to match the sign-up form; crypto, not Math.random, so codes can't be predicted.
-function generateOTP() { return crypto.randomInt(1000, 10000).toString(); }
+// 6 digits (leading zeros allowed) to match the sign-up form; crypto, not Math.random, so codes can't be predicted.
+function generateOTP() { return crypto.randomInt(0, 1000000).toString().padStart(6, '0'); }
 
 /* ── helpers ── */
 function formatCurrency(amount, currency = 'USD') {

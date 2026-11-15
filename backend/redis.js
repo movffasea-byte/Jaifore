@@ -67,4 +67,17 @@ async function cacheInvalidate(pattern) {
   }
 }
 
-module.exports = { redis, cacheGet, cacheSet, cacheInvalidate };
+// Atomic counter that expires ttlSeconds after its first increment. Returns the
+// new count, or null if Redis is unreachable (callers must have a fallback).
+async function cacheIncr(key, ttlSeconds) {
+  try {
+    const n = await redis.incr(key);
+    if (n === 1) await redis.expire(key, ttlSeconds);
+    return n;
+  } catch (err) {
+    console.error(`Cache incr failed for ${key}:`, err.message);
+    return null;
+  }
+}
+
+module.exports = { redis, cacheGet, cacheSet, cacheInvalidate, cacheIncr };

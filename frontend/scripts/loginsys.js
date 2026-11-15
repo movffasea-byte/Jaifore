@@ -228,10 +228,10 @@ otpBoxes.forEach((box, i) => {
   });
   box.addEventListener('paste', (e) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     pasted.split('').forEach((char, idx) => { if (otpBoxes[idx]) { otpBoxes[idx].value = char; otpBoxes[idx].classList.add('filled'); } });
-    if (pasted.length === 4) autoVerifyOTP();
-    else otpBoxes[Math.min(pasted.length, 3)].focus();
+    if (pasted.length === 6) autoVerifyOTP();
+    else otpBoxes[Math.min(pasted.length, 5)].focus();
   });
 });
 
@@ -241,7 +241,7 @@ function setOTPState(state) { otpBoxes.forEach(b => { b.classList.remove('error'
 
 async function autoVerifyOTP() {
   const otp = getOTPValue();
-  if (otp.length < 4) return;
+  if (otp.length < 6) return;
   otpBoxes.forEach(b => b.disabled = true);
   showMsg('otp-msg', 'Verifying...', '');
   try {

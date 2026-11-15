@@ -81,10 +81,10 @@ describe('order emails', () => {
 });
 
 describe('generateOTP', () => {
-  test('produces 4-digit codes from crypto, not Math.random', () => {
+  test('produces 6-digit codes (leading zeros kept) from crypto, not Math.random', () => {
     const spy = jest.spyOn(Math, 'random');
-    const codes = Array.from({ length: 200 }, generateOTP);
-    expect(codes.every((c) => /^\d{4}$/.test(c))).toBe(true);
+    const codes = Array.from({ length: 2000 }, generateOTP);
+    expect(codes.every((c) => /^\d{6}$/.test(c))).toBe(true);
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });
