@@ -224,33 +224,52 @@ router.post('/:id/refund', authenticate, requireAdmin, async (req, res) => {
       return res.status(409).json({ error: 'This order has already been refunded.' });
     }
 
-    // Optional partial refund (in dollars); leave it out for a full refund
-    let refundCents = null;
+    // Earlier partial refunds count against the total.
+    const totalCents     = Math.round(Number(order.total) * 100);
+    const refundedCents  = Math.round(Number(order.refunded_amount || 0) * 100);
+    const remainingCents = totalCents - refundedCents;
+    if (remainingCents <= 0) {
+      return res.status(409).json({ error: 'This order has already been refunded.' });
+    }
+
+    // Optional partial refund (in dollars); leave it out to refund everything left
+    let requestedCents = remainingCents;
     if (amount !== undefined && amount !== null && amount !== '') {
       const value = Number(amount);
-      if (!Number.isFinite(value) || value <= 0 || value > Number(order.total)) {
-        return res.status(400).json({ error: 'Refund amount must be more than 0 and no more than the order total.' });
+      const cents = Math.round(value * 100);
+      if (!Number.isFinite(value) || cents <= 0 || cents > remainingCents) {
+        return res.status(400).json({
+          error: `Refund amount must be more than 0 and no more than the $${(remainingCents / 100).toFixed(2)} left on this order.`,
+        });
       }
-      refundCents = Math.round(value * 100);
+      requestedCents = cents;
     }
-    const isFullRefund = refundCents === null || refundCents >= Math.round(Number(order.total) * 100);
+    const isFullRefund = requestedCents >= remainingCents;
 
+    // Same order + same refunded-so-far + same amount = same key, so a double
+    // click or a retried request gets Stripe's first refund back, not a second one.
     const refund = await stripe.refunds.create({
       payment_intent: order.stripe_payment_intent_id,
-      ...(refundCents !== null && !isFullRefund ? { amount: refundCents } : {}),
+      ...(refundedCents === 0 && isFullRefund ? {} : { amount: requestedCents }),
       reason: 'requested_by_customer',
       metadata: { order_id: String(order.id) },
-    });
+    }, { idempotencyKey: `refund-${order.id}-${refundedCents}-${requestedCents}` });
 
+    // Compare-and-set: only the request that saw this refunded_amount records it.
     const updated = await pool.query(
-      `UPDATE orders SET payment_status = $1 WHERE id = $2 RETURNING *`,
-      [isFullRefund ? 'refunded' : 'partially_refunded', order.id]
+      `UPDATE orders SET payment_status = $1, refunded_amount = $2
+        WHERE id = $3 AND refunded_amount = $4 RETURNING *`,
+      [isFullRefund ? 'refunded' : 'partially_refunded',
+        ((refundedCents + requestedCents) / 100).toFixed(2), order.id, (refundedCents / 100).toFixed(2)]
     );
+    if (!updated.rows.length) {
+      return res.status(409).json({ error: 'This refund was already recorded. Reload the orders list.' });
+    }
     const refundedOrder = updated.rows[0];
 
     // Refund emails (non-blocking — a failed email must never undo or block
     // the refund Stripe already processed).
-    const refundAmount = isFullRefund ? order.total : refundCents / 100;
+    const refundAmount = requestedCents / 100;
     const customer = await pool.query(`SELECT name, email FROM users WHERE id = $1`, [order.user_id]);
 
     if (customer.rows.length) {

@@ -371,44 +371,56 @@ function mapShipping(session, contact) {
   };
 }
 
-// Reduces stock for apparel (the only category with a stock count) and sends
-// the low-stock alert when a product drops to the threshold.
-async function decrementStock(items, orderId) {
+// Reduces stock for apparel (the only category with a stock count). Runs on the
+// order's transaction client, so a failure here rolls the order back and Stripe
+// retries the webhook. Returns the products that just crossed the low-stock
+// threshold; the caller alerts on them after COMMIT.
+async function decrementStock(client, items) {
+  const lowStock = [];
+  for (const item of items) {
+    const productId = item.id;
+    const qty = Number(item.qty) || 1;
+    if (!productId) continue;
+
+    // FOR UPDATE: two orders for the same product read and write the count in turn.
+    const before = await client.query('SELECT stock FROM products WHERE id = $1 FOR UPDATE', [productId]);
+    const oldStock = before.rows.length ? before.rows[0].stock : null;
+
+    const updated = await client.query(
+      `UPDATE products
+         SET stock = GREATEST(COALESCE(stock, 0) - $1, 0),
+             in_stock = (GREATEST(COALESCE(stock, 0) - $1, 0) > 0)
+       WHERE id = $2 AND stock IS NOT NULL AND category = $3
+       RETURNING *`,
+      [qty, productId, APPAREL_CATEGORY]
+    );
+
+    if (updated.rows.length) {
+      const product = updated.rows[0];
+      const crossed = oldStock !== null && oldStock !== undefined &&
+        oldStock > LOW_STOCK_THRESHOLD && product.stock <= LOW_STOCK_THRESHOLD;
+      if (crossed) lowStock.push(product);
+    }
+  }
+  return lowStock;
+}
+
+// After COMMIT: drop cached product data and send any low-stock alerts.
+async function afterStockChange(items, lowStock, orderId) {
   try {
     for (const item of items) {
-      const productId = item.id;
-      const qty = Number(item.qty) || 1;
-      if (!productId) continue;
-
-      const before = await pool.query('SELECT stock FROM products WHERE id = $1', [productId]);
-      const oldStock = before.rows.length ? before.rows[0].stock : null;
-
-      const updated = await pool.query(
-        `UPDATE products
-           SET stock = GREATEST(COALESCE(stock, 0) - $1, 0),
-               in_stock = (GREATEST(COALESCE(stock, 0) - $1, 0) > 0)
-         WHERE id = $2 AND stock IS NOT NULL AND category = $3
-         RETURNING *`,
-        [qty, productId, APPAREL_CATEGORY]
-      );
-
-      if (updated.rows.length) {
-        await cacheInvalidate(`products:single:${productId}`);
-        const product = updated.rows[0];
-        const crossed = oldStock !== null && oldStock !== undefined &&
-          oldStock > LOW_STOCK_THRESHOLD && product.stock <= LOW_STOCK_THRESHOLD;
-        if (crossed) {
-          sendLowStockAlert(product).catch(e => {
-            console.error('[mailer] Low stock alert failed:', e.message);
-            Sentry.captureException(e, { tags: { area: 'transactional-email' }, extra: { productId: product.id } });
-          });
-        }
-      }
+      if (item.id) await cacheInvalidate(`products:single:${item.id}`);
     }
     await cacheInvalidate('products:list:*');
   } catch (err) {
-    console.error('[stock] Decrement failed:', err.message);
+    console.error('[stock] Cache invalidation failed:', err.message);
     Sentry.captureException(err, { tags: { area: 'inventory' }, extra: { orderId } });
+  }
+  for (const product of lowStock) {
+    sendLowStockAlert(product).catch(e => {
+      console.error('[mailer] Low stock alert failed:', e.message);
+      Sentry.captureException(e, { tags: { area: 'transactional-email' }, extra: { productId: product.id } });
+    });
   }
 }
 
@@ -419,6 +431,7 @@ async function fulfillSession(session) {
   const client = await pool.connect();
   let order;
   let pending;
+  let lowStock = [];
 
   try {
     await client.query('BEGIN');
@@ -474,6 +487,14 @@ async function fulfillSession(session) {
     }
     order = insert.rows[0];
 
+    // The payment record and the stock change commit with the order or not at all.
+    await client.query(
+      `INSERT INTO transactions (order_id, user_id, amount, reference, status, payment_method)
+       VALUES ($1, $2, $3, $4, 'success', 'stripe')`,
+      [order.id, order.user_id, order.total, order.stripe_payment_intent_id || session.id]
+    );
+    lowStock = await decrementStock(client, pending.items || []);
+
     await client.query('DELETE FROM cart_items WHERE user_id = $1', [pending.user_id]);
     await client.query('DELETE FROM pending_checkouts WHERE session_id = $1', [session.id]);
     await client.query('COMMIT');
@@ -493,18 +514,7 @@ async function fulfillSession(session) {
     Sentry.captureException(err, { tags: { area: 'order-timeline' }, extra: { orderId: order.id } });
   }
 
-  try {
-    await pool.query(
-      `INSERT INTO transactions (order_id, user_id, amount, reference, status, payment_method)
-       VALUES ($1, $2, $3, $4, 'success', 'stripe')`,
-      [order.id, order.user_id, order.total, order.stripe_payment_intent_id || session.id]
-    );
-  } catch (err) {
-    console.error('[transactions] Failed to record transaction:', err.message);
-    Sentry.captureException(err, { tags: { area: 'transactions' }, extra: { orderId: order.id } });
-  }
-
-  await decrementStock(pending.items, order.id);
+  await afterStockChange(pending.items || [], lowStock, order.id);
 
   try {
     const customer = await pool.query('SELECT name, email FROM users WHERE id = $1', [order.user_id]);

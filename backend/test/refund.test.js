@@ -159,3 +159,50 @@ describe('POST /api/orders/:id/refund — failures', () => {
     expect(mockPool.query).toHaveBeenCalledTimes(1); // only the SELECT, no UPDATE
   });
 });
+
+describe('POST /api/orders/:id/refund — repeat and partial refunds', () => {
+  const PARTLY = { ...ORDER, payment_status: 'partially_refunded', refunded_amount: '30.00' };
+
+  it('rejects a second partial refund larger than what is left', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [PARTLY] });
+    const res = await refundReq({ amount: 20.01 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/\$20\.00 left/);
+    expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+  });
+
+  it('refunds only the remainder when a full refund follows a partial one', async () => {
+    mockHappyPath(PARTLY);
+    const res = await refundReq();
+    expect(res.status).toBe(200);
+    expect(mockStripe.refunds.create.mock.calls[0][0].amount).toBe(2000);
+    expect(mockPool.query.mock.calls[1][1]).toEqual(['refunded', '50.00', 10, '30.00']);
+  });
+
+  it('returns 409 when the refunded amount already covers the total', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [{ ...PARTLY, refunded_amount: '50.00' }] });
+    const res = await refundReq();
+    expect(res.status).toBe(409);
+    expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+  });
+
+  it('sends Stripe the same idempotency key when the same refund is requested twice', async () => {
+    mockHappyPath();
+    await refundReq({ amount: 10 });
+    mockHappyPath();
+    await refundReq({ amount: 10 });
+    const [first, second] = mockStripe.refunds.create.mock.calls.map(c => c[1]?.idempotencyKey);
+    expect(first).toBe('refund-10-0-1000');
+    expect(second).toBe(first);
+  });
+
+  it('records nothing and sends no emails when another request already recorded the refund', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [ORDER] })
+      .mockResolvedValueOnce({ rows: [] }); // compare-and-set lost
+    const res = await refundReq();
+    expect(res.status).toBe(409);
+    expect(sendRefundNotification).not.toHaveBeenCalled();
+    expect(sendAdminRefundAlert).not.toHaveBeenCalled();
+  });
+});

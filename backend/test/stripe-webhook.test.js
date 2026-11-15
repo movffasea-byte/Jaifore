@@ -216,3 +216,52 @@ describe('webhookHandler — retries and failures', () => {
     expect(Sentry.captureMessage).toHaveBeenCalled();
   });
 });
+
+describe('webhookHandler — payment record and stock commit with the order', () => {
+  const SHIRT_PENDING = { ...PENDING, items: [{ id: 5, qty: 2 }] };
+
+  // Answers by SQL text; `failOn` makes the matching statement throw.
+  function scriptClient(failOn) {
+    mockClient.query.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (failOn && text.includes(failOn)) throw new Error('db hiccup');
+      if (text.includes('FROM pending_checkouts')) return { rows: [SHIRT_PENDING] };
+      if (text.includes('INSERT INTO orders')) return { rows: [ORDER] };
+      if (text.includes('SELECT stock FROM products')) return { rows: [{ stock: 6 }] };
+      if (text.includes('UPDATE products')) return { rows: [{ id: 5, name: 'Tee', stock: 4 }] };
+      return { rows: [] };
+    });
+  }
+
+  it('records the payment and reduces stock before COMMIT, then sends the low-stock alert', async () => {
+    const { sendLowStockAlert } = require('../mailer');
+    mockStripe.webhooks.constructEvent.mockReturnValue(paidEvent());
+    scriptClient();
+    const res = mockRes();
+    await webhookHandler(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({ received: true });
+    const sql = sqlCalls();
+    const commitAt = sql.indexOf('COMMIT');
+    expect(sql.findIndex(s => s.includes('INSERT INTO transactions'))).toBeGreaterThan(-1);
+    expect(sql.findIndex(s => s.includes('INSERT INTO transactions'))).toBeLessThan(commitAt);
+    expect(sql.findIndex(s => s.includes('UPDATE products'))).toBeLessThan(commitAt);
+    expect(mockPool.query.mock.calls.some(c => String(c[0]).includes('INSERT INTO transactions'))).toBe(false);
+    expect(sendLowStockAlert).toHaveBeenCalledWith(expect.objectContaining({ id: 5 }));
+  });
+
+  it.each([
+    ['the payment record', 'INSERT INTO transactions'],
+    ['the stock update', 'UPDATE products'],
+  ])('rolls the order back and returns 500 when %s fails', async (_label, failOn) => {
+    mockStripe.webhooks.constructEvent.mockReturnValue(paidEvent());
+    scriptClient(failOn);
+    const res = mockRes();
+    await webhookHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(sqlCalls()).toContain('ROLLBACK');
+    expect(sqlCalls()).not.toContain('COMMIT');
+    expect(mockClient.release).toHaveBeenCalled();
+  });
+});
