@@ -56,7 +56,12 @@ app.use(cors({
     if (!origin || allowed.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // A blocked origin is the caller's problem, not a server fault: 403, and below 500
+      // so it doesn't page Sentry.
+      const err = new Error('Not allowed by CORS');
+      err.status = 403;
+      err.publicMessage = 'This origin is not allowed.';
+      callback(err);
     }
   },
   // PATCH was missing here, so the browser blocked every PATCH request:
@@ -135,6 +140,23 @@ app.get('/', (req, res) => {
   res.json({ message: "Jai'fore backend is live 🚀" });
 });
 
+// Health check for Railway and uptime monitors: is the app up and can it reach the database?
+// Redis is reported but never fails the check, since the site degrades gracefully without it.
+// No limiter: a monitor polls this often, and it exposes nothing sensitive.
+app.get('/health', async (req, res) => {
+  const { pool } = require('./database');
+  const { redis } = require('./redis');
+  try {
+    await Promise.race([
+      pool.query('SELECT 1'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+    ]);
+  } catch {
+    return res.status(503).json({ status: 'unavailable', database: 'down' });
+  }
+  res.json({ status: 'ok', database: 'up', redis: redis?.status === 'ready' ? 'up' : 'down' });
+});
+
 app.use('/api/qr', generalLimiter, require('./routes/qr'));
 
 app.use('/api/auth/check-email', checkEmailLimiter);
@@ -186,8 +208,9 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message);
-  res.status(err.status || 500).json({ error: 'Something went wrong. Our team has been notified.' });
+  const status = err.status || 500;
+  if (status >= 500) console.error('Unhandled error:', err.message);
+  res.status(status).json({ error: status < 500 && err.publicMessage ? err.publicMessage : 'Something went wrong. Our team has been notified.' });
 });
 
 module.exports = app;

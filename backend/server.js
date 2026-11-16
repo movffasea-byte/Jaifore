@@ -2,7 +2,9 @@
 require('dotenv').config();
 
 const app = require('./expressApp');
-const { initDB } = require('./database');
+const { initDB, pool } = require('./database');
+const { redis } = require('./redis');
+const { createShutdown } = require('./shutdown');
 
 const PORT = process.env.PORT || 3000;
 
@@ -14,13 +16,16 @@ const PORT = process.env.PORT || 3000;
 async function start() {
   try {
     await initDB();
-    app.listen(PORT, '0.0.0.0', () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on port ${PORT}`);
     });
+    const shutdown = createShutdown({ server, pool, redis });
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
   } catch (err) {
     console.error('❌ Failed to start server:', err.message);
     process.exit(1);
   }
 }
 
-start();
+start();
