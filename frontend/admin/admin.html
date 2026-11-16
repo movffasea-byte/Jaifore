@@ -23,12 +23,12 @@
       <p class="login-sub">Restricted to authorised personnel only.</p>
 
       <div class="field-group">
-        <label>Email</label>
+        <label for="loginEmail">Email</label>
         <input type="email" id="loginEmail" placeholder="admin@jaifore.com"/>
       </div>
       <div class="field-group">
 
-  <label>Password <span class="toggle-pw" id="togglePw">show</span></label>
+  <label for="loginPassword">Password <span class="toggle-pw" id="togglePw">show</span></label>
   <input type="password" id="loginPassword" placeholder="••••••••"/>
 </div>
 
@@ -44,7 +44,7 @@
     <p>Enter your admin email to receive a reset link.</p>
 
     <div class="field-group">
-      <label>Email</label>
+      <label for="forgotEmail">Email</label>
       <input type="email" id="forgotEmail" placeholder="admin@jaifore.com"/>
     </div>
 
@@ -191,7 +191,7 @@
           <h3 id="productFormTitle">Add Product</h3>
           <div class="form-grid">
             <div class="field-group">
-              <label>Category</label>
+              <label for="pCategory">Category</label>
               <select id="pCategory">
                 <option value="">— Select Category —</option>
                 <option value="Apparels & Merchandise">Apparels & Merchandise</option>
@@ -200,29 +200,29 @@
               </select>
             </div>
             <div class="field-group">
-              <label>Name</label>
+              <label for="pName">Name</label>
               <input type="text" id="pName" placeholder="Product name"/>
             </div>
 
             <!-- APPAREL-ONLY FIELDS -->
             <div class="field-group cat-field cat-field-apparel">
-              <label>Price ($USD)</label>
+              <label for="pPrice">Price ($USD)</label>
               <input type="number" id="pPrice" placeholder="0.00"/>
             </div>
             <div class="field-group cat-field cat-field-apparel">
-              <label>Stock Count</label>
+              <label for="pStockCount">Stock Count</label>
               <input type="number" id="pStockCount" placeholder="Leave blank if not tracked" min="0"/>
             </div>
             <div class="field-group cat-field cat-field-apparel">
-              <label>In Stock (manual override)</label>
+              <label for="pStock">In Stock (manual override)</label>
               <select id="pStock">
                 <option value="true">Yes</option>
                 <option value="false">No</option>
               </select>
             </div>
             <div class="field-group cat-field cat-field-apparel">
-              <label>Back Image URL</label>
-              <div class="upload-row"><input type="text" id="pBackImage" placeholder="https://jaifore.org/images/BFH&P.jpg"/><button type="button" class="upload-btn" data-upload-for="pBackImage">Upload</button></div>
+              <label for="pSecondView">Back Image URL</label>
+              <div class="upload-row"><input type="text" id="pBackImage" placeholder="https://jaifore.org/images/BFH&P.jpg" aria-label="Back image URL"/><button type="button" class="upload-btn" data-upload-for="pBackImage">Upload</button></div>
             </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Studio Second View</label>
@@ -235,7 +235,7 @@
             <!-- Print areas: Claude finds the box on each Studio photo when you save
                  (backend/printZones.js). Keep the option values in sync with TARGETS there. -->
             <div class="field-group cat-field cat-field-apparel">
-              <label>Front View Prints On</label>
+              <label for="pTargetFront">Front View Prints On</label>
               <select id="pTargetFront" class="print-target">
                 <option value="">Default shared box</option>
                 <option value="top_front">Front of the top (shirt, tee, hoodie)</option>
@@ -248,7 +248,7 @@
               </select>
             </div>
             <div class="field-group cat-field cat-field-apparel">
-              <label>Second View Prints On</label>
+              <label for="pTargetBack">Second View Prints On</label>
               <select id="pTargetBack" class="print-target">
                 <option value="">Default shared box</option>
                 <option value="top_front">Front of the top (shirt, tee, hoodie)</option>
@@ -261,7 +261,7 @@
               </select>
             </div>
             <div class="field-group cat-field cat-field-apparel zone-preview-group">
-              <label>Print Areas</label>
+              <label for="pReadyMade">Print Areas</label>
               <p class="zone-help">Found automatically when you save. If a box looks wrong, drag it or pull its corner to fix it, then save.</p>
               <div id="zonePreview" class="zone-preview"></div>
               <label class="zone-redetect"><input type="checkbox" id="pRedetect"/> Find the print areas again when I save</label>
@@ -274,34 +274,34 @@
               </select>
             </div>
             <div class="field-group cat-field cat-field-apparel">
-              <label>When Out Of Stock</label>
+              <label for="pBackorder">When Out Of Stock</label>
               <select id="pBackorder">
                 <option value="false">Stop selling it (customers see "out of stock")</option>
                 <option value="true">Accept orders, ship after restock (later delivery dates)</option>
               </select>
             </div>
             <div class="field-group cat-field cat-field-apparel">
-              <label>Garment Sizes</label>
+              <label for="pOneSize">Garment Sizes</label>
               <select id="pOneSize">
                 <option value="false">XS to XXL</option>
                 <option value="true">One size</option>
               </select>
             </div>
             <div class="field-group cat-field cat-field-apparel">
-              <label>Studio Front (Male)</label>
-              <div class="upload-row"><input type="text" id="pFrontMale" placeholder="https://jaifore.org/images/tshirt-front-m.jpg"/><button type="button" class="upload-btn" data-upload-for="pFrontMale">Upload</button></div>
+              <label for="pLiveLink">Studio Front (Male)</label>
+              <div class="upload-row"><input type="text" id="pFrontMale" placeholder="https://jaifore.org/images/tshirt-front-m.jpg" aria-label="Front photo, male mockup URL"/><button type="button" class="upload-btn" data-upload-for="pFrontMale">Upload</button></div>
             </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Studio Back / Side (Male)</label>
-              <div class="upload-row"><input type="text" id="pBackMale" placeholder="https://jaifore.org/images/tshirt-back-m.jpg"/><button type="button" class="upload-btn" data-upload-for="pBackMale">Upload</button></div>
+              <div class="upload-row"><input type="text" id="pBackMale" placeholder="https://jaifore.org/images/tshirt-back-m.jpg" aria-label="Back or side photo, male mockup URL"/><button type="button" class="upload-btn" data-upload-for="pBackMale">Upload</button></div>
             </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Studio Front (Female)</label>
-              <div class="upload-row"><input type="text" id="pFrontFemale" placeholder="https://jaifore.org/images/tshirt-front-f.jpg"/><button type="button" class="upload-btn" data-upload-for="pFrontFemale">Upload</button></div>
+              <div class="upload-row"><input type="text" id="pFrontFemale" placeholder="https://jaifore.org/images/tshirt-front-f.jpg" aria-label="Front photo, female mockup URL"/><button type="button" class="upload-btn" data-upload-for="pFrontFemale">Upload</button></div>
             </div>
             <div class="field-group cat-field cat-field-apparel">
               <label>Studio Back / Side (Female)</label>
-              <div class="upload-row"><input type="text" id="pBackFemale" placeholder="https://jaifore.org/images/tshirt-back-f.jpg"/><button type="button" class="upload-btn" data-upload-for="pBackFemale">Upload</button></div>
+              <div class="upload-row"><input type="text" id="pBackFemale" placeholder="https://jaifore.org/images/tshirt-back-f.jpg" aria-label="Back or side photo, female mockup URL"/><button type="button" class="upload-btn" data-upload-for="pBackFemale">Upload</button></div>
             </div>
 
             <!-- WEB DEVELOPMENT-ONLY FIELDS -->
@@ -312,8 +312,8 @@
 
             <!-- SHARED (all categories) -->
             <div class="field-group">
-              <label>Image URL</label>
-              <div class="upload-row"><input type="text" id="pImage" placeholder="https://jaifore.org/images/FFH&P.jpg"/><button type="button" class="upload-btn" data-upload-for="pImage">Upload</button></div>
+              <label for="pDesc">Image URL</label>
+              <div class="upload-row"><input type="text" id="pImage" placeholder="https://jaifore.org/images/FFH&P.jpg" aria-label="Image URL"/><button type="button" class="upload-btn" data-upload-for="pImage">Upload</button></div>
             </div>
             <div class="field-group full">
               <label>Description</label>
@@ -322,11 +322,11 @@
 
            <!-- GRAPHIC DESIGN-ONLY FIELDS -->
             <div class="field-group full cat-field cat-field-prints">
-              <label>Available Print Sizes <span id="printSizeHint" style="color:var(--ink-muted);font-weight:400">(the design itself is free — prices come from Print Pricing)</span></label>
+              <label for="qrLabel">Available Print Sizes <span id="printSizeHint" style="color:var(--ink-muted);font-weight:400">(the design itself is free — prices come from Print Pricing)</span></label>
               <div id="printSizeCheckboxes" class="print-size-checkboxes"></div>
             </div>
           </div>
-          <input type="file" id="productImageFile" accept="image/jpeg,image/png,image/webp" hidden/>
+          <input type="file" id="productImageFile" accept="image/jpeg,image/png,image/webp" hidden aria-label="Upload a product image"/>
           <p class="upload-msg" id="uploadMsg" role="status"></p>
           <div class="form-actions">
             <button class="btn-primary small" id="saveProductBtn">Save Product</button>
@@ -466,11 +466,11 @@
         <input type="text" id="qrLabel" placeholder="Market Flyer Sep 2026"/>
       </div>
       <div class="field-group">
-        <label>Slug <span style="color:var(--ink-muted);font-weight:400">(short, URL-safe id — cannot be changed after creation)</span></label>
+        <label for="qrSlug">Slug <span style="color:var(--ink-muted);font-weight:400">(short, URL-safe id — cannot be changed after creation)</span></label>
         <input type="text" id="qrSlug" placeholder="market-flyer-2026"/>
       </div>
       <div class="field-group full">
-        <label>Destination URL <span style="color:var(--ink-muted);font-weight:400">(where a scan sends people right now — editable anytime)</span></label>
+        <label for="qrDestination">Destination URL <span style="color:var(--ink-muted);font-weight:400">(where a scan sends people right now — editable anytime)</span></label>
         <input type="text" id="qrDestination" placeholder="https://jaifore.org/services.html"/>
       </div>
     </div>

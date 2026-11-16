@@ -47,6 +47,7 @@
 
   <!-- CHECKOUT -->
   <main class="checkout-wrap">
+    <h1 class="sr-only">Checkout</h1>
 
     <!-- LEFT: ITEMS + CONTACT -->
     <div class="checkout-left">
@@ -69,25 +70,25 @@
         <div class="shipping-form">
           <div class="sf-row">
             <div class="sf-group">
-              <label>First Name</label>
-              <input type="text" id="sfFirstName" placeholder="John"/>
+              <label for="sfFirstName">First Name</label>
+              <input type="text" id="sfFirstName" placeholder="John" autocomplete="given-name"/>
             </div>
             <div class="sf-group">
-              <label>Last Name</label>
-              <input type="text" id="sfLastName" placeholder="Doe"/>
+              <label for="sfLastName">Last Name</label>
+              <input type="text" id="sfLastName" placeholder="Doe" autocomplete="family-name"/>
             </div>
           </div>
           <div class="sf-group">
-            <label>Email</label>
-            <input type="email" id="sfEmail" placeholder="you@example.com"/>
+            <label for="sfEmail">Email</label>
+            <input type="email" id="sfEmail" placeholder="you@example.com" autocomplete="email"/>
           </div>
           <div class="sf-group">
-            <label>Phone</label>
-            <input type="tel" id="sfPhone" placeholder="+1 555 000 0000"/>
+            <label for="sfPhone">Phone</label>
+            <input type="tel" id="sfPhone" placeholder="+1 555 000 0000" autocomplete="tel"/>
           </div>
           <div class="sf-group">
-            <label>Order Notes <span class="sf-optional">(optional)</span></label>
-            <textarea id="sfNotes" rows="3" placeholder="Any special instructions..."></textarea>
+            <label for="sfNotes">Order Notes <span class="sf-optional">(optional)</span></label>
+            <textarea id="sfNotes" rows="3" placeholder="Any special instructions..." autocomplete="off"></textarea>
           </div>
           <p class="checkout-hint">You'll enter your delivery address on the secure payment page next.</p>
         </div>

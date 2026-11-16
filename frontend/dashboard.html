@@ -78,6 +78,7 @@
 
     <!-- MAIN -->
     <main class="dash-main">
+    <h1 class="sr-only">My Dashboard</h1>
 
       <!-- ── ORDERS TAB ── -->
       <section class="dash-tab active" id="tab-orders">
@@ -106,25 +107,25 @@
 
         <div class="profile-form">
           <div class="pf-group">
-            <label>Full Name</label>
-            <input type="text" id="pfName" placeholder="Your name"/>
+            <label for="pfName">Full Name</label>
+            <input type="text" id="pfName" placeholder="Your name" autocomplete="name"/>
           </div>
           <div class="pf-group">
-            <label>Email</label>
+            <label for="pfEmail">Email</label>
             <input type="email" id="pfEmail" placeholder="your@email.com" disabled/>
           </div>
           <div class="pf-divider">Change Password</div>
           <div class="pf-group">
-            <label>Current Password</label>
-            <input type="password" id="pfCurrentPw" placeholder="••••••••"/>
+            <label for="pfCurrentPw">Current Password</label>
+            <input type="password" id="pfCurrentPw" placeholder="••••••••" autocomplete="current-password"/>
           </div>
           <div class="pf-group">
-            <label>New Password</label>
-            <input type="password" id="pfNewPw" placeholder="••••••••"/>
+            <label for="pfNewPw">New Password</label>
+            <input type="password" id="pfNewPw" placeholder="••••••••" autocomplete="new-password"/>
           </div>
           <div class="pf-group">
-            <label>Confirm New Password</label>
-            <input type="password" id="pfConfirmPw" placeholder="••••••••"/>
+            <label for="pfConfirmPw">Confirm New Password</label>
+            <input type="password" id="pfConfirmPw" placeholder="••••••••" autocomplete="new-password"/>
           </div>
           <p class="pf-msg" id="pfMsg"></p>
           <button class="pf-save-btn" id="pfSaveBtn">Save Changes</button>

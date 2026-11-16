@@ -167,3 +167,42 @@
 @media (prefers-reduced-motion: reduce) {
   :root { --speed-fast: 0s; --speed-med: 0s; --transition: 0s; }
 }
+
+/* ============================================================
+   FORM + TOUCH POLISH (shared by every page)
+   Page stylesheets set their own input sizes and some remove the
+   outline; these rules come first in the cascade, so the selectors
+   below are made specific enough to win.
+   ============================================================ */
+
+/* iOS Safari zooms the page when a focused field is under 16px. */
+@media (max-width: 768px) {
+  html .sf-group input, html .sf-group textarea, html .pf-group input,
+  html .filter-select, html .quantity-input, html .design-notes,
+  html .qty-input, html .gd-search {
+    font-size: 1rem;
+  }
+}
+
+/* A 22-28px button is hard to tap. On touch screens, grow the tappable area to
+   about 40px with an invisible layer; the button looks and lays out the same. */
+@media (pointer: coarse) {
+  .qty-btn, .qty-plus-btn, .qty-minus-btn, .zoom-btn { position: relative; }
+  .qty-btn::after, .qty-plus-btn::after, .qty-minus-btn::after, .zoom-btn::after {
+    content: ''; position: absolute; inset: -9px;
+  }
+  .design-slot .slot-remove::after { content: ''; position: absolute; inset: -12px; }
+}
+
+/* Keep a visible ring for keyboard users even where a page removed the outline.
+   The doubled :focus-visible only raises specificity above those page rules. */
+:is(input, textarea, select, .otp-box, .filter-select):focus-visible:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
+/* Text for screen readers only (e.g. a page's h1 when the design has no visible one). */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
