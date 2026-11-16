@@ -17,6 +17,12 @@
   const flatImg = ring && ring.querySelector('img');
   if (!ring || !flatImg) return;
 
+  // three.js (~600KB) plus the logo texture (~310KB) are a lot to ask of a phone or a slow or
+  // metered connection. They get the flat logo, which is already on screen.
+  const conn = navigator.connection;
+  const lowBandwidth = !!conn && (conn.saveData || /(^|slow-)2g|3g/.test(conn.effectiveType || ''));
+  if (window.matchMedia('(max-width: 768px)').matches || lowBandwidth) return;
+
   const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';
   const THREE_SRI = 'sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu';
   const TEXTURE = 'logo/jaifore-1024.webp';
