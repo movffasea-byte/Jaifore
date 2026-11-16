@@ -96,9 +96,7 @@ router.get('/revenue/summary', authenticate, requireAdmin, async (req, res) => {
       })),
     });
   } catch (err) {
-    console.error('Revenue summary error:', err.message);
-    Sentry.captureException(err, { tags: { area: 'admin-revenue' } });
-    serverError(res, err, 'orders');
+    serverError(res, err, 'admin-revenue');
   }
 });
 
@@ -115,9 +113,7 @@ router.get('/revenue/quick-totals', authenticate, requireAdmin, async (req, res)
     `);
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Revenue quick totals error:', err.message);
-    Sentry.captureException(err, { tags: { area: 'admin-revenue' } });
-    serverError(res, err, 'orders');
+    serverError(res, err, 'admin-revenue');
   }
 });
 
