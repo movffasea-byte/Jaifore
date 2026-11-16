@@ -5,6 +5,7 @@ const app = require('./expressApp');
 const { initDB, pool } = require('./database');
 const { redis } = require('./redis');
 const { createShutdown } = require('./shutdown');
+const { startMaintenance } = require('./maintenance');
 
 const PORT = process.env.PORT || 3000;
 
@@ -22,6 +23,7 @@ async function start() {
     const shutdown = createShutdown({ server, pool, redis });
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
+    startMaintenance({ pool });
   } catch (err) {
     console.error('❌ Failed to start server:', err.message);
     process.exit(1);

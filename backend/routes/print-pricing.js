@@ -29,6 +29,11 @@ router.get('/', async (req, res) => {
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   const { price } = req.body;
   if (!price) return res.status(400).json({ error: 'Price is required.' });
+  // A zero, negative or non-numeric price would sell prints for free (or crash the query).
+  const amount = Number(price);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) {
+    return res.status(400).json({ error: 'Price must be a number greater than 0.' });
+  }
   try {
     const result = await pool.query(
       'UPDATE print_pricing SET price=$1 WHERE id=$2 RETURNING *',
