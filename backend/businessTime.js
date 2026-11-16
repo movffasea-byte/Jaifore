@@ -58,4 +58,15 @@ function formatDateOnly(value) {
   });
 }
 
-module.exports = { BUSINESS_TIMEZONE, formatDateTime, formatDate, businessDateString, addBusinessDays, formatDateOnly };
+// ── SQL: group and filter by the business's calendar, not UTC ───────────
+// created_at columns are TIMESTAMP (no zone) holding UTC wall time, because the
+// database runs in UTC. Reading them as UTC and converting to the business zone
+// makes "today" and a day's orders follow Texas midnight. The zone is checked
+// against a strict pattern before it is placed in SQL (it comes from config,
+// never from a request).
+const SQL_ZONE = /^[A-Za-z0-9_+\-\/]+$/.test(BUSINESS_TIMEZONE) ? BUSINESS_TIMEZONE : 'America/Chicago';
+
+const sqlLocal = (column) => `((${column} AT TIME ZONE 'UTC') AT TIME ZONE '${SQL_ZONE}')`;
+const sqlNowLocal = () => `(NOW() AT TIME ZONE '${SQL_ZONE}')`;
+
+module.exports = { BUSINESS_TIMEZONE, formatDateTime, formatDate, businessDateString, addBusinessDays, formatDateOnly, sqlLocal, sqlNowLocal };

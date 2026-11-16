@@ -375,6 +375,12 @@ router.patch('/:id/stock', authenticate, requireAdmin, async (req, res) => {
   if (delta === undefined && set === undefined) {
     return res.status(400).json({ error: 'Provide either "delta" (relative change) or "set" (exact value).' });
   }
+  // Whole numbers only: a blank, text or fractional value used to become NaN and crash the query.
+  const raw = set !== undefined ? set : delta;
+  const amount = (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== '')) ? Number(raw) : NaN;
+  if (!Number.isInteger(amount) || Math.abs(amount) > 1000000 || (set !== undefined && amount < 0)) {
+    return res.status(400).json({ error: set !== undefined ? '"set" must be a whole number of 0 or more.' : '"delta" must be a whole number.' });
+  }
   try {
     const current = await pool.query('SELECT stock, category FROM products WHERE id = $1', [req.params.id]);
     if (!current.rows.length) return res.status(404).json({ error: 'Product not found.' });
@@ -383,22 +389,32 @@ router.patch('/:id/stock', authenticate, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Stock is only tracked for Apparel & Merchandise.' });
     }
 
-    const currentStock = current.rows[0].stock ?? 0;
-    const newStock = Math.max(0, set !== undefined ? Number(set) : currentStock + Number(delta));
-
+    // One statement, so a sale landing at the same moment (the webhook also changes this
+    // row) can't be overwritten: the new value is computed from the row as it is when the
+    // update runs, not from a copy read earlier. The CTE locks the row and hands back the
+    // stock it had, for the low-stock check.
     const result = await pool.query(
-      `UPDATE products SET stock=$1, in_stock=$2 WHERE id=$3 RETURNING *`,
-      [newStock, newStock > 0, req.params.id]
+      `WITH old AS (SELECT stock FROM products WHERE id = $2 FOR UPDATE)
+       UPDATE products
+          SET stock    = ${set !== undefined ? 'GREATEST($1::int, 0)' : 'GREATEST(COALESCE(products.stock, 0) + $1::int, 0)'},
+              in_stock = ${set !== undefined ? 'GREATEST($1::int, 0)' : 'GREATEST(COALESCE(products.stock, 0) + $1::int, 0)'} > 0
+         FROM old
+        WHERE products.id = $2
+        RETURNING products.*, COALESCE(old.stock, 0) AS old_stock`,
+      [amount, req.params.id]
     );
+    if (!result.rows.length) return res.status(404).json({ error: 'Product not found.' }); // deleted just now
+    const { old_stock: currentStock, ...updated } = result.rows[0];
+    const newStock = updated.stock;
 
     await cacheInvalidate(`products:single:${req.params.id}`);
     await cacheInvalidate('products:list:*');
 
     if (checkLowStockTransition(currentStock, newStock)) {
-      fireLowStockAlert(result.rows[0]);
+      fireLowStockAlert(updated);
     }
 
-    res.json(result.rows[0]);
+    res.json(updated);
   } catch (err) { serverError(res, err, 'products'); }
 });
 

@@ -25,7 +25,7 @@ const express = require('express');
 const Sentry  = require('@sentry/node');
 const { pool } = require('../database');
 const { authenticate } = require('../middleware');
-const { cacheInvalidate } = require('../redis');
+const { cacheInvalidate, redis } = require('../redis');
 const stripe = require('../stripeClient');
 const { sendOrderConfirmation, sendAdminOrderAlert, sendLowStockAlert } = require('../mailer');
 const { sendAdminPush } = require('../push');
@@ -291,6 +291,23 @@ router.post('/quote', authenticate, async (req, res) => {
 router.post('/create-checkout-session', authenticate, async (req, res) => {
   if (!stripe) return res.status(503).json({ error: 'Online payments are not available yet. Please try again later.' });
 
+  // One checkout being prepared per customer at a time: a double click (or two tabs) would
+  // otherwise create two Stripe sessions and two saved carts. The lock expires on its own
+  // after 20s and is released as soon as this request finishes. If Redis is down the lock is
+  // skipped (a rare double session is better than blocking every payment).
+  const lockKey = `checkout-lock:${req.user.id}`;
+  let hasLock = false;
+  try {
+    if (redis) {
+      if ((await redis.set(lockKey, '1', 'EX', 20, 'NX')) !== 'OK') {
+        return res.status(409).json({ error: 'Your checkout is already being prepared. Please wait a moment.' });
+      }
+      hasLock = true;
+    }
+  } catch (lockErr) {
+    console.error('[stripe] Checkout lock unavailable:', lockErr.message);
+  }
+
   try {
     const contact = {
       name:  cleanText(req.body.contact?.name, 120),
@@ -367,6 +384,9 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) { sendCartError(res, err, 'create-checkout-session'); }
+  finally {
+    if (hasLock) redis.del(lockKey).catch(() => { /* it expires by itself */ });
+  }
 });
 
 // ── GET /api/stripe/session-status — has the order been created yet? ───

@@ -11,6 +11,9 @@ const express = require('express');
 const router  = express.Router();
 const { pool } = require('../database');
 const { serverError } = require('../errors');
+const { sqlLocal, sqlNowLocal } = require('../businessTime');
+
+const DATE_PARAM = /^\d{4}-\d{2}-\d{2}$/;
 const { authenticate, requireAdmin } = require('../middleware');
 const Sentry = require('@sentry/node');
 const stripe = require('../stripeClient');
@@ -38,12 +41,13 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
 // ── GET orders by date (admin only) ──────────────────
 router.get('/by-date/:date', authenticate, requireAdmin, async (req, res) => {
+  if (!DATE_PARAM.test(req.params.date)) return res.status(400).json({ error: 'Date must look like 2026-11-15.' });
   try {
     const result = await pool.query(`
       SELECT o.*, u.name AS customer_name, u.email AS customer_email
       FROM orders o
       LEFT JOIN users u ON o.user_id = u.id
-      WHERE DATE(o.created_at) = $1
+      WHERE DATE(${sqlLocal('o.created_at')}) = $1
       ORDER BY o.created_at DESC
     `, [req.params.date]);
     res.json(result.rows);
@@ -76,7 +80,7 @@ router.get('/revenue/summary', authenticate, requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT
-         date_trunc($1, created_at) AS period,
+         date_trunc($1, ${sqlLocal('created_at')}) AS period,
          COUNT(*)::int AS order_count,
          SUM(total)::float AS revenue
        FROM orders
@@ -104,9 +108,9 @@ router.get('/revenue/quick-totals', authenticate, requireAdmin, async (req, res)
   try {
     const result = await pool.query(`
       SELECT
-        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('day', NOW())), 0)::float   AS today,
-        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('week', NOW())), 0)::float   AS this_week,
-        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('month', NOW())), 0)::float  AS this_month,
+        COALESCE(SUM(total) FILTER (WHERE ${sqlLocal('created_at')} >= date_trunc('day', ${sqlNowLocal()})), 0)::float   AS today,
+        COALESCE(SUM(total) FILTER (WHERE ${sqlLocal('created_at')} >= date_trunc('week', ${sqlNowLocal()})), 0)::float   AS this_week,
+        COALESCE(SUM(total) FILTER (WHERE ${sqlLocal('created_at')} >= date_trunc('month', ${sqlNowLocal()})), 0)::float  AS this_month,
         COALESCE(SUM(total), 0)::float AS all_time
       FROM orders
       WHERE ${REVENUE_FILTER}

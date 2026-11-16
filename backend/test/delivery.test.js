@@ -17,7 +17,8 @@ const mockStripe = {
 };
 
 jest.mock('../database', () => ({ pool: mockPool }));
-jest.mock('../redis', () => ({ cacheInvalidate: jest.fn() }));
+const mockRedis = { set: jest.fn(), del: jest.fn() };
+jest.mock('../redis', () => ({ cacheInvalidate: jest.fn(), redis: mockRedis }));
 jest.mock('../stripeClient', () => mockStripe);
 jest.mock('../middleware', () => ({ authenticate: (req, res, next) => { req.user = { id: 7, role: 'user' }; next(); } }));
 jest.mock('../push', () => ({ sendAdminPush: jest.fn() }));
@@ -59,6 +60,8 @@ function dbWith(product) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockPool.connect.mockResolvedValue(mockClient);
+  mockRedis.set.mockReset().mockResolvedValue('OK');
+  mockRedis.del.mockReset().mockResolvedValue(1);
   mockStripe.checkout.sessions.create.mockResolvedValue({ id: 'cs_1', url: 'https://stripe.test/pay' });
   jest.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -235,6 +238,43 @@ describe('POST /api/stripe/create-checkout-session', () => {
     dbWith(tee());
     expect((await create({ shipping_method: 'teleport' })).status).toBe(400);
     expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('one checkout at a time per customer', () => {
+  const contact = { name: 'Ada', email: 'ada@test.dev', phone: '5551234' };
+  const create = () => request(app).post('/api/stripe/create-checkout-session').send({ items: cart(), contact });
+
+  it('takes a per-customer lock, creates the session, then releases the lock', async () => {
+    dbWith(tee());
+    const res = await create();
+    expect(res.status).toBe(200);
+    expect(mockRedis.set).toHaveBeenCalledWith('checkout-lock:7', '1', 'EX', 20, 'NX');
+    expect(mockRedis.del).toHaveBeenCalledWith('checkout-lock:7');
+  });
+
+  it('answers a second click while one is in progress with 409 and creates no second session', async () => {
+    dbWith(tee());
+    mockRedis.set.mockResolvedValue(null); // lock already held
+    const res = await create();
+    expect(res.status).toBe(409);
+    expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
+    expect(mockRedis.del).not.toHaveBeenCalled(); // never release a lock we don't own
+  });
+
+  it('releases the lock even when the checkout fails', async () => {
+    dbWith(tee({ stock: 0 })); // out of stock -> cart error
+    const res = await create();
+    expect(res.status).toBe(400);
+    expect(mockRedis.del).toHaveBeenCalledWith('checkout-lock:7');
+  });
+
+  it('still lets the customer pay when Redis is down', async () => {
+    dbWith(tee());
+    mockRedis.set.mockRejectedValue(new Error('Connection is closed.'));
+    const res = await create();
+    expect(res.status).toBe(200);
+    expect(mockRedis.del).not.toHaveBeenCalled();
   });
 });
 
