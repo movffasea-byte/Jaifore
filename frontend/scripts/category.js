@@ -220,18 +220,22 @@ document.addEventListener('click', async (e) => {
       const listRes = await fetch(`${API}/api/wishlist`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (!listRes.ok) throw new Error('wishlist list failed');
       const items = await listRes.json();
       const plain = items.filter(i => !i.config_signature && String(i.product_id) === String(productId));
       const match = (sizeToSave && plain.find(i => String(i.print_size_id) === String(sizeToSave.id))) || plain[0];
+      let delRes = null;
       if (match) {
-        await fetch(`${API}/api/wishlist/${match.id}`, {
+        delRes = await fetch(`${API}/api/wishlist/${match.id}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
       }
+      // Only mark it removed when the server did (a 404 means it was already gone).
+      if (delRes && !delRes.ok && delRes.status !== 404) throw new Error('wishlist remove failed');
       wishlistedProductIds.delete(String(productId));
     } else {
-      await fetch(`${API}/api/wishlist`, {
+      const addRes = await fetch(`${API}/api/wishlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -242,6 +246,7 @@ document.addEventListener('click', async (e) => {
           ...(isDesignItem ? { category: 'design', printSize: sizeToSave } : {})
         })
       });
+      if (!addRes.ok) throw new Error('wishlist add failed'); // don't show a filled heart for a save that didn't happen
       wishlistedProductIds.add(String(productId));
     }
     syncWishlistHearts();

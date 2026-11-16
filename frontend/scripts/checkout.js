@@ -592,7 +592,7 @@ async function confirmOrder(sessionId) {
     setTimeout(() => { window.location.href = 'dashboard.html'; }, 2200);
   };
 
-  if (!sessionId) { finish('✓ Payment received! Redirecting...'); return; }
+  if (!sessionId) { finish('Thank you. Taking you to your dashboard, where your order will appear shortly.'); return; }
 
   for (let attempt = 0; attempt < 12; attempt++) {
     try {
@@ -608,7 +608,8 @@ async function confirmOrder(sessionId) {
     await new Promise(resolve => setTimeout(resolve, 2000));
   }
 
-  finish('✓ Payment received! Your order is being finalised — you\u2019ll get a confirmation email shortly.');
+  // We could not confirm the order yet, so don't claim more than we know.
+  finish('Thank you. Your order is still being set up. Check your dashboard and email in a minute, and write to hello@jaifore.org if nothing arrives.');
 }
 
 // ── INIT ─────────────────────────────────────────────
