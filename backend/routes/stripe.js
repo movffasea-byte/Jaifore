@@ -578,7 +578,7 @@ async function fulfillSession(session) {
           console.error(`[mailer] ${i === 0 ? 'Order confirmation' : 'Admin order alert'} failed:`, r.reason?.message || r.reason);
           Sentry.captureException(r.reason, {
             tags: { area: 'transactional-email' },
-            extra: { orderId: order.id, email: i === 0 ? customerEmail : process.env.ADMIN_EMAIL },
+            extra: { orderId: order.id, recipient: i === 0 ? 'customer' : 'admin' },
           });
         }
       });

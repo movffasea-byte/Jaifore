@@ -8,6 +8,7 @@
 const express = require('express');
 const router  = express.Router();
 const { pool } = require('../database');
+const { serverError } = require('../errors');
 const { authenticate, requireAdmin } = require('../middleware');
 const { pushEnabled } = require('../push');
 
@@ -34,7 +35,7 @@ router.post('/subscribe', async (req, res) => {
       [req.user.id, endpoint, keys.p256dh, keys.auth]
     );
     res.status(201).json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'push'); }
 });
 
 // ── POST remove this device's subscription ────────────
@@ -44,7 +45,7 @@ router.post('/unsubscribe', async (req, res) => {
   try {
     await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_id = $2', [endpoint, req.user.id]);
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'push'); }
 });
 
 module.exports = router;

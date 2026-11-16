@@ -9,7 +9,8 @@
    ================================ */
 const express = require('express');
 const router  = express.Router();
-const { pool } = require('../database');
+const { pool } = require('../database');
+const { serverError } = require('../errors');
 const { authenticate, requireAdmin } = require('../middleware');
 const Sentry = require('@sentry/node');
 const stripe = require('../stripeClient');
@@ -32,7 +33,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
       ORDER BY o.created_at DESC
     `);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'orders'); }
 });
 
 // ── GET orders by date (admin only) ──────────────────
@@ -46,7 +47,7 @@ router.get('/by-date/:date', authenticate, requireAdmin, async (req, res) => {
       ORDER BY o.created_at DESC
     `, [req.params.date]);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'orders'); }
 });
 
 // ── GET logged in user's orders ───────────────────────
@@ -57,7 +58,7 @@ router.get('/my', authenticate, async (req, res) => {
       [req.user.id]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'orders'); }
 });
 
 // ── REVENUE (admin only) ──────────────────────────────
@@ -97,7 +98,7 @@ router.get('/revenue/summary', authenticate, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Revenue summary error:', err.message);
     Sentry.captureException(err, { tags: { area: 'admin-revenue' } });
-    res.status(500).json({ error: err.message });
+    serverError(res, err, 'orders');
   }
 });
 
@@ -116,7 +117,7 @@ router.get('/revenue/quick-totals', authenticate, requireAdmin, async (req, res)
   } catch (err) {
     console.error('Revenue quick totals error:', err.message);
     Sentry.captureException(err, { tags: { area: 'admin-revenue' } });
-    res.status(500).json({ error: err.message });
+    serverError(res, err, 'orders');
   }
 });
 
@@ -131,7 +132,7 @@ router.get('/:id', authenticate, requireAdmin, async (req, res) => {
     `, [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Order not found.' });
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'orders'); }
 });
 
 // ── GET order status timeline (owning customer, or admin) — item 15 ──
@@ -150,7 +151,7 @@ router.get('/:id/timeline', authenticate, async (req, res) => {
       [req.params.id]
     );
     res.json(history.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'orders'); }
 });
 
 // ── PUT update order status (admin only) ─────────────
@@ -191,7 +192,7 @@ router.put('/:id/status', authenticate, requireAdmin, async (req, res) => {
           console.error('Order status email error:', e.message);
           Sentry.captureException(e, {
             tags: { area: 'transactional-email' },
-            extra: { orderId: order.id, status, email: customerEmail },
+            extra: { orderId: order.id, status, recipient: 'customer' },
           });
         });
     } else {
@@ -199,7 +200,7 @@ router.put('/:id/status', authenticate, requireAdmin, async (req, res) => {
     }
 
     res.json(order);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'orders'); }
 });
 
 // ── POST initiate refund (admin only) — through Stripe ─
@@ -285,7 +286,7 @@ router.post('/:id/refund', authenticate, requireAdmin, async (req, res) => {
             console.error(`[mailer] ${label} failed:`, r.reason?.message || r.reason);
             Sentry.captureException(r.reason, {
               tags: { area: 'transactional-email' },
-              extra: { orderId: order.id, email: i === 0 ? customerEmail : process.env.ADMIN_EMAIL },
+              extra: { orderId: order.id, recipient: i === 0 ? 'customer' : 'admin' },
             });
           }
         });
@@ -297,7 +298,7 @@ router.post('/:id/refund', authenticate, requireAdmin, async (req, res) => {
           console.error('[mailer] Admin refund alert failed:', e.message);
           Sentry.captureException(e, {
             tags: { area: 'transactional-email' },
-            extra: { orderId: order.id, email: process.env.ADMIN_EMAIL },
+            extra: { orderId: order.id, recipient: 'admin' },
           });
         });
     }
@@ -344,7 +345,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     }
 
     res.status(201).json(order);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'orders'); }
 });
 
 module.exports = router;

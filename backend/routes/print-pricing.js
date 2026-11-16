@@ -4,7 +4,8 @@
    ================================ */
 const express = require('express');
 const router  = express.Router();
-const { pool } = require('../database');
+const { pool } = require('../database');
+const { serverError } = require('../errors');
 const { authenticate, requireAdmin } = require('../middleware');
 const { cacheGet, cacheSet, cacheInvalidate } = require('../redis');
 
@@ -22,7 +23,7 @@ router.get('/', async (req, res) => {
     const result = await pool.query('SELECT * FROM print_pricing ORDER BY price ASC');
     await cacheSet(CACHE_KEY, result.rows, CACHE_TTL);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'print-pricing'); }
 });
 
 // PUT update print price (admin only)
@@ -45,7 +46,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     await cacheInvalidate(CACHE_KEY);
 
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'print-pricing'); }
 });
 
 module.exports = router;

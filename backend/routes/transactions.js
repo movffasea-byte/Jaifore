@@ -10,7 +10,8 @@
    ================================ */
 const express = require('express');
 const router  = express.Router();
-const { pool } = require('../database');
+const { pool } = require('../database');
+const { serverError } = require('../errors');
 const { authenticate, requireAdmin } = require('../middleware');
 
 // GET all transactions (admin only)
@@ -23,7 +24,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
       ORDER BY t.created_at DESC
     `);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'transactions'); }
 });
 
 // GET transactions by date (admin only)
@@ -37,7 +38,7 @@ router.get('/by-date/:date', authenticate, requireAdmin, async (req, res) => {
       ORDER BY t.created_at DESC
     `, [req.params.date]);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'transactions'); }
 });
 
 // GET transactions summary per month (for calendar dots)
@@ -51,7 +52,7 @@ router.get('/summary/:year/:month', authenticate, requireAdmin, async (req, res)
       GROUP BY DATE(created_at)
     `, [req.params.year, req.params.month]);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'transactions'); }
 });
 
 module.exports = router;

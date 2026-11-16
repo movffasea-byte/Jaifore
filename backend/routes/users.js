@@ -4,7 +4,8 @@
    ================================ */
 const express = require('express');
 const router  = express.Router();
-const { pool } = require('../database');
+const { pool } = require('../database');
+const { serverError } = require('../errors');
 const { authenticate, requireAdmin } = require('../middleware');
 
 // GET all users (admin only)
@@ -14,7 +15,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
       'SELECT id, name, email, role, verified, created_at FROM users ORDER BY created_at DESC'
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'users'); }
 });
 
 module.exports = router;

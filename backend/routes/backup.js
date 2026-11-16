@@ -4,7 +4,9 @@
    ================================ */
 const express = require('express');
 const router  = express.Router();
-const { pool } = require('../database');
+const { pool } = require('../database');
+const { serverError } = require('../errors');
+const Sentry = require('@sentry/node');
 const { authenticate, requireAdmin } = require('../middleware');
 
 const GITHUB_TOKEN = process.env.GITHUB_BACKUP_TOKEN;
@@ -98,7 +100,10 @@ router.post('/', async (req, res) => {
 
   for (const table of tables) {
     try {
-      const result = await pool.query(`SELECT * FROM ${table} ORDER BY id`);
+      // The backup goes to a GitHub repo, so it must never carry password hashes
+      // (or the same-named column anywhere): drop `password` from every row.
+      const result = await pool.query(`SELECT to_jsonb(t) - 'password' AS row FROM ${table} t ORDER BY id`);
+      result.rows = result.rows.map(r => r.row);
       const json   = JSON.stringify(result.rows, null, 2);
       const path   = `backups/${timestamp}/${table}.json`;
 
@@ -110,9 +115,12 @@ router.post('/', async (req, res) => {
 
       results[table] = { rows: result.rows.length, status: 'ok' };
     } catch (err) {
+      // Details go to the logs and Sentry; the response and the manifest pushed to
+      // GitHub only say which table failed.
       console.error(`Backup failed for table ${table}:`, err.message);
-      errors.push({ table, error: err.message });
-      results[table] = { status: 'failed', error: err.message };
+      Sentry.captureException(err, { tags: { area: 'backup' }, extra: { table } });
+      errors.push({ table, error: 'failed' });
+      results[table] = { status: 'failed' };
     }
   }
 
@@ -132,7 +140,9 @@ router.post('/', async (req, res) => {
       `backup(manifest): ${timestamp} — ${errors.length ? errors.length + ' error(s)' : 'all clean'}`
     );
   } catch (err) {
-    errors.push({ table: 'manifest', error: err.message });
+    console.error('Backup manifest failed:', err.message);
+    Sentry.captureException(err, { tags: { area: 'backup' }, extra: { table: 'manifest' } });
+    errors.push({ table: 'manifest', error: 'failed' });
   }
 
   const allOk = errors.length === 0;
@@ -183,7 +193,7 @@ router.get('/status', authenticate, requireAdmin, async (req, res) => {
     res.json({ latest: latest.name, manifest });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err, 'backup');
   }
 });
 

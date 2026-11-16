@@ -5,6 +5,7 @@
 const express = require('express');
 const router  = express.Router();
 const { pool } = require('../database');
+const { serverError } = require('../errors');
 const { authenticate, requireAdmin } = require('../middleware');
 const { cacheGet, cacheSet, cacheInvalidate } = require('../redis');
 const Sentry = require('@sentry/node');
@@ -78,7 +79,7 @@ function fireLowStockAlert(product) {
     console.error('[mailer] Low stock alert failed:', e.message);
     Sentry.captureException(e, {
       tags: { area: 'transactional-email' },
-      extra: { productId: product.id, email: process.env.ADMIN_EMAIL },
+      extra: { productId: product.id, recipient: 'admin' },
     });
   });
 }
@@ -196,7 +197,7 @@ router.get('/', async (req, res) => {
     const products = lite ? result.rows : await attachPrintSizes(result.rows);
     await cacheSet(cacheKey, products, CACHE_TTL);
     res.json(products);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'products'); }
 });
 
 // GET low-stock products only (admin only) — item 14, backs the Overview
@@ -212,7 +213,7 @@ router.get('/alerts/low-stock', authenticate, requireAdmin, async (req, res) => 
       [LOW_STOCK_THRESHOLD, STOCK_TRACKED_CATEGORY]
     );
     res.json({ threshold: LOW_STOCK_THRESHOLD, products: result.rows });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'products'); }
 });
 
 // GET single product (public)
@@ -230,7 +231,7 @@ router.get('/:id', async (req, res) => {
     const [product] = await attachPrintSizes([result.rows[0]]);
     await cacheSet(cacheKey, product, CACHE_TTL);
     res.json(product);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'products'); }
 });
 
 // POST create product (admin only)
@@ -286,7 +287,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 
     const [product] = await attachPrintSizes([result.rows[0]]);
     res.status(201).json({ ...product, zone_status: zoneStatus });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'products'); }
 });
 
 // PUT update product (admin only)
@@ -362,7 +363,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 
     const [product] = await attachPrintSizes([result.rows[0]]);
     res.json({ ...product, zone_status: zoneStatus });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'products'); }
 });
 
 // PATCH quick stock adjustment (admin only) — for the +/- buttons in the
@@ -398,7 +399,7 @@ router.patch('/:id/stock', authenticate, requireAdmin, async (req, res) => {
     }
 
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'products'); }
 });
 
 // DELETE product (admin only)
@@ -410,7 +411,7 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
     await cacheInvalidate('products:list:*');
 
     res.json({ message: 'Product deleted.' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { serverError(res, err, 'products'); }
 });
 
 module.exports = router;
